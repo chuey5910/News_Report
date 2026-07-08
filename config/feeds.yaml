@@ -13,14 +13,14 @@ feeds:
   - name: สำนักข่าวไอเอ็นเอ็น
     url: https://www.innnews.co.th/feed/
     language: th
-  - name: The Nation Thailand
-    url: https://www.nationthailand.com/rss
+  - name: Khaosod English
+    url: https://www.khaosodenglish.com/feed/
     language: en
   - name: Bangkok Post
     url: https://www.bangkokpost.com/rss/data/topstories.xml
     language: en
-  - name: Thai PBS World
-    url: https://www.thaipbsworld.com/feed/
+  - name: Chiang Rai Times
+    url: https://www.chiangraitimes.com/feed/
     language: en
 
   # --- สำนักข่าวต่างประเทศ ---
