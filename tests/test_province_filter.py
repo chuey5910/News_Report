@@ -1,5 +1,5 @@
 from news_report.models import Article
-from news_report.province_filter import filter_by_province, match_provinces
+from news_report.province_filter import filter_by_province, load_provinces, match_provinces
 
 
 def test_match_provinces_matches_alias_case_insensitive():
@@ -26,3 +26,17 @@ def test_filter_by_province_tags_and_keeps_only_matches(tmp_path):
     assert len(result) == 1
     assert result[0].guid == "1"
     assert result[0].provinces == ["เชียงใหม่"]
+
+
+def test_ambiguous_province_names_require_disambiguated_form():
+    provinces = load_provinces()
+
+    # "แพร่ระบาด" (went viral/spread) is a common Thai phrase unrelated to Phrae province.
+    assert match_provinces("ข่าวนี้แพร่ระบาดในโซเชียล", provinces) == []
+    # But an explicit "จ.แพร่" / "Phrae" mention should still match.
+    assert "แพร่" in match_provinces("น้ำท่วมที่ จ.แพร่ หนักมาก", provinces)
+    assert "แพร่" in match_provinces("Flooding hit Phrae province", provinces)
+
+    # "ตากผ้า" (hang laundry to dry) is unrelated to Tak province.
+    assert match_provinces("แม่บ้านตากผ้าหน้าบ้าน", provinces) == []
+    assert "ตาก" in match_provinces("จังหวัดตากเตือนภัยแล้ง", provinces)

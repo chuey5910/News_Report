@@ -43,3 +43,27 @@ def test_fetch_feed_skips_entries_without_link_or_id(mock_parse):
     articles = fetch_feed(feed)
 
     assert articles == []
+
+
+@patch("news_report.fetcher.feedparser.parse")
+def test_fetch_feed_strips_wordpress_syndication_footer(mock_parse):
+    mock_parse.return_value = _FakeParsed(
+        [
+            {
+                "title": "Tornadoes hit central China",
+                "link": "http://example.com/1",
+                "summary": (
+                    "<p>Severe storms tore through Hubei province on Monday. [&#8230;]</p>\n"
+                    '<p>The post <a href="http://example.com/1">Tornadoes hit central China</a> '
+                    'first appeared on <a href="https://www.chiangraitimes.com">Chiang Rai Times</a>.</p>'
+                ),
+                "id": "guid-1",
+            }
+        ]
+    )
+    feed = {"name": "Chiang Rai Times", "url": "http://example.com/rss", "language": "en"}
+
+    articles = fetch_feed(feed)
+
+    assert "Chiang Rai Times" not in articles[0].summary
+    assert "Severe storms tore through Hubei province" in articles[0].summary

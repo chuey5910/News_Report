@@ -6,16 +6,24 @@ from news_report.models import Article
 
 DEFAULT_PROVINCES_PATH = "config/provinces.yaml"
 
+# These bare province names double as common Thai words/word-roots
+# (แพร่ระบาด/แพร่หลาย/เผยแพร่ = "spread", ตากผ้า/ตากแดด = "dry/expose to sun"), so matching
+# the bare name alone produces frequent false positives against ordinary Thai text.
+# Only match these two provinces via their disambiguated forms (already present in
+# provinces.yaml aliases: "จ.แพร่"/"จังหวัดแพร่"/"Phrae", "จ.ตาก"/"จังหวัดตาก"/"Tak").
+_AMBIGUOUS_BARE_NAMES = {"แพร่", "ตาก"}
+
 
 def load_provinces(config_path: str | Path = DEFAULT_PROVINCES_PATH) -> dict[str, list[str]]:
-    """Returns {canonical_name: [canonical_name, *aliases]}."""
+    """Returns {canonical_name: [match terms]}."""
     with open(config_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     provinces: dict[str, list[str]] = {}
     for entry in data.get("provinces", []):
         name = entry["name"]
-        provinces[name] = [name, *entry.get("aliases", [])]
+        aliases = entry.get("aliases", [])
+        provinces[name] = aliases if name in _AMBIGUOUS_BARE_NAMES else [name, *aliases]
     return provinces
 
 

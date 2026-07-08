@@ -5,6 +5,7 @@ import feedparser
 import yaml
 
 from news_report.models import Article
+from news_report.textutils import strip_syndication_footer
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def fetch_feed(feed: dict) -> list[Article]:
                 guid=guid,
                 title=(entry.get("title") or "").strip(),
                 link=link,
-                summary=entry.get("summary") or entry.get("description") or "",
+                summary=strip_syndication_footer(entry.get("summary") or entry.get("description") or ""),
                 published=entry.get("published") or entry.get("updated") or "",
                 source=feed["name"],
                 language=feed.get("language", "th"),
