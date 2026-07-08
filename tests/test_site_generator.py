@@ -1,33 +1,43 @@
-from news_report.site_generator import _build_render_report, _group_by_source
+import json
+
+from news_report.site_generator import generate_site
 
 
-def test_group_by_source_orders_domestic_before_international():
-    articles = [
-        {"source": "BBC News - World", "source_origin": "international", "guid": "1"},
-        {"source": "มติชนออนไลน์", "source_origin": "domestic", "guid": "2"},
-        {"source": "Al Jazeera - All", "source_origin": "international", "guid": "3"},
-        {"source": "ข่าวสด", "source_origin": "domestic", "guid": "4"},
-    ]
+def test_generate_site_writes_data_files_and_app_shell(tmp_path):
+    reports_dir = tmp_path / "reports"
+    output_dir = tmp_path / "docs"
+    reports_dir.mkdir()
 
-    groups = _group_by_source(articles)
-
-    assert [g["source"] for g in groups] == ["มติชนออนไลน์", "ข่าวสด", "BBC News - World", "Al Jazeera - All"]
-    assert groups[0]["origin"] == "domestic"
-    assert groups[-1]["origin"] == "international"
-
-
-def test_build_render_report_computes_total_per_province():
     report = {
         "date": "2026-07-08",
         "provinces": {
             "เชียงใหม่": [
-                {"source": "มติชนออนไลน์", "source_origin": "domestic", "guid": "1"},
-                {"source": "BBC News - World", "source_origin": "international", "guid": "2"},
+                {
+                    "guid": "1",
+                    "title": "น้ำท่วมเชียงใหม่",
+                    "link": "http://x/1",
+                    "summary": "s",
+                    "published": "",
+                    "source": "มติชนออนไลน์",
+                    "language": "th",
+                    "source_origin": "domestic",
+                    "provinces": ["เชียงใหม่"],
+                    "title_original": None,
+                    "summary_original": None,
+                }
             ]
         },
     }
+    (reports_dir / "2026-07-08.json").write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
 
-    rendered = _build_render_report(report)
+    generate_site(reports_dir=reports_dir, output_dir=output_dir, templates_dir="templates")
 
-    assert rendered["provinces"]["เชียงใหม่"]["total"] == 2
-    assert [g["source"] for g in rendered["provinces"]["เชียงใหม่"]["sources"]] == ["มติชนออนไลน์", "BBC News - World"]
+    assert (output_dir / "index.html").exists()
+    assert json.loads((output_dir / "data" / "index.json").read_text(encoding="utf-8")) == ["2026-07-08"]
+
+    saved_report = json.loads((output_dir / "data" / "2026-07-08.json").read_text(encoding="utf-8"))
+    assert saved_report["provinces"]["เชียงใหม่"][0]["title"] == "น้ำท่วมเชียงใหม่"
+
+    app_html = (output_dir / "index.html").read_text(encoding="utf-8")
+    assert "filter-province" in app_html
+    assert "filter-search" in app_html

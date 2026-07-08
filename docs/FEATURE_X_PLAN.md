@@ -63,13 +63,17 @@ News_Report/
 │   ├── province_filter.py    # กรองข่าวที่พาดพิงจังหวัดเป้าหมาย
 │   ├── summarizer.py         # สรุปแบบง่าย (strip HTML, ตัดความยาว) + จัดรูปแบบอ้างอิงแหล่งข่าว
 │   ├── storage.py            # SQLite กันข่าวซ้ำ + เก็บประวัติรายวัน
-│   ├── site_generator.py     # render static HTML (Jinja2) -> docs/site
-│   ├── notifier.py           # ส่ง broadcast ผ่าน LINE Messaging API
+│   ├── site_generator.py     # publish JSON data + app shell -> docs/
+│   ├── notifier.py           # ส่ง broadcast ผ่าน LINE Messaging API (ข้อความสั้น + ลิงก์)
 │   └── main.py               # orchestrator: fetch -> translate -> filter -> summarize -> เก็บ -> เว็บ -> แจ้งเตือน
 ├── templates/
-│   ├── index.html            # หน้ารวมรายงานล่าสุด/ย้อนหลัง
-│   └── daily.html            # หน้ารายงานของแต่ละวัน (แยกตามจังหวัด, มีลิงก์อ้างอิงต้นฉบับ)
-├── docs/site/                # ผลลัพธ์ static site (สำหรับ GitHub Pages)
+│   └── index.html            # เว็บแอปหน้าเดียว (vanilla JS, ไม่มี build step) — filter/ค้นหา/กราฟ
+│                              # ฝั่ง client ทั้งหมด, ดึงข้อมูลจาก docs/data/*.json
+├── docs/                      # ผลลัพธ์ที่ publish ขึ้น GitHub Pages (source: /docs)
+│   ├── index.html            # แอปหน้าเดียว (render จาก templates/index.html)
+│   └── data/
+│       ├── index.json        # รายชื่อวันที่ทั้งหมดที่มีรายงาน (เรียงใหม่→เก่า)
+│       └── YYYY-MM-DD.json   # สำเนาของ data/reports/YYYY-MM-DD.json สำหรับให้ browser fetch ได้
 ├── data/
 │   ├── seen.db                # SQLite เก็บ id ข่าวที่ประมวลผลแล้ว
 │   └── reports/YYYY-MM-DD.json  # ผลลัพธ์รายวัน
@@ -94,14 +98,25 @@ News_Report/
    - เก็บ tag จังหวัดที่ match ไว้กับข่าวนั้น (ข่าวหนึ่งอาจ match หลายจังหวัด)
 6. ข่าวที่ผ่านตัวกรอง → `summarizer.py` ทำความสะอาด HTML, ตัดสรุปให้สั้นลง และแนบ **อ้างอิง**
    (ชื่อสำนักข่าวต้นฉบับ + ลิงก์ต้นฉบับ)
-7. บันทึกผลลัพธ์ของวันนั้นเป็น JSON (`data/reports/YYYY-MM-DD.json`) จัดกลุ่มตามจังหวัด
-8. `site_generator.py` render หน้า HTML ใหม่จาก JSON ทั้งหมด (รายวัน + หน้ารวม) ไปที่ `docs/site/`
-9. `notifier.py` ส่งสรุปย่อ (จำนวนข่าวใหม่ต่อจังหวัด + ลิงก์ไปหน้าเว็บฉบับเต็ม) ผ่าน LINE OA broadcast
+7. บันทึกผลลัพธ์ของวันนั้นเป็น JSON (`data/reports/YYYY-MM-DD.json`) จัดกลุ่มตามจังหวัด — ถ้ามีรายงาน
+   ของวันนั้นอยู่แล้ว (เช่น รอบ 16:00 น. ในวันเดียวกับรอบ 07:00 น.) จะ **merge** เข้าด้วยกัน ไม่เขียนทับ
+8. `site_generator.py` เขียนสำเนา JSON ของทุกวันไปที่ `docs/data/*.json` + `docs/data/index.json`
+   (รายชื่อวันที่ทั้งหมด) แล้ว render เว็บแอปหน้าเดียว (`docs/index.html`) จาก `templates/index.html`
+   — ตัวแอป (vanilla JS) จะ fetch ไฟล์ JSON เหล่านี้มา filter/ค้นหา/แสดงกราฟฝั่ง client เอง
+9. `notifier.py` ส่งข้อความสั้นๆ ว่ามีสรุปข่าวใหม่กี่ข่าว + ลิงก์ไปหน้าเว็บ (พร้อม query
+   `?date=YYYY-MM-DD` ให้แอปเปิดตรงวันนั้นทันที) ผ่าน LINE OA broadcast — ถ้ารอบนั้นไม่มีข่าวใหม่เลย
+   จะข้ามการส่ง broadcast ไปเลย (ดูหัวข้อ 8 เรื่องการรันวันละ 2 รอบ)
 10. บันทึก id ข่าวที่ประมวลผลแล้วลง SQLite กันซ้ำในรอบถัดไป
 
-## 7. การเผยแพร่ผลลัพธ์
-- **Static site**: render เป็น HTML ใน `docs/site/` แล้วเปิดใช้ GitHub Pages (source: `docs/`)
-  หน้าเว็บแสดงข่าวแยกตามจังหวัด + วันที่ ย้อนหลังได้ พร้อมลิงก์อ้างอิงแหล่งข่าวต้นฉบับทุกข่าว
+## 7. การเผยแพร่ผลลัพธ์ (เว็บแอป ไม่ใช่ static page ต่อวันอีกต่อไป)
+- **เว็บแอปหน้าเดียว**: `docs/index.html` (vanilla JS, ไม่มี build step/dependency ภายนอก) เปิดใช้
+  GitHub Pages (source: `docs/`) — ฟีเจอร์หลัก: filter ตามจังหวัด/สำนักข่าว/ในประเทศ-ต่างประเทศ,
+  ค้นหาคำในหัวข้อ/เนื้อหา, กราฟแท่งแสดงจำนวนข่าวต่อจังหวัด (อัปเดตตาม filter แบบเรียลไทม์),
+  dropdown สลับดูวันที่ย้อนหลัง — ทั้งหมดทำงานฝั่ง client จากไฟล์ JSON static จึงยังคง host ฟรีได้
+  ในแต่ละจังหวัดข่าวจะจัดกลุ่มตามสำนักข่าว โดยสื่อในประเทศ (`origin: domestic`) ขึ้นก่อนสื่อ
+  ต่างประเทศ (`origin: international`) เสมอ พร้อมลิงก์อ้างอิงแหล่งข่าวต้นฉบับทุกข่าว
+- **หมายเหตุ**: สรุปยังคงเป็นข้อความจากต้นฉบับ (title/description) ไม่ใช่การแยกฟิลด์ 5W1H
+  อัตโนมัติ เพราะต้องใช้ AI/LLM ช่วยตีความภาษาซึ่งยังไม่ได้เลือกใช้ในเวอร์ชันนี้
 - **LINE OA**: broadcast สรุปย่อผ่าน LINE Messaging API (ต้องใช้ `LINE_CHANNEL_ACCESS_TOKEN`
   เก็บใน GitHub Secrets)
 

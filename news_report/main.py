@@ -53,7 +53,7 @@ def run(report_date: str | None = None) -> None:
         return
 
     site_base_url = os.environ.get("SITE_BASE_URL", "").rstrip("/")
-    site_url = f"{site_base_url}/reports/{report_date}.html" if site_base_url else None
+    site_url = f"{site_base_url}/?date={report_date}" if site_base_url else None
 
     message = notifier.build_summary_message(report_date, new_by_province, site_url)
     try:

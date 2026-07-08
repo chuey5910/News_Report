@@ -1,7 +1,7 @@
 from news_report.models import Article
 from news_report.textutils import strip_html, truncate
 
-SUMMARY_MAX_LENGTH = 200
+SUMMARY_MAX_LENGTH = 400
 
 
 def summarize_article(article: Article, max_length: int = SUMMARY_MAX_LENGTH) -> Article:
