@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>สรุปข่าว {{ report.date }}</title>
+<style>
+  body { font-family: "Sarabun", "Noto Sans Thai", sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.2rem; border-bottom: 2px solid #ddd; padding-bottom: .3rem; margin-top: 2rem; }
+  .article { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #eee; }
+  .article a { color: #0b5fff; text-decoration: none; font-weight: 600; }
+  .meta { color: #666; font-size: .85rem; margin-top: .3rem; }
+  .back { display: inline-block; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+  <a class="back" href="../index.html">&larr; กลับหน้ารวม</a>
+  <h1>สรุปข่าวประจำวันที่ {{ report.date }}</h1>
+  {% if not report.provinces %}
+    <p>ไม่มีข่าวที่เกี่ยวข้องกับ 17 จังหวัดเป้าหมายในวันนี้</p>
+  {% endif %}
+  {% for province, articles in report.provinces.items() %}
+    <h2>{{ province }} ({{ articles|length }} ข่าว)</h2>
+    {% for article in articles %}
+      <div class="article">
+        <a href="{{ article.link }}" target="_blank" rel="noopener">{{ article.title }}</a>
+        <p>{{ article.summary }}</p>
+        <div class="meta">
+          ที่มา: {{ article.source }}{% if article.title_original %} (แปลจากต้นฉบับ){% endif %}
+          &middot; {{ article.published }}
+        </div>
+      </div>
+    {% endfor %}
+  {% endfor %}
+</body>
+</html>

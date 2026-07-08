@@ -1,0 +1,38 @@
+# รายการ RSS feed เริ่มต้น — เป็นตัวอย่างสำนักข่าวไทย/ต่างประเทศที่รู้จักกันทั่วไป
+# *** ต้องตรวจสอบว่า URL ยังใช้งานได้จริงก่อนใช้งานจริง (feed อาจเปลี่ยน/ปิดตัวได้) ***
+# เพิ่ม/ลบ feed ได้โดยไม่ต้องแก้โค้ด — แค่แก้ไฟล์นี้
+# language: th = ข่าวภาษาไทยอยู่แล้ว (ไม่ต้องแปล) / en = ต้องแปลเป็นไทยก่อนกรอง
+feeds:
+  # --- สำนักข่าวไทย ---
+  - name: มติชนออนไลน์
+    url: https://www.matichon.co.th/feed
+    language: th
+  - name: ข่าวสด
+    url: https://www.khaosod.co.th/feed
+    language: th
+  - name: สำนักข่าวไอเอ็นเอ็น
+    url: https://www.innnews.co.th/feed/
+    language: th
+  - name: The Nation Thailand
+    url: https://www.nationthailand.com/rss
+    language: en
+  - name: Bangkok Post
+    url: https://www.bangkokpost.com/rss/data/topstories.xml
+    language: en
+  - name: Thai PBS World
+    url: https://www.thaipbsworld.com/feed/
+    language: en
+
+  # --- สำนักข่าวต่างประเทศ ---
+  - name: BBC News - World
+    url: http://feeds.bbci.co.uk/news/world/rss.xml
+    language: en
+  - name: BBC News - Asia
+    url: http://feeds.bbci.co.uk/news/world/asia/rss.xml
+    language: en
+  - name: Al Jazeera - All
+    url: https://www.aljazeera.com/xml/rss/all.xml
+    language: en
+  - name: Channel News Asia
+    url: https://www.channelnewsasia.com/rssfeeds/8395986
+    language: en
