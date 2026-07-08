@@ -2,37 +2,49 @@
 # *** ต้องตรวจสอบว่า URL ยังใช้งานได้จริงก่อนใช้งานจริง (feed อาจเปลี่ยน/ปิดตัวได้) ***
 # เพิ่ม/ลบ feed ได้โดยไม่ต้องแก้โค้ด — แค่แก้ไฟล์นี้
 # language: th = ข่าวภาษาไทยอยู่แล้ว (ไม่ต้องแปล) / en = ต้องแปลเป็นไทยก่อนกรอง
+# origin: domestic = สื่อไทย (แม้จะพิมพ์เป็นภาษาอังกฤษ เช่น Bangkok Post) / international = สื่อต่างประเทศ
+#   ใช้จัดลำดับในหน้าเว็บให้สื่อในประเทศขึ้นก่อนสื่อต่างประเทศเสมอ
 feeds:
   # --- สำนักข่าวไทย ---
   - name: มติชนออนไลน์
     url: https://www.matichon.co.th/feed
     language: th
+    origin: domestic
   - name: ข่าวสด
     url: https://www.khaosod.co.th/feed
     language: th
+    origin: domestic
   - name: สำนักข่าวไอเอ็นเอ็น
     url: https://www.innnews.co.th/feed/
     language: th
+    origin: domestic
   - name: Khaosod English
     url: https://www.khaosodenglish.com/feed/
     language: en
+    origin: domestic
   - name: Bangkok Post
     url: https://www.bangkokpost.com/rss/data/topstories.xml
     language: en
+    origin: domestic
   - name: Chiang Rai Times
     url: https://www.chiangraitimes.com/feed/
     language: en
+    origin: domestic
 
   # --- สำนักข่าวต่างประเทศ ---
   - name: BBC News - World
     url: http://feeds.bbci.co.uk/news/world/rss.xml
     language: en
+    origin: international
   - name: BBC News - Asia
     url: http://feeds.bbci.co.uk/news/world/asia/rss.xml
     language: en
+    origin: international
   - name: Al Jazeera - All
     url: https://www.aljazeera.com/xml/rss/all.xml
     language: en
+    origin: international
   - name: Channel News Asia
     url: https://www.channelnewsasia.com/rssfeeds/8395986
     language: en
+    origin: international

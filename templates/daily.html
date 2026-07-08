@@ -8,6 +8,8 @@
   body { font-family: "Sarabun", "Noto Sans Thai", sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #1a1a1a; }
   h1 { font-size: 1.5rem; }
   h2 { font-size: 1.2rem; border-bottom: 2px solid #ddd; padding-bottom: .3rem; margin-top: 2rem; }
+  h3 { font-size: 1rem; color: #444; margin-top: 1.2rem; }
+  .origin-badge { font-size: .7rem; font-weight: 400; color: #888; border: 1px solid #ccc; border-radius: 4px; padding: 0 .4rem; margin-left: .4rem; }
   .article { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #eee; }
   .article a { color: #0b5fff; text-decoration: none; font-weight: 600; }
   .meta { color: #666; font-size: .85rem; margin-top: .3rem; }
@@ -20,17 +22,20 @@
   {% if not report.provinces %}
     <p>ไม่มีข่าวที่เกี่ยวข้องกับ 17 จังหวัดเป้าหมายในวันนี้</p>
   {% endif %}
-  {% for province, articles in report.provinces.items() %}
-    <h2>{{ province }} ({{ articles|length }} ข่าว)</h2>
-    {% for article in articles %}
-      <div class="article">
-        <a href="{{ article.link }}" target="_blank" rel="noopener">{{ article.title }}</a>
-        <p>{{ article.summary }}</p>
-        <div class="meta">
-          ที่มา: {{ article.source }}{% if article.title_original %} (แปลจากต้นฉบับ){% endif %}
-          &middot; {{ article.published }}
+  {% for province, data in report.provinces.items() %}
+    <h2>{{ province }} ({{ data.total }} ข่าว)</h2>
+    {% for group in data.sources %}
+      <h3>{{ group.source }}{% if group.origin != "domestic" %}<span class="origin-badge">ต่างประเทศ</span>{% endif %}</h3>
+      {% for article in group.articles %}
+        <div class="article">
+          <a href="{{ article.link }}" target="_blank" rel="noopener">{{ article.title }}</a>
+          <p>{{ article.summary }}</p>
+          <div class="meta">
+            ที่มา: {{ article.source }}{% if article.title_original %} (แปลจากต้นฉบับ){% endif %}
+            &middot; {{ article.published }}
+          </div>
         </div>
-      </div>
+      {% endfor %}
     {% endfor %}
   {% endfor %}
 </body>

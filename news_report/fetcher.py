@@ -35,6 +35,7 @@ def fetch_feed(feed: dict) -> list[Article]:
                 published=entry.get("published") or entry.get("updated") or "",
                 source=feed["name"],
                 language=feed.get("language", "th"),
+                source_origin=feed.get("origin", "domestic"),
             )
         )
     return articles

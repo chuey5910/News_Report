@@ -12,6 +12,7 @@ class Article:
     published: str
     source: str
     language: str
+    source_origin: str = "domestic"
     provinces: list[str] = field(default_factory=list)
     title_original: str | None = None
     summary_original: str | None = None
