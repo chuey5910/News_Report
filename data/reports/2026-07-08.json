@@ -1,156 +1,164 @@
 {
   "date": "2026-07-08",
   "provinces": {
-    "แพร่": [
+    "เชียงราย": [
       {
-        "guid": "https://www.khaosod.co.th/?p=10315294",
-        "title": "รถการแพทย์พระราชทาน และหมอเพื่อประชาชนในพื้นที่ห่างไกล",
-        "link": "https://www.khaosod.co.th/pr-news/news_10315294",
-        "summary": "กรมการแพทย์ กระทรวงสาธารณสุข เดินหน้ายกระดับการเข้าถึงบริการสุขภาพของประชาชนในพื้นที่ห่างไกลอย่างต่อเนื่อง โดยล่าสุดได้เปิดโครงการ “รถการแพทย์พระราชทาน และหมอเพื่อประชาชนในพื้นที่ห่างไกล” นำทีมแพทย์เ…",
-        "published": "Wed, 08 Jul 2026 07:17:29 +0000",
-        "source": "ข่าวสด",
-        "language": "th",
-        "provinces": [
-          "แพร่",
-          "แม่ฮ่องสอน"
-        ],
-        "title_original": null,
-        "summary_original": null
-      },
-      {
-        "guid": "https://www.khaosod.co.th/?p=10315182",
-        "title": "รมว.สุชาติ สั่งตรวจเข้มน้ำเสียไหลสู่อ่างดอกกราย เร่งหาสาเหตุ-ดำเนินคดีหากพบผิด",
-        "link": "https://www.khaosod.co.th/politics/news_10315182",
-        "summary": "รมว.สุชาติ สั่งตรวจเข้มน้ำเสียไหลสู่อ่างดอกกราย เร่งหาสาเหตุ-ดำเนินคดีหากพบผิด วันที่ 8 ก.ค.69 นายสุชาติ ชมกลิ่น รัฐมนตรีว่าการกระทรวงทรัพยากรธรรมชาติและสิ่งแวดล้อม สั่งการกรมควบคุมมลพิษ (คพ.) ลงพื้น…",
-        "published": "Wed, 08 Jul 2026 06:42:30 +0000",
-        "source": "ข่าวสด",
-        "language": "th",
-        "provinces": [
-          "แพร่"
-        ],
-        "title_original": null,
-        "summary_original": null
-      },
-      {
-        "guid": "https://www.bbc.co.uk/news/articles/cly99z1w4gdo#2",
-        "title": "เหตุใดภาพยนตร์ Diljit Dosanjh จึงหายไปจากการสตรีมหลังจากผ่านไปสองวัน",
-        "link": "https://www.bbc.co.uk/news/articles/cly99z1w4gdo?at_medium=RSS&at_campaign=rss",
-        "summary": "การเดินทางที่เต็มไปด้วยปัญหาของภาพยนตร์เรื่องนี้ครอบคลุมระยะเวลาหลายปีของการโต้แย้งเรื่องการเซ็นเซอร์ การต่อสู้ในศาล และการเผยแพร่ที่ไม่คาดคิดบนแพลตฟอร์มสตรีมมิ่ง",
-        "published": "Mon, 06 Jul 2026 22:06:29 GMT",
-        "source": "BBC News - World",
+        "guid": "https://www.chiangraitimes.com/?p=441328",
+        "title": "เชียงรายเปิดตัวศูนย์การเรียนรู้ตลอดชีวิตแห่งใหม่เพื่อส่งเสริมสุขภาพของประชาชน",
+        "link": "https://www.chiangraitimes.com/news/chiang-rai/chiang-rai-launches-new-lifelong-learning-center-to-boost-public-health/",
+        "summary": "เชียงราย – เทศบาลนครเดินหน้าตั้งเป้าให้เชียงรายเป็นเมืองแห่งการเรียนรู้ระดับโลก เจ้าหน้าที่ท้องถิ่นได้เปิดตัวโครงการศูนย์การเรียนรู้เทศบาลนครเชียงรายอย่างเป็นทางการเพื่อปรับปรุงสุขศึกษาทั่วทั้งจังหวั…",
+        "published": "Wed, 08 Jul 2026 05:58:36 +0000",
+        "source": "Chiang Rai Times",
         "language": "en",
         "provinces": [
-          "แพร่"
+          "เชียงราย"
         ],
-        "title_original": "Why a Diljit Dosanjh film vanished from streaming after two days",
-        "summary_original": "The film's troubled journey spans years of censorship disputes, court battles and an unexpected release on a streaming platform."
+        "title_original": "Chiang Rai Launches New Lifelong Learning Center to Boost Public Health",
+        "summary_original": "<p>CHIANG RAI &#8211;  The City Municipality is moving forward with its goal for Chiang Rai to become a global learning city. Local officials have officially launched the Chiang Rai Municipality Learning Center Project to improve health education across the province. This new public initiative transforms community spaces into central hubs for sharing health knowledge. The [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/news/chiang-rai/chiang-rai-launches-new-lifelong-learning-center-to-boost-public-health/\" rel=\"nofollow\">Chiang Rai Launches New Lifelong Learning Center to Boost Public Health</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
       },
       {
-        "guid": "https://www.bbc.co.uk/news/articles/cql11969g2qo#1",
-        "title": "อินเดียสั่งให้ Meta ลบโฆษณาที่ส่งเสริมการล่วงละเมิดทางเพศเด็ก",
-        "link": "https://www.bbc.co.uk/news/articles/cql11969g2qo?at_medium=RSS&at_campaign=rss",
-        "summary": "คำสั่งดังกล่าวเกิดขึ้นไม่กี่วันหลังจากที่ BBC เผยแพร่การสอบสวนเกี่ยวกับแพลตฟอร์มที่แสดงโฆษณาดังกล่าวแก่ผู้ใช้",
-        "published": "Mon, 06 Jul 2026 05:52:45 GMT",
-        "source": "BBC News - Asia",
+        "guid": "https://www.chiangraitimes.com/?p=441319",
+        "title": "เมืองต่างๆ ของจีนจะเป็นอย่างไรในอีกห้าปีข้างหน้า?",
+        "link": "https://www.chiangraitimes.com/china/what-will-chinas-cities-become-in-the-next-five-years/",
+        "summary": "ปักกิ่ง – ยืนอยู่ในมหานครอย่างปักกิ่ง ประเทศจีน และภาพที่ตัดกันนั้นเกิดขึ้นทันที โบราณวัตถุทางวัฒนธรรมโบราณตั้งอยู่เคียงข้างตึกระฟ้าสุดล้ำยุคที่อัดแน่นมานานนับศตวรรษไว้ในกรอบเดียว แต่ก้าวออกไปจากเส้น…",
+        "published": "Wed, 08 Jul 2026 05:37:46 +0000",
+        "source": "Chiang Rai Times",
         "language": "en",
         "provinces": [
-          "แพร่"
+          "เชียงราย"
         ],
-        "title_original": "India orders Meta to remove ads promoting child sexual abuse",
-        "summary_original": "The order comes days after the BBC published an investigation about the platform showing such ads to users."
+        "title_original": "What Will China’s Cities Become in the Next Five Years?",
+        "summary_original": "<p>BEIJING &#8211; Stand in a metropolis like Beijing, China, and the visual contrast is immediate. Ancient cultural relics sit alongside hyper-modern skyscrapers, compressing centuries into a single frame. But step away from the tourist tracks and into the ordinary neighborhoods framing these monuments, and that romance quickly fades. In China, over 60% of residential compounds [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/china/what-will-chinas-cities-become-in-the-next-five-years/\" rel=\"nofollow\">What Will China’s Cities Become in the Next Five Years?</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
       },
       {
-        "guid": "https://www.bbc.co.uk/news/articles/cly99z1w4gdo#2",
-        "title": "เหตุใดภาพยนตร์ Diljit Dosanjh จึงหายไปจากการสตรีมหลังจากผ่านไปสองวัน",
-        "link": "https://www.bbc.co.uk/news/articles/cly99z1w4gdo?at_medium=RSS&at_campaign=rss",
-        "summary": "การเดินทางที่เต็มไปด้วยปัญหาของภาพยนตร์เรื่องนี้ครอบคลุมระยะเวลาหลายปีของการโต้แย้งเรื่องการเซ็นเซอร์ การต่อสู้ในศาล และการเผยแพร่ที่ไม่คาดคิดบนแพลตฟอร์มสตรีมมิ่ง",
-        "published": "Mon, 06 Jul 2026 22:06:29 GMT",
-        "source": "BBC News - Asia",
+        "guid": "https://www.chiangraitimes.com/?p=441307",
+        "title": "ตำรวจเชียงรายปราบปรามผู้ค้ายาในอำเภอแม่สรวย",
+        "link": "https://www.chiangraitimes.com/news/chiang-rai-police-crackdown-on-local-drug-dealers/",
+        "summary": "เชียงราย — ผู้บริหารท้องถิ่นและเจ้าหน้าที่ตำรวจเปิดการปราบปรามยาเสพติดครั้งใหญ่ในอำเภอแม่สรวยเมื่อเช้าวันอังคาร การดำเนินการร่วมกันมุ่งเป้าไปที่เครือข่ายการจำหน่ายยาในพื้นที่ ซึ่งเป็นส่วนหนึ่งของการร…",
+        "published": "Wed, 08 Jul 2026 02:34:18 +0000",
+        "source": "Chiang Rai Times",
         "language": "en",
         "provinces": [
-          "แพร่"
+          "เชียงราย"
         ],
-        "title_original": "Why a Diljit Dosanjh film vanished from streaming after two days",
-        "summary_original": "The film's troubled journey spans years of censorship disputes, court battles and an unexpected release on a streaming platform."
+        "title_original": "Chiang Rai Police Crackdown on Local Drug Dealers in Mae Suai District",
+        "summary_original": "<p>CHIANG RAI — Local administrators and police officers launched a major anti-drug crackdown in Mae Suai district on Tuesday morning. The joint operation targeted local drug distribution networks as part of a provincial safety campaign. The raid started at 7:00 AM under the direction of Mae Suai District Chief Prisadang Samakkinit. Officials confirmed that the [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/news/chiang-rai-police-crackdown-on-local-drug-dealers/\" rel=\"nofollow\">Chiang Rai Police Crackdown on Local Drug Dealers in Mae Suai District</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
       },
       {
-        "guid": "https://www.aljazeera.com/?t=1783472962",
-        "title": "แฟนบอลอาร์เจนตินาขว้างเบียร์ใส่แฟนบอลอียิปต์หลังเสียงนกหวีดสุดท้าย",
-        "link": "https://www.aljazeera.com/video/newsfeed/2026/7/8/aje-onl-nf_argentina-fans-hurl-beer-at-egypt-supporters-070726?traffic_source=rss",
-        "summary": "วิดีโอที่เผยแพร่บนโซเชียลมีเดียแสดงให้เห็นแฟน ๆ อาร์เจนตินาขว้างเบียร์และล้อเลียนผู้สนับสนุนอียิปต์บนอัฒจันทร์",
-        "published": "Wed, 08 Jul 2026 01:21:37 +0000",
-        "source": "Al Jazeera - All",
+        "guid": "https://www.chiangraitimes.com/?p=441302",
+        "title": "คนขับผู้สูงอายุวัย 71 ปี เสียหลักชนเสาไฟฟ้าที่เมืองเชียงราย",
+        "link": "https://www.chiangraitimes.com/news/chiang-rai/elderly-driver-71-crashes-into-power-pole-in-mueang-chiang-rai/",
+        "summary": "เชียงราย – ผู้ขับขี่รถยนต์สูงอายุรายหนึ่งหลบหนีอาการบาดเจ็บได้อย่างหวุดหวิดเมื่อวานนี้ หลังจากรถเก๋งชนเสาไฟฟ้าริมถนนในตัวเมืองเชียงรายโดยตรง เจ้าหน้าที่ตำรวจท้องที่รีบรุดไปยังที่เกิดเหตุบนถนนสิงคาย ห…",
+        "published": "Wed, 08 Jul 2026 02:16:55 +0000",
+        "source": "Chiang Rai Times",
         "language": "en",
         "provinces": [
-          "แพร่"
+          "เชียงราย"
         ],
-        "title_original": "Argentina fans hurl beer at Egypt supporters after final whistle",
-        "summary_original": "A video circulating on social media shows Argentina fans throwing beer and taunting Egypt supporters in the stands."
+        "title_original": "Elderly Driver, 71, Crashes Into Power Pole in Mueang Chiang Rai",
+        "summary_original": "<p>CHIANG RAI &#8211; An elderly motorist narrowly escaped injury yesterday after crashing his sedan directly into a roadside power pole in downtown Chiang Rai. Local police officers rushed to the scene on Singhakai Road following reports of a severe single-vehicle accident. The incident occurred right in front of a busy construction supply store in the [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/news/chiang-rai/elderly-driver-71-crashes-into-power-pole-in-mueang-chiang-rai/\" rel=\"nofollow\">Elderly Driver, 71, Crashes Into Power Pole in Mueang Chiang Rai</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
+      },
+      {
+        "guid": "https://www.chiangraitimes.com/?p=441312",
+        "title": "สำนักงาน Central Park ยินดีต้อนรับ Deutsche Bank สู่เขตการเงินระดับโลก",
+        "link": "https://www.chiangraitimes.com/business/central-park-offices-welcomes-deutsche-bank/",
+        "summary": "กรุงเทพฯ — บริษัท เซ็นทรัลพัฒนา จำกัด (มหาชน) (CPN) ผู้พัฒนาอสังหาริมทรัพย์ยั่งยืนอันดับหนึ่งของไทยที่ดำเนินงานภายใต้วิสัยทัศน์ 'จินตนาการถึงอนาคตที่ดีกว่าสำหรับทุกคน' และผู้พัฒนาเบื้องหลังศูนย์การค้…",
+        "published": "Wed, 08 Jul 2026 01:19:38 +0000",
+        "source": "Chiang Rai Times",
+        "language": "en",
+        "provinces": [
+          "เชียงราย"
+        ],
+        "title_original": "Central Park Offices Welcomes Deutsche Bank to its Global Financial District",
+        "summary_original": "<p>BANGKOK — Central Pattana Public Company Limited (CPN), Thailand’s number-one sustainable real estate developer operating under the vision ‘Imagining better futures for all’, and the developer behind Central shopping centres, office buildings, residential projects, and hotels nationwide. Driving the transformation of the Silom-Rama IV district into Thailand’s financial hub, with the latest project welcoming Deutsche [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/business/central-park-offices-welcomes-deutsche-bank/\" rel=\"nofollow\">Central Park Offices Welcomes Deutsche Bank to its Global Financial District</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
+      },
+      {
+        "guid": "https://www.chiangraitimes.com/?p=441298",
+        "title": "รมว.เยี่ยมเยียนจัดการน้ำและบรรเทาทุกข์ฟาร์มเชียงรายเป็นศูนย์",
+        "link": "https://www.chiangraitimes.com/news/chiang-rai/ministers-visit-puts-chiang-rai-water-management-and-farm-relief-at-the-center/",
+        "summary": "เชียงราย – เจ้าหน้าที่ส่วนกลางลงพื้นที่จังหวัดเชียงรายเพื่อแก้ไขปัญหาน้ำท่วมและภัยแล้งที่ยาวนาน โดยเน้นเร่งโครงการบริหารจัดการน้ำ เดินหน้าประตูน้ำบ้านโรงเป้า และใช้ปฏิบัติการ Cloud Seeding เพื่อช่วยด…",
+        "published": "Wed, 08 Jul 2026 00:53:47 +0000",
+        "source": "Chiang Rai Times",
+        "language": "en",
+        "provinces": [
+          "เชียงราย"
+        ],
+        "title_original": "Ministers Visit Puts Chiang Rai Water Management and Farm Relief at the Center",
+        "summary_original": "<p>CHIANG RAI &#8211; Central government officials visited Chiang Rai to address long-running flooding and drought problems, with a focus on speeding up water-management projects, pushing ahead with the Ban Rong Pao water gate, and using cloud-seeding operations to help fight wildfire smoke and PM 2.5. Key Takeaways: The government is moving forward with plans for [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/news/chiang-rai/ministers-visit-puts-chiang-rai-water-management-and-farm-relief-at-the-center/\" rel=\"nofollow\">Ministers Visit Puts Chiang Rai Water Management and Farm Relief at the Center</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
+      },
+      {
+        "guid": "https://www.chiangraitimes.com/?p=441291",
+        "title": "ภาคกลางของจีนได้รับความเสียหายจากพายุทอร์นาโดหายาก เสียชีวิต 11 ราย บาดเจ็บหลายร้อยคน",
+        "link": "https://www.chiangraitimes.com/china/tornadoes-kill-11-in-central-china/",
+        "summary": "ปักกิ่ง – พายุฤดูร้อนรุนแรงและพายุทอร์นาโดกำลังแรงพัดถล่มมณฑลหูเป่ยทางตอนกลางของจีนเมื่อเย็นวันจันทร์ เหตุการณ์สภาพอากาศสุดขั้วที่ไม่คาดคิดทำให้มีผู้เสียชีวิต 11 ราย และทำให้มีผู้สูญหาย 1 รายทั่วทั้ง…",
+        "published": "Wed, 08 Jul 2026 00:05:43 +0000",
+        "source": "Chiang Rai Times",
+        "language": "en",
+        "provinces": [
+          "เชียงราย"
+        ],
+        "title_original": "Central China Devastated by Rare Tornadoes, 11 Killed, Hundreds Injured",
+        "summary_original": "<p>BEIJING &#8211; Severe summer storms and powerful tornadoes tore through central China&#8217;s Hubei province on Monday evening. The unexpected extreme weather event killed 11 people and left one person missing across the industrialized region. Local government officials reported that the destructive storms struck between 7 p.m. and 11 p.m. local time. The most serious damage [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/china/tornadoes-kill-11-in-central-china/\" rel=\"nofollow\">Central China Devastated by Rare Tornadoes, 11 Killed, Hundreds Injured</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
+      },
+      {
+        "guid": "https://www.chiangraitimes.com/?p=441285",
+        "title": "ตร.ส่งหน่วย K9 ตรวจสัมภาระสนามบินกรุงเทพ",
+        "link": "https://www.chiangraitimes.com/news/police-deploy-k9-unit-to-inspect-luggage-at-bangkok-airport/",
+        "summary": "กรุงเทพฯ – วันที่ 7 กรกฎาคม 2569 ตำรวจไทยร่วมกับสำนักงานคณะกรรมการป้องกันและปราบปรามยาเสพติด (ป.ป.ส.) และบริษัท ท่าอากาศยานไทย จำกัด (มหาชน) (ทอท.) กระชับการตรวจคัดกรองสัมภาระ ณ ท่าอากาศยานสุวรรณภูมิ…",
+        "published": "Tue, 07 Jul 2026 23:51:01 +0000",
+        "source": "Chiang Rai Times",
+        "language": "en",
+        "provinces": [
+          "เชียงราย"
+        ],
+        "title_original": "Police Deploy K9 Unit to Inspect Luggage at Bangkok Airport",
+        "summary_original": "<p>BANGKOK &#8211; On July 7, 2026, Thai police joined with the Office of the Narcotics Control Board (ONCB) and Airports of Thailand Public Company Limited (AOT) to tighten baggage screening at Suvarnabhumi Airport with specialized police K9 unit sniffer dogs. K9 police dogs were brought in to search for drugs and other illegal items in [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/news/police-deploy-k9-unit-to-inspect-luggage-at-bangkok-airport/\" rel=\"nofollow\">Police Deploy K9 Unit to Inspect Luggage at Bangkok Airport</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
+      },
+      {
+        "guid": "https://www.chiangraitimes.com/?p=441282",
+        "title": "หญิงเชียงใหม่เสียใจมาก หลังชาวออสเตรเลียทิ้งบ้านเช่าของเธอทิ้ง",
+        "link": "https://www.chiangraitimes.com/news/chiang-mai/australian-trashes-her-rental-home-in-chiang-mai/",
+        "summary": "เชียงใหม่ – ฝันร้ายในการเช่าทำให้เจ้าของบ้านในเชียงใหม่ต้องเผชิญกับความสูญเสียทางการเงินอย่างหนักหลังจากผู้เช่าชาวออสเตรเลียทิ้งทรัพย์สินของเธอ ผู้เช่าเช่าบ้านเพียงไม่กี่เดือนก็สร้างความเสียหายเป็นวง…",
+        "published": "Tue, 07 Jul 2026 23:33:43 +0000",
+        "source": "Chiang Rai Times",
+        "language": "en",
+        "provinces": [
+          "เชียงใหม่",
+          "เชียงราย"
+        ],
+        "title_original": "Chiang Mai Woman Devastated After Australian Allegedly Trashes Her Rental Home",
+        "summary_original": "<p>CHIANG MAI &#8211; A rental nightmare has left a Chiang Mai homeowner facing heavy financial losses after an Australian tenant trashed her property. The tenant rented the house for only a few months before causing extensive damage and disappearing. The homeowner discovered the destruction after the tenant moved out following complaints from neighbors. The total [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/news/chiang-mai/australian-trashes-her-rental-home-in-chiang-mai/\" rel=\"nofollow\">Chiang Mai Woman Devastated After Australian Allegedly Trashes Her Rental Home</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
+      },
+      {
+        "guid": "https://www.chiangraitimes.com/?p=441277",
+        "title": "ราคาน้ำมันเชียงรายตกหนักมาก ราคาดีเซลลดลง 2.56 บาทต่อลิตร",
+        "link": "https://www.chiangraitimes.com/business/huge-fuel-price-drop-in-chiang-rai/",
+        "summary": "เชียงราย – ผู้ขับขี่ในจังหวัดเชียงรายจะเห็นราคาน้ำมันลดลงอย่างมาก ทั้งราคาดีเซลและเบนซินจะเห็นการปรับลดอย่างมีนัยสำคัญทั่วประเทศ เริ่มตั้งแต่เวลา 05.00 น. วันที่ 8 กรกฎาคม 2569 ราคาน้ำมันดีเซลจะลดลง…",
+        "published": "Tue, 07 Jul 2026 23:03:28 +0000",
+        "source": "Chiang Rai Times",
+        "language": "en",
+        "provinces": [
+          "เชียงราย"
+        ],
+        "title_original": "Huge Fuel Price Drop in Chiang Rai: Diesel Price to Drop By 2.56 Baht Per Liter",
+        "summary_original": "<p>CHIANG RAI &#8211; Drivers in Chiang Rai will see a massive drop in fuel prices; both diesel and gasoline prices will see significant cuts across the country. Starting at 5:00 AM on July 8, 2026, diesel prices will drop by 2.56 baht per liter. Meanwhile, all types of gasoline will become cheaper by 2.51 baht [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/business/huge-fuel-price-drop-in-chiang-rai/\" rel=\"nofollow\">Huge Fuel Price Drop in Chiang Rai: Diesel Price to Drop By 2.56 Baht Per Liter</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
       }
     ],
-    "แม่ฮ่องสอน": [
+    "เชียงใหม่": [
       {
-        "guid": "https://www.khaosod.co.th/?p=10315294",
-        "title": "รถการแพทย์พระราชทาน และหมอเพื่อประชาชนในพื้นที่ห่างไกล",
-        "link": "https://www.khaosod.co.th/pr-news/news_10315294",
-        "summary": "กรมการแพทย์ กระทรวงสาธารณสุข เดินหน้ายกระดับการเข้าถึงบริการสุขภาพของประชาชนในพื้นที่ห่างไกลอย่างต่อเนื่อง โดยล่าสุดได้เปิดโครงการ “รถการแพทย์พระราชทาน และหมอเพื่อประชาชนในพื้นที่ห่างไกล” นำทีมแพทย์เ…",
-        "published": "Wed, 08 Jul 2026 07:17:29 +0000",
-        "source": "ข่าวสด",
-        "language": "th",
+        "guid": "https://www.chiangraitimes.com/?p=441282",
+        "title": "หญิงเชียงใหม่เสียใจมาก หลังชาวออสเตรเลียทิ้งบ้านเช่าของเธอทิ้ง",
+        "link": "https://www.chiangraitimes.com/news/chiang-mai/australian-trashes-her-rental-home-in-chiang-mai/",
+        "summary": "เชียงใหม่ – ฝันร้ายในการเช่าทำให้เจ้าของบ้านในเชียงใหม่ต้องเผชิญกับความสูญเสียทางการเงินอย่างหนักหลังจากผู้เช่าชาวออสเตรเลียทิ้งทรัพย์สินของเธอ ผู้เช่าเช่าบ้านเพียงไม่กี่เดือนก็สร้างความเสียหายเป็นวง…",
+        "published": "Tue, 07 Jul 2026 23:33:43 +0000",
+        "source": "Chiang Rai Times",
+        "language": "en",
         "provinces": [
-          "แพร่",
-          "แม่ฮ่องสอน"
+          "เชียงใหม่",
+          "เชียงราย"
         ],
-        "title_original": null,
-        "summary_original": null
-      }
-    ],
-    "สุโขทัย": [
-      {
-        "guid": "https://www.khaosod.co.th/?p=10313159",
-        "title": "เปิดตลับพระใหม่ – เหรียญรูปเหมือนหลวงพ่อปี้",
-        "link": "https://www.khaosod.co.th/newspaper-column/amulets/news_10313159",
-        "summary": "“พระครูสุวิชานวรวุฒิ” หรือ “หลวงพ่อปี้ ทินโน” พระเกจิชื่อดัง อดีตเจ้าอาวาสวัดคูหาสุวรรณ (วัดลานหอย) ต.ธานี อ.เมือง จ.สุโขทัย เป็น 1 ใน 108 พระเกจิคณาจารย์ทรงวิทยาคมที่ได้รับการนิมนต์เข้าร่วมพิธีพุทธา…",
-        "published": "Wed, 08 Jul 2026 06:54:09 +0000",
-        "source": "ข่าวสด",
-        "language": "th",
-        "provinces": [
-          "สุโขทัย"
-        ],
-        "title_original": null,
-        "summary_original": null
-      }
-    ],
-    "อุทัยธานี": [
-      {
-        "guid": "https://www.khaosod.co.th/?p=10314231",
-        "title": "รอบด้านวงการพระ – หลวงพ่อเสน่ห์ กตปุญโญ วัดพันสี",
-        "link": "https://www.khaosod.co.th/newspaper-column/amulets/news_10314231",
-        "summary": "…● “เมื่อตนไม่สอนตนเอง จิตมัน ก็มีแต่จะอยากได้” สารธรรมมงคล หลวงพ่อชา สุภัทโท วัดหนองป่าพง จ.อุบลราชธานี…● “หลวงพ่อเสน่ห์ กตปุญโญ” หรือ “พระครูอุปกิจสารคุณ” เจ้าอาวาสวัดพันสี ต.ท่าโพ อ.หนองขาหย่าง จ.…",
-        "published": "Wed, 08 Jul 2026 06:50:00 +0000",
-        "source": "ข่าวสด",
-        "language": "th",
-        "provinces": [
-          "อุทัยธานี"
-        ],
-        "title_original": null,
-        "summary_original": null
-      }
-    ],
-    "ตาก": [
-      {
-        "guid": "https://www.khaosod.co.th/?p=10313637",
-        "title": "ดวงเฮงดวงปัง – ราศีไหนคนโสดจะได้พบรัก ราศีใดมีโชคดีอย่างแปลกประหลาด",
-        "link": "https://www.khaosod.co.th/horoscope/news_10313637",
-        "summary": "ดวงเฮงดวงปัง วันพฤหัสบดีที่ 9 กรกฎาคม พ.ศ.2569 โดย…โหรบุศพันธ์ ลัคนา (ลั) ราศีเมษ วันนี้ท่านพบว่าเหตุการณ์ในที่ทำงานที่ตึงเครียดและมีความระแวงต่อกัน แม้ศัตรูของท่านจะหันมาเป็นพวกเดียวกับท่าน แต่ก็ยัง…",
-        "published": "Wed, 08 Jul 2026 06:27:54 +0000",
-        "source": "ข่าวสด",
-        "language": "th",
-        "provinces": [
-          "ตาก"
-        ],
-        "title_original": null,
-        "summary_original": null
+        "title_original": "Chiang Mai Woman Devastated After Australian Allegedly Trashes Her Rental Home",
+        "summary_original": "<p>CHIANG MAI &#8211; A rental nightmare has left a Chiang Mai homeowner facing heavy financial losses after an Australian tenant trashed her property. The tenant rented the house for only a few months before causing extensive damage and disappearing. The homeowner discovered the destruction after the tenant moved out following complaints from neighbors. The total [&#8230;]</p>\n<p>&lt;p&gt;The post <a href=\"https://www.chiangraitimes.com/news/chiang-mai/australian-trashes-her-rental-home-in-chiang-mai/\" rel=\"nofollow\">Chiang Mai Woman Devastated After Australian Allegedly Trashes Her Rental Home</a> first appeared on <a href=\"https://www.chiangraitimes.com\" rel=\"nofollow\">Chiang Rai Times</a>.&lt;/p&gt;</p>"
       }
     ]
   }
