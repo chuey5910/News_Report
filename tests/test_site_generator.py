@@ -39,5 +39,6 @@ def test_generate_site_writes_data_files_and_app_shell(tmp_path):
     assert saved_report["provinces"]["เชียงใหม่"][0]["title"] == "น้ำท่วมเชียงใหม่"
 
     app_html = (output_dir / "index.html").read_text(encoding="utf-8")
-    assert "filter-province" in app_html
+    assert "province-list" in app_html
     assert "filter-search" in app_html
+    assert "filter-origin" in app_html

@@ -3,102 +3,138 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>สรุปข่าวรายวัน — 17 จังหวัดภาคเหนือ/เหนือตอนล่าง</title>
+<title>รายงานข่าว 17 จังหวัด — ภาคเหนือ/เหนือตอนล่าง</title>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
   body {
     font-family: "Sarabun", "Noto Sans Thai", sans-serif;
-    max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem 4rem;
-    line-height: 1.6; color: #1a1a1a; background: #fff;
+    color: #1a1a1a; background: #f4f5f7; line-height: 1.6;
   }
   @media (prefers-color-scheme: dark) {
-    body { color: #e8e8e8; background: #14161a; }
-    .card, .filters, .article { background: #1d2026; border-color: #2c3038; }
-    select, input[type="search"] { background: #1d2026; color: #e8e8e8; border-color: #3a3f47; }
-    .stat-bar-track { background: #2c3038; }
+    body { color: #e8e8e8; background: #101216; }
+    .sidebar { background: #16181d; border-color: #262a31; }
+    .content-card, .article-row { background: #1a1d22; border-color: #262a31; }
+    input[type="search"] { background: #1f2228; color: #e8e8e8; border-color: #333944; }
+    .origin-toggle button { background: #1f2228; color: #cfd3da; border-color: #333944; }
+    .origin-toggle button.active { background: #0b5fff; color: #fff; border-color: #0b5fff; }
+    .province-item:hover { background: #1f2228; }
+    .province-item.active { background: #223055; }
     a { color: #6ea8ff; }
+    .footnote { color: #8a8f98; border-color: #262a31; }
+    .section-label { color: #9aa0aa; }
   }
-  h1 { font-size: 1.5rem; margin-bottom: .2rem; }
-  .subtitle { color: #666; font-size: .9rem; margin-bottom: 1.2rem; }
-  a { color: #0b5fff; }
 
-  .top-row { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; margin-bottom: 1rem; }
-  .top-row label { font-size: .85rem; color: #666; }
+  a { color: #0b5fff; text-decoration: none; }
 
-  .card {
-    border: 1px solid #e2e2e2; border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1.2rem;
-    background: #fafafa;
+  .layout { display: flex; min-height: 100vh; align-items: flex-start; }
+
+  .sidebar {
+    width: 280px; flex: 0 0 280px; background: #fff; border-right: 1px solid #e4e4e7;
+    padding: 1.2rem 1rem; position: sticky; top: 0; height: 100vh; overflow-y: auto;
   }
-  .stat-row { display: grid; grid-template-columns: 8rem 1fr 3rem; align-items: center; gap: .6rem; margin: .3rem 0; font-size: .9rem; }
-  .stat-label { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .stat-bar-track { background: #eee; border-radius: 6px; height: .7rem; overflow: hidden; }
-  .stat-bar { background: #0b5fff; height: 100%; border-radius: 6px; }
-  .stat-count { text-align: left; color: #555; }
+  .sidebar h1 { font-size: 1.15rem; margin: 0 0 .2rem; }
+  .sidebar .subtitle { font-size: .8rem; color: #777; margin-bottom: 1rem; display: flex; gap: .3rem; align-items: center; flex-wrap: wrap; }
+  .sidebar .subtitle select { font-size: .8rem; border: none; background: transparent; color: inherit; font-family: inherit; }
 
-  .filters { display: flex; flex-wrap: wrap; gap: .7rem; margin-bottom: 1.5rem; }
-  .filters > div { display: flex; flex-direction: column; gap: .25rem; font-size: .8rem; color: #666; }
-  select, input[type="search"] {
-    padding: .4rem .5rem; border-radius: 6px; border: 1px solid #ccc; font-size: .9rem; min-width: 9rem;
+  input[type="search"] {
+    width: 100%; padding: .5rem .6rem; border-radius: 8px; border: 1px solid #d8d8dc;
+    font-size: .85rem; margin-bottom: .8rem; font-family: inherit;
   }
-  input[type="search"] { min-width: 14rem; }
 
-  h2 { font-size: 1.2rem; border-bottom: 2px solid #ddd; padding-bottom: .3rem; margin-top: 2rem; }
-  h3 { font-size: 1rem; color: #555; margin-top: 1.2rem; display: flex; align-items: center; gap: .4rem; }
-  .origin-badge { font-size: .7rem; font-weight: 400; color: #888; border: 1px solid #ccc; border-radius: 4px; padding: 0 .4rem; }
-  .article { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #eee; }
-  .article a { text-decoration: none; font-weight: 600; }
-  .meta { color: #777; font-size: .85rem; margin-top: .3rem; }
-  .empty { color: #777; padding: 1rem 0; }
-  .footnote { color: #888; font-size: .8rem; margin-top: 3rem; border-top: 1px solid #eee; padding-top: 1rem; }
+  .origin-toggle { display: flex; gap: .4rem; margin-bottom: 1rem; }
+  .origin-toggle button {
+    flex: 1; padding: .4rem .3rem; border-radius: 8px; border: 1px solid #d8d8dc; background: #fff;
+    font-size: .78rem; font-family: inherit; cursor: pointer; color: #444;
+  }
+  .origin-toggle button.active { background: #0b5fff; color: #fff; border-color: #0b5fff; }
+
+  .province-list { display: flex; flex-direction: column; }
+  .province-item {
+    display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+    padding: .45rem .5rem; border-radius: 6px; cursor: pointer; font-size: .85rem; color: #333;
+  }
+  .province-item:hover { background: #f1f2f5; }
+  .province-item.active { background: #e8eefe; color: #0b5fff; font-weight: 600; }
+  .province-item .dot { width: .4rem; height: .4rem; border-radius: 50%; background: #0b5fff; flex: 0 0 auto; }
+  .province-item .count {
+    font-size: .75rem; color: #888; background: #eee; border-radius: 999px; padding: 0 .5rem; min-width: 1.4rem; text-align: center;
+  }
+
+  .content { flex: 1; min-width: 0; padding: 1.4rem 2rem 4rem; }
+  .content-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem; gap: 1rem; }
+  .content-header h2 { font-size: 1.3rem; margin: 0 0 .2rem; }
+  .content-subtitle { font-size: .85rem; color: #777; }
+  .total-badge { text-align: right; flex: 0 0 auto; }
+  .total-badge .num { font-size: 1.8rem; font-weight: 700; color: #0b5fff; line-height: 1; }
+  .total-badge .label { font-size: .75rem; color: #888; }
+
+  .content-card { background: #fff; border: 1px solid #e4e4e7; border-radius: 12px; padding: 1.2rem 1.4rem; margin-bottom: 1.2rem; }
+  .content-card h3 { font-size: 1.05rem; margin: 0 0 .8rem; display: flex; align-items: center; gap: .5rem; }
+  .content-card h3 .count { font-size: .8rem; font-weight: 400; color: #888; }
+  .section-label { font-size: .78rem; font-weight: 600; color: #777; margin: 1rem 0 .5rem; text-transform: uppercase; letter-spacing: .03em; }
+
+  .article-row { border: 1px solid #eee; border-radius: 8px; padding: .6rem .8rem; margin-bottom: .5rem; }
+  .article-row-head { display: flex; align-items: center; gap: .6rem; cursor: pointer; }
+  .source-badge {
+    font-size: .72rem; font-weight: 600; padding: .1rem .55rem; border-radius: 999px; white-space: nowrap; flex: 0 0 auto;
+  }
+  .article-title { flex: 1; font-weight: 600; font-size: .92rem; }
+  .article-time { font-size: .75rem; color: #888; flex: 0 0 auto; }
+  .toggle-icon { flex: 0 0 auto; color: #999; font-size: .95rem; width: 1rem; text-align: center; }
+  .article-detail { display: none; margin-top: .6rem; padding-top: .6rem; border-top: 1px dashed #e2e2e2; font-size: .88rem; color: #444; }
+  .article-detail.open { display: block; }
+  .article-detail .meta { color: #888; font-size: .8rem; margin-top: .4rem; }
+
+  .empty { color: #888; padding: 1rem 0; }
+  .footnote { color: #888; font-size: .78rem; margin-top: 2rem; border-top: 1px solid #e4e4e7; padding-top: 1rem; }
+
+  @media (max-width: 720px) {
+    .layout { flex-direction: column; }
+    .sidebar { width: 100%; flex-basis: auto; position: static; height: auto; border-right: none; border-bottom: 1px solid #e4e4e7; }
+    .content { padding: 1rem; }
+  }
 </style>
 </head>
 <body>
-  <h1>สรุปข่าวรายวัน — 17 จังหวัดภาคเหนือ/เหนือตอนล่าง</h1>
-  <div class="subtitle" id="total-count">กำลังโหลด...</div>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>รายงานข่าว 17 จังหวัด</h1>
+      <div class="subtitle">ภาคเหนือ · อัปเดตล่าสุด <select id="filter-date"></select></div>
+      <input type="search" id="filter-search" placeholder="ค้นหาข่าว, จังหวัด, สำนักข่าว...">
+      <div class="origin-toggle" id="filter-origin">
+        <button type="button" data-value="" class="active">ทั้งหมด</button>
+        <button type="button" data-value="domestic">ในประเทศ</button>
+        <button type="button" data-value="international">ต่างประเทศ</button>
+      </div>
+      <div class="province-list" id="province-list"></div>
+    </aside>
 
-  <div class="top-row">
-    <label for="filter-date">วันที่:</label>
-    <select id="filter-date"></select>
-  </div>
+    <main class="content">
+      <div class="content-header">
+        <div>
+          <h2>ภาพรวมข่าว 17 จังหวัดภาคเหนือ</h2>
+          <div class="content-subtitle">จัดกลุ่มตามจังหวัด เรียงสื่อในประเทศก่อนสื่อต่างประเทศ</div>
+        </div>
+        <div class="total-badge">
+          <div class="num" id="total-count">0</div>
+          <div class="label">ข่าวที่พบ</div>
+        </div>
+      </div>
 
-  <div class="card">
-    <div id="stats"></div>
-  </div>
+      <div id="articles"></div>
 
-  <div class="filters">
-    <div>
-      <label for="filter-province">จังหวัด</label>
-      <select id="filter-province"><option value="">ทั้งหมด</option></select>
-    </div>
-    <div>
-      <label for="filter-source">สำนักข่าว</label>
-      <select id="filter-source"><option value="">ทั้งหมด</option></select>
-    </div>
-    <div>
-      <label for="filter-origin">ประเภทสื่อ</label>
-      <select id="filter-origin">
-        <option value="">ทั้งหมด</option>
-        <option value="domestic">ในประเทศ</option>
-        <option value="international">ต่างประเทศ</option>
-      </select>
-    </div>
-    <div>
-      <label for="filter-search">ค้นหา</label>
-      <input type="search" id="filter-search" placeholder="ค้นหาคำในหัวข้อ/เนื้อหา">
-    </div>
-  </div>
-
-  <div id="articles"></div>
-
-  <div class="footnote">
-    สรุปข่าวนี้ใช้หัวข้อ/เนื้อหาย่อจากต้นฉบับของแต่ละสำนักข่าวโดยตรง (ไม่ได้ใช้ AI วิเคราะห์เชิงลึก)
-    ข่าวต่างประเทศแปลเป็นไทยอัตโนมัติและมีลิงก์อ้างอิงต้นฉบับกำกับทุกข่าว
+      <div class="footnote">
+        สรุปข่าวนี้ใช้หัวข้อ/เนื้อหาย่อจากต้นฉบับของแต่ละสำนักข่าวโดยตรง (ไม่ได้ใช้ AI วิเคราะห์เชิงลึก)
+        ข่าวต่างประเทศแปลเป็นไทยอัตโนมัติและมีลิงก์อ้างอิงต้นฉบับกำกับทุกข่าว
+      </div>
+    </main>
   </div>
 
 <script>
 (function () {
-  const state = { report: null, dates: [] };
+  const state = { report: null, dates: [], selectedProvince: "", selectedOrigin: "" };
   const el = (id) => document.getElementById(id);
 
   async function fetchJSON(path) {
@@ -129,120 +165,143 @@
     return order.map((s) => groups[s]);
   }
 
-  function populateSelect(selectEl, values) {
-    const current = selectEl.value;
-    selectEl.innerHTML = '<option value="">ทั้งหมด</option>';
-    for (const v of values) {
-      const opt = document.createElement("option");
-      opt.value = v;
-      opt.textContent = v;
-      selectEl.appendChild(opt);
-    }
-    if (values.includes(current)) selectEl.value = current;
+  // Deterministic pastel color per source name, so badges stay visually distinct without manual upkeep.
+  function sourceColor(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    const hue = hash % 360;
+    return { bg: "hsl(" + hue + ", 60%, 90%)", fg: "hsl(" + hue + ", 55%, 28%)" };
   }
 
-  function applyFilters(rows) {
-    const province = el("filter-province").value;
-    const source = el("filter-source").value;
-    const origin = el("filter-origin").value;
+  function applySearchAndOrigin(rows) {
     const q = el("filter-search").value.trim().toLowerCase();
     return rows.filter((r) => {
-      if (province && r.province !== province) return false;
-      if (source && r.source !== source) return false;
-      if (origin && (r.source_origin || "domestic") !== origin) return false;
-      if (q && !((r.title || "").toLowerCase().includes(q) || (r.summary || "").toLowerCase().includes(q))) return false;
+      if (state.selectedOrigin && (r.source_origin || "domestic") !== state.selectedOrigin) return false;
+      if (
+        q &&
+        !((r.title || "").toLowerCase().includes(q) ||
+          (r.summary || "").toLowerCase().includes(q) ||
+          (r.source || "").toLowerCase().includes(q) ||
+          (r.province || "").toLowerCase().includes(q))
+      )
+        return false;
       return true;
     });
   }
 
-  function renderStats(rows) {
+  function renderProvinceList(rowsForCounts) {
     const counts = {};
-    for (const r of rows) counts[r.province] = (counts[r.province] || 0) + 1;
-    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    const max = entries.length ? entries[0][1] : 1;
-    const statsEl = el("stats");
-    statsEl.innerHTML = "";
-    if (!entries.length) {
-      statsEl.innerHTML = '<p class="empty">ไม่มีข้อมูลให้แสดงสถิติ</p>';
-      return;
+    for (const r of rowsForCounts) counts[r.province] = (counts[r.province] || 0) + 1;
+    const provinces = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+
+    const listEl = el("province-list");
+    listEl.innerHTML = "";
+    for (const province of provinces) {
+      const item = document.createElement("div");
+      item.className = "province-item" + (state.selectedProvince === province ? " active" : "");
+      item.innerHTML =
+        '<span style="display:flex;align-items:center;gap:.5rem;overflow:hidden;">' +
+        '<span class="dot"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+        province + "</span></span>" +
+        '<span class="count">' + counts[province] + "</span>";
+      item.addEventListener("click", () => {
+        state.selectedProvince = state.selectedProvince === province ? "" : province;
+        refresh();
+      });
+      listEl.appendChild(item);
     }
-    for (const [province, count] of entries) {
-      const row = document.createElement("div");
-      row.className = "stat-row";
-      const pct = ((count / max) * 100).toFixed(0);
-      row.innerHTML =
-        '<span class="stat-label">' + province + '</span>' +
-        '<div class="stat-bar-track"><div class="stat-bar" style="width:' + pct + '%"></div></div>' +
-        '<span class="stat-count">' + count + '</span>';
-      statsEl.appendChild(row);
+    if (!provinces.length) {
+      listEl.innerHTML = '<p class="empty" style="font-size:.85rem;">ไม่พบจังหวัด</p>';
     }
   }
 
   function renderArticles(rows) {
     const container = el("articles");
     container.innerHTML = "";
-    if (!rows.length) {
+
+    const filtered = state.selectedProvince ? rows.filter((r) => r.province === state.selectedProvince) : rows;
+
+    if (!filtered.length) {
       container.innerHTML = '<p class="empty">ไม่พบข่าวตามเงื่อนไขที่เลือก</p>';
       return;
     }
+
     const byProvince = {};
-    for (const r of rows) (byProvince[r.province] = byProvince[r.province] || []).push(r);
+    for (const r of filtered) (byProvince[r.province] = byProvince[r.province] || []).push(r);
     const provinces = Object.keys(byProvince).sort((a, b) => byProvince[b].length - byProvince[a].length);
 
     for (const province of provinces) {
       const articles = byProvince[province];
-      const h2 = document.createElement("h2");
-      h2.textContent = province + " (" + articles.length + " ข่าว)";
-      container.appendChild(h2);
+      const card = document.createElement("div");
+      card.className = "content-card";
+      card.innerHTML = '<h3>' + province + ' <span class="count">' + articles.length + " ข่าว</span></h3>";
 
-      for (const group of groupBySource(articles)) {
-        const h3 = document.createElement("h3");
-        h3.textContent = group.source;
-        if (group.origin !== "domestic") {
-          const badge = document.createElement("span");
-          badge.className = "origin-badge";
-          badge.textContent = "ต่างประเทศ";
-          h3.appendChild(badge);
-        }
-        container.appendChild(h3);
+      const groups = groupBySource(articles);
+      const domesticGroups = groups.filter((g) => g.origin === "domestic");
+      const intlGroups = groups.filter((g) => g.origin !== "domestic");
 
+      const renderGroup = (group) => {
+        const color = sourceColor(group.source);
         for (const a of group.articles) {
-          const div = document.createElement("div");
-          div.className = "article";
-          const link = document.createElement("a");
-          link.href = a.link;
-          link.target = "_blank";
-          link.rel = "noopener";
-          link.textContent = a.title;
-          const p = document.createElement("p");
-          p.textContent = a.summary;
-          const meta = document.createElement("div");
-          meta.className = "meta";
-          meta.textContent =
-            "ที่มา: " + a.source + (a.title_original ? " (แปลจากต้นฉบับ)" : "") + " · " + a.published;
-          div.appendChild(link);
-          div.appendChild(p);
-          div.appendChild(meta);
-          container.appendChild(div);
+          const row = document.createElement("div");
+          row.className = "article-row";
+          const rowId = "detail-" + Math.random().toString(36).slice(2);
+          row.innerHTML =
+            '<div class="article-row-head">' +
+            '<span class="source-badge" style="background:' + color.bg + ";color:" + color.fg + '">' + group.source + "</span>" +
+            '<span class="article-title">' + a.title + "</span>" +
+            '<span class="article-time">' + (a.published || "") + "</span>" +
+            '<span class="toggle-icon">+</span>' +
+            "</div>" +
+            '<div class="article-detail" id="' + rowId + '">' +
+            "<p>" + a.summary + "</p>" +
+            '<div class="meta">ที่มา: ' + group.source + (a.title_original ? " (แปลจากต้นฉบับ)" : "") +
+            ' · <a href="' + a.link + '" target="_blank" rel="noopener">อ่านต้นฉบับ</a></div>' +
+            "</div>";
+          const head = row.querySelector(".article-row-head");
+          const detail = row.querySelector(".article-detail");
+          const icon = row.querySelector(".toggle-icon");
+          head.addEventListener("click", () => {
+            const open = detail.classList.toggle("open");
+            icon.textContent = open ? "−" : "+";
+          });
+          card.appendChild(row);
         }
+      };
+
+      if (domesticGroups.length) {
+        const label = document.createElement("div");
+        label.className = "section-label";
+        label.textContent = "สื่อในประเทศ";
+        card.appendChild(label);
+        domesticGroups.forEach(renderGroup);
       }
+      if (intlGroups.length) {
+        const label = document.createElement("div");
+        label.className = "section-label";
+        label.textContent = "สื่อต่างประเทศ";
+        card.appendChild(label);
+        intlGroups.forEach(renderGroup);
+      }
+
+      container.appendChild(card);
     }
   }
 
   function refresh() {
     const rows = flatten(state.report);
-    const filtered = applyFilters(rows);
-    el("total-count").textContent =
-      state.report.date + " · " + filtered.length + " ข่าว (จากทั้งหมด " + rows.length + " ข่าว)";
-    renderStats(filtered);
-    renderArticles(filtered);
+    const filteredByOriginAndSearch = applySearchAndOrigin(rows);
+    renderProvinceList(filteredByOriginAndSearch);
+    renderArticles(filteredByOriginAndSearch);
+    const shown = state.selectedProvince
+      ? filteredByOriginAndSearch.filter((r) => r.province === state.selectedProvince).length
+      : filteredByOriginAndSearch.length;
+    el("total-count").textContent = shown;
   }
 
   async function loadDate(date) {
     state.report = await fetchJSON("data/" + date + ".json");
-    const rows = flatten(state.report);
-    populateSelect(el("filter-province"), [...new Set(rows.map((r) => r.province))].sort());
-    populateSelect(el("filter-source"), [...new Set(rows.map((r) => r.source))].sort());
+    state.selectedProvince = "";
     const url = new URL(location.href);
     url.searchParams.set("date", date);
     history.replaceState(null, "", url);
@@ -261,7 +320,8 @@
     }
 
     if (!state.dates.length) {
-      el("total-count").textContent = "ยังไม่มีรายงาน";
+      el("total-count").textContent = "0";
+      el("articles").innerHTML = '<p class="empty">ยังไม่มีรายงาน</p>';
       return;
     }
 
@@ -271,10 +331,15 @@
     await loadDate(initialDate);
 
     dateSelect.addEventListener("change", () => loadDate(dateSelect.value));
-    for (const id of ["filter-province", "filter-source", "filter-origin"]) {
-      el(id).addEventListener("change", refresh);
-    }
     el("filter-search").addEventListener("input", refresh);
+    for (const btn of document.querySelectorAll("#filter-origin button")) {
+      btn.addEventListener("click", () => {
+        for (const b of document.querySelectorAll("#filter-origin button")) b.classList.remove("active");
+        btn.classList.add("active");
+        state.selectedOrigin = btn.dataset.value;
+        refresh();
+      });
+    }
   }
 
   init().catch((err) => {
