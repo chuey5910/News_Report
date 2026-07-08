@@ -5,7 +5,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 DEFAULT_TEMPLATES_DIR = "templates"
 DEFAULT_REPORTS_DIR = "data/reports"
-DEFAULT_OUTPUT_DIR = "docs/site"
+DEFAULT_OUTPUT_DIR = "docs"
 
 
 def _load_all_reports(reports_dir: str | Path) -> list[dict]:

@@ -30,14 +30,15 @@ python -m news_report.main
 ผลลัพธ์จะถูกเขียนไปที่:
 - `data/seen.db` — กันข่าวซ้ำระหว่างรอบ
 - `data/reports/<YYYY-MM-DD>.json` — ผลสรุปของแต่ละวัน จัดกลุ่มตามจังหวัด
-- `docs/site/` — เว็บสรุปข่าวแบบ static (สำหรับ GitHub Pages)
+- `docs/` — เว็บสรุปข่าวแบบ static (สำหรับ GitHub Pages, `docs/index.html` + `docs/reports/<date>.html`)
 
 ถ้ายังไม่ตั้งค่า `LINE_CHANNEL_ACCESS_TOKEN` ขั้นตอนแจ้งเตือน LINE จะ log error แล้วข้ามไป
 โดยไม่ทำให้ pipeline ล้มเหลว (ไฟล์รายงาน/เว็บยังถูกสร้างตามปกติ)
 
 ## ตั้งค่าเพื่อรันอัตโนมัติบน GitHub
-1. **เปิด GitHub Pages**: Settings → Pages → Source: Deploy from a branch → เลือก branch ที่ deploy
-   จริง + โฟลเดอร์ `/docs`
+1. **เปิด GitHub Pages**: Settings → Pages → Source: Deploy from a branch → เลือก branch `main`
+   + โฟลเดอร์ `/docs` → กด Save แล้ว GitHub จะโชว์ URL ของเว็บ (เช่น
+   `https://<user>.github.io/News_Report`) ที่ด้านบนของหน้า Pages settings นี้เอง
 2. **ตั้งค่า Secret**: Settings → Secrets and variables → Actions → New repository secret
    - `LINE_CHANNEL_ACCESS_TOKEN` — Channel access token (long-lived) จาก LINE Developers Console
      ของ LINE OA ที่ต้องการ broadcast (ดูวิธีเอา token ในแชทที่คุยกันไว้)
