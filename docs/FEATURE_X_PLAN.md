@@ -105,11 +105,18 @@ News_Report/
 - **LINE OA**: broadcast สรุปย่อผ่าน LINE Messaging API (ต้องใช้ `LINE_CHANNEL_ACCESS_TOKEN`
   เก็บใน GitHub Secrets)
 
-## 8. การตั้งเวลาอัตโนมัติ
+## 8. การตั้งเวลาอัตโนมัติ (อัปเดต: วันละ 2 รอบ)
 - ใช้ GitHub Actions: `.github/workflows/daily-report.yml`
-- `schedule: cron: "0 0 * * *"` (00:00 UTC = **07:00 น. เวลาไทย**)
+- `schedule:`
+  - `cron: "0 0 * * *"` (00:00 UTC = **07:00 น. เวลาไทย** — รอบเช้า)
+  - `cron: "0 9 * * *"` (09:00 UTC = **16:00 น. เวลาไทย** — รอบบ่าย)
 - ขั้นตอนใน workflow: checkout → setup python → pip install -r requirements.txt → รัน `python -m news_report.main`
-  → commit ผลลัพธ์ (`docs/site/`, `data/`) กลับเข้า repo → push
+  → commit ผลลัพธ์ (`docs/`, `data/`) กลับเข้า repo → push
+- **กันข่าวซ้ำระหว่างรอบเดียวกัน**: `storage.filter_unseen()` ทำงานเหมือนเดิมทุกรอบ (เช็คจาก
+  guid ใน `data/seen.db`) จึงการันตีว่าข่าวที่รอบเช้ารายงานไปแล้วจะไม่ถูกดึงมารายงานซ้ำในรอบบ่าย
+  ของวันเดียวกัน — `storage.save_daily_report()` จะ**สะสม** (merge) ผลของทั้ง 2 รอบเข้าไฟล์
+  รายงาน/หน้าเว็บเดียวกันของวันนั้น แทนที่จะเขียนทับ และข้อความ LINE ของแต่ละรอบจะสรุปเฉพาะข่าว
+  ใหม่ของรอบนั้น (ถ้าไม่มีข่าวใหม่เลย จะข้ามการส่ง LINE ไปเลย)
 
 ## 9. แผนการทดสอบ
 - `test_fetcher.py`: mock RSS response, ตรวจว่า parse ได้ครบ field (รวม feed ภาษาอังกฤษ)

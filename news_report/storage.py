@@ -45,19 +45,39 @@ def mark_seen(articles: list[Article], db_path: str | Path = DEFAULT_DB_PATH) ->
         conn.commit()
 
 
+def group_by_province(articles: list[Article]) -> dict[str, list[dict]]:
+    grouped: dict[str, list[dict]] = {}
+    for article in articles:
+        for province in article.provinces:
+            grouped.setdefault(province, []).append(asdict(article))
+    return grouped
+
+
 def save_daily_report(
     articles: list[Article],
     report_date: str,
     reports_dir: str | Path = DEFAULT_REPORTS_DIR,
 ) -> Path:
-    """Group articles by matched province and write data/reports/<date>.json."""
-    grouped: dict[str, list[dict]] = {}
-    for article in articles:
-        for province in article.provinces:
-            grouped.setdefault(province, []).append(asdict(article))
+    """Groups articles by matched province and merges them into data/reports/<date>.json.
 
+    Multiple runs on the same day (e.g. 07:00 and 16:00) accumulate into one
+    report instead of overwriting each other, since `articles` only ever
+    contains guids not previously marked seen.
+    """
     Path(reports_dir).mkdir(parents=True, exist_ok=True)
     path = Path(reports_dir) / f"{report_date}.json"
+
+    grouped: dict[str, list[dict]] = {}
+    if path.exists():
+        with open(path, encoding="utf-8") as f:
+            grouped = json.load(f).get("provinces", {})
+
+    for province, new_articles in group_by_province(articles).items():
+        existing_guids = {a["guid"] for a in grouped.get(province, [])}
+        grouped.setdefault(province, []).extend(
+            a for a in new_articles if a["guid"] not in existing_guids
+        )
+
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"date": report_date, "provinces": grouped}, f, ensure_ascii=False, indent=2)
     return path

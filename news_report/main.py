@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 from datetime import datetime, timezone
@@ -38,6 +37,9 @@ def run(report_date: str | None = None) -> None:
     logger.info("summarizing %d matched articles", len(articles))
     articles = summarizer.summarize_articles(articles)
 
+    # Merged into that day's report (accumulates across same-day runs, e.g. 07:00 + 16:00)
+    # rather than overwritten, since `articles` here only ever holds guids not seen before.
+    new_by_province = storage.group_by_province(articles)
     report_path = storage.save_daily_report(articles, report_date)
     logger.info("saved daily report to %s", report_path)
 
@@ -46,13 +48,14 @@ def run(report_date: str | None = None) -> None:
     site_generator.generate_site()
     logger.info("regenerated static site")
 
+    if not new_by_province:
+        logger.info("no new province-matched articles this run, skipping LINE broadcast")
+        return
+
     site_base_url = os.environ.get("SITE_BASE_URL", "").rstrip("/")
     site_url = f"{site_base_url}/reports/{report_date}.html" if site_base_url else None
 
-    with open(report_path, encoding="utf-8") as f:
-        report = json.load(f)
-
-    message = notifier.build_summary_message(report_date, report["provinces"], site_url)
+    message = notifier.build_summary_message(report_date, new_by_province, site_url)
     try:
         notifier.broadcast_message(message)
     except Exception:
