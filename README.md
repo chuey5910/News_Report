@@ -51,7 +51,8 @@ python -m news_report.main
 3. **ตั้งค่า Variable (ไม่ใช่ secret เพราะไม่ใช่ข้อมูลลับ)**: Settings → Secrets and variables →
    Actions → Variables → New repository variable
    - `SITE_BASE_URL` — URL ของ GitHub Pages เช่น `https://<user>.github.io/News_Report`
-     (ใช้แนบลิงก์ไปหน้าเว็บในข้อความ broadcast)
+     (ไม่ต้องมี `/` ต่อท้าย) — **สำคัญ**: ถ้าไม่ตั้งค่านี้ ข้อความ LINE จะไม่มีปุ่ม/ลิงก์ไปหน้าเว็บเลย
+     (แค่ประกาศว่ามีสรุปข่าวเฉยๆ) เพราะไม่รู้ว่าจะลิงก์ไปที่ไหน
 4. **รันครั้งแรกด้วยมือ** เพื่อ seed เว็บเพจตั้งต้น: Actions → Daily News Report → Run workflow
    (ก่อนถึงรอบ cron เว็บ Pages จะยังไม่มีอะไรให้แสดง)
 
