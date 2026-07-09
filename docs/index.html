@@ -23,6 +23,7 @@
     .province-item.active { background: #223055; }
     .sidebar-divider { border-top-color: #262a31; }
     .general-item.active { background: #3a2a10; color: #f0b90b; }
+    .major-badge { background: #3a1414; color: #ff8a80; }
     a { color: #6ea8ff; }
     .footnote { color: #8a8f98; border-color: #262a31; }
     .section-label { color: #9aa0aa; }
@@ -86,6 +87,10 @@
   .article-row-head { display: flex; align-items: center; gap: .6rem; cursor: pointer; }
   .source-badge {
     font-size: .72rem; font-weight: 600; padding: .1rem .55rem; border-radius: 999px; white-space: nowrap; flex: 0 0 auto;
+  }
+  .major-badge {
+    font-size: .72rem; font-weight: 700; padding: .1rem .55rem; border-radius: 999px; white-space: nowrap; flex: 0 0 auto;
+    background: #fde0e0; color: #b3261e;
   }
   .article-title { flex: 1; font-weight: 600; font-size: .92rem; }
   .article-time { font-size: .75rem; color: #888; flex: 0 0 auto; }
@@ -288,6 +293,9 @@
           row.innerHTML =
             '<div class="article-row-head">' +
             '<span class="source-badge" style="background:' + color.bg + ";color:" + color.fg + '">' + group.source + "</span>" +
+            (a.is_major_story
+              ? '<span class="major-badge" title="' + a.major_story_source_count + ' สำนักข่าวรายงานเรื่องนี้พร้อมกัน">\u{1F525} ข่าวใหญ่</span>'
+              : "") +
             '<span class="article-title">' + a.title + "</span>" +
             '<span class="article-time">' + (a.published || "") + "</span>" +
             '<span class="toggle-icon">+</span>' +

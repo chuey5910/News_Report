@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from news_report import fetcher, notifier, site_generator, storage, summarizer, translator
+from news_report import fetcher, notifier, site_generator, storage, summarizer, translator, trending
 from news_report.province_filter import split_by_province
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -39,6 +39,9 @@ def run(report_date: str | None = None) -> None:
     )
     articles = summarizer.summarize_articles(articles)
     general_articles = summarizer.summarize_articles(general_articles)
+
+    logger.info("tagging widely-reported (major) stories")
+    trending.tag_major_stories(articles + general_articles)
 
     # Merged into that day's report (accumulates across same-day runs, e.g. 07:00 + 16:00)
     # rather than overwritten, since `articles`/`general_articles` here only ever hold

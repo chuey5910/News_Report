@@ -16,3 +16,5 @@ class Article:
     provinces: list[str] = field(default_factory=list)
     title_original: str | None = None
     summary_original: str | None = None
+    is_major_story: bool = False
+    major_story_source_count: int = 0
