@@ -101,7 +101,7 @@ document.addEventListener("DOMContentLoaded", function () {
         group.appendChild(heading);
 
         var grid = document.createElement("div");
-        grid.className = "form-grid";
+        grid.className = "form-grid vehicle-grid";
         grid.appendChild(makeField("ประเภทรถยนต์", "vehicle_type", row.vehicle_type, i));
         grid.appendChild(makeField("หมายเลขทะเบียน", "vehicle_plate", row.plate_number, i));
         grid.appendChild(makeField("จังหวัด", "vehicle_province", row.province, i));
