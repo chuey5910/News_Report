@@ -127,7 +127,7 @@ body {
   color: #374151;
 }
 
-input[type=text], input[type=password], input[type=datetime-local],
+input[type=text], input[type=password], input[type=datetime-local], input[type=number],
 select, textarea {
   width: 100%;
   padding: .55rem .7rem;
@@ -258,6 +258,31 @@ tr:hover td { background: #f9fafb; }
 .stat-tile .label { font-size: .82rem; color: var(--muted); }
 
 .empty-note { color: var(--muted); font-size: .88rem; padding: .5rem 0; }
+
+.sub-section {
+  grid-column: 1 / -1;
+  border-top: 1px dashed var(--border);
+  padding-top: 1rem;
+  margin-top: .25rem;
+}
+
+.dynamic-fields { display: flex; flex-direction: column; gap: .75rem; margin-top: .5rem; }
+
+.vehicle-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .9rem 1rem;
+  background: #f9fafb;
+}
+
+.vehicle-group-heading {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin-bottom: .6rem;
+}
+
+[hidden] { display: none !important; }
 
 .modal-overlay {
   display: none;

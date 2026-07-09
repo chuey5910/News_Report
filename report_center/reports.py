@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash
+from flask import Blueprint, render_template, redirect, request, url_for, flash
 from flask_login import current_user, login_required
 
 from .admin import admin_required
@@ -12,6 +12,8 @@ from .forms import (
 from .models import (
     REPORT_CATEGORIES,
     AdvanceNews,
+    AdvanceNewsLeader,
+    AdvanceNewsVehicle,
     GeneralNews,
     NewsClosure,
     SituationReport,
@@ -39,25 +41,77 @@ def dashboard():
 def advance():
     form = AdvanceNewsForm()
     if form.validate_on_submit():
+        permit_granted = form.permit_status.data == "มีการขออนุญาต"
+        equipment_present = form.overnight_equipment_status.data == "มี"
+        vehicles_present = form.vehicle_status.data == "มี"
+
         item = AdvanceNews(
             title=form.title.data,
             event_datetime=form.event_datetime.data,
+            permit_status=form.permit_status.data,
+            permit_location=form.permit_location.data if permit_granted else None,
+            permit_duration_days=form.permit_duration_days.data if permit_granted else None,
             location=form.location.data,
-            description=form.description.data,
-            target_group=form.target_group.data,
-            source=form.source.data,
-            reliability_level=form.reliability_level.data,
-            priority_level=form.priority_level.data,
-            preventive_measures=form.preventive_measures.data,
-            related_agency=form.related_agency.data,
+            group_name=form.group_name.data,
+            mass_count=form.mass_count.data,
+            activity_format=form.activity_format.data,
+            demands=form.demands.data,
+            supporters=form.supporters.data,
+            affiliations=form.affiliations.data,
+            overnight_equipment_status=form.overnight_equipment_status.data,
+            overnight_equipment_detail=form.overnight_equipment_detail.data if equipment_present else None,
+            vehicle_status=form.vehicle_status.data,
+            other_info=form.other_info.data,
+            trend_assessment=form.trend_assessment.data,
+            reporter_name=form.reporter_name.data,
+            reporter_phone=form.reporter_phone.data,
             created_by_id=current_user.id,
         )
+
+        for full_name in request.form.getlist("leader_name"):
+            full_name = full_name.strip()
+            if full_name:
+                item.leaders.append(AdvanceNewsLeader(full_name=full_name))
+
+        if vehicles_present:
+            vehicle_types = request.form.getlist("vehicle_type")
+            plate_numbers = request.form.getlist("vehicle_plate")
+            provinces = request.form.getlist("vehicle_province")
+            colors = request.form.getlist("vehicle_color")
+            for vtype, plate, province, color in zip(vehicle_types, plate_numbers, provinces, colors):
+                if any(v.strip() for v in (vtype, plate, province, color)):
+                    item.vehicles.append(
+                        AdvanceNewsVehicle(
+                            vehicle_type=vtype.strip(),
+                            plate_number=plate.strip(),
+                            province=province.strip(),
+                            color=color.strip(),
+                        )
+                    )
+
         db.session.add(item)
         db.session.commit()
         flash("บันทึกข่าวล่วงหน้าเรียบร้อยแล้ว", "success")
         return redirect(url_for("reports.advance"))
 
-    return render_template("reports/advance.html", form=form)
+    submitted_leaders = request.form.getlist("leader_name") if request.method == "POST" else []
+    submitted_vehicles = []
+    if request.method == "POST":
+        vehicle_types = request.form.getlist("vehicle_type")
+        plate_numbers = request.form.getlist("vehicle_plate")
+        provinces = request.form.getlist("vehicle_province")
+        colors = request.form.getlist("vehicle_color")
+        for vtype, plate, province, color in zip(vehicle_types, plate_numbers, provinces, colors):
+            submitted_vehicles.append(
+                {"vehicle_type": vtype, "plate_number": plate, "province": province, "color": color}
+            )
+
+    return render_template(
+        "reports/advance.html",
+        form=form,
+        submitted_leaders=submitted_leaders,
+        submitted_vehicles=submitted_vehicles,
+    )
 
 
 @bp.route("/closure", methods=["GET", "POST"])

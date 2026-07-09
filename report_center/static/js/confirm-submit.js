@@ -20,6 +20,7 @@
     var fields = form.querySelectorAll("input[name], select[name], textarea[name]");
     fields.forEach(function (el) {
       if (el.name === "csrf_token" || el.type === "hidden") return;
+      if (el.offsetParent === null) return; // skip fields hidden by conditional show/hide
       var label = el.dataset.label || el.name;
       var value = fieldValueText(el).trim();
 

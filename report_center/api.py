@@ -15,7 +15,7 @@ def _require_api_key():
 
 def _detail_text(category, item):
     if category == "advance":
-        return item.description
+        return item.demands
     if category == "closure":
         return item.operation_result
     if category == "situation":
@@ -24,7 +24,7 @@ def _detail_text(category, item):
 
 
 def _serialize(category, item):
-    return {
+    data = {
         "category": category,
         "category_label": REPORT_CATEGORIES[category]["label"],
         "id": item.id,
@@ -33,6 +33,21 @@ def _serialize(category, item):
         "created_at": item.created_at.isoformat(),
         "created_by": item.created_by.full_name if item.created_by else None,
     }
+    if category == "advance":
+        data["location"] = item.location
+        data["event_datetime"] = item.event_datetime.isoformat() if item.event_datetime else None
+        data["mass_count"] = item.mass_count
+        data["leaders"] = [leader.full_name for leader in item.leaders]
+        data["vehicles"] = [
+            {
+                "vehicle_type": v.vehicle_type,
+                "plate_number": v.plate_number,
+                "province": v.province,
+                "color": v.color,
+            }
+            for v in item.vehicles
+        ]
+    return data
 
 
 @bp.route("/reports/latest")

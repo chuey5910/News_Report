@@ -58,26 +58,70 @@ class ReportMixin:
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-RELIABILITY_LEVELS = ["สูง", "ปานกลาง", "ต่ำ"]
 PRIORITY_LEVELS = ["ด่วนที่สุด", "ด่วนมาก", "ด่วน", "ปกติ"]
+PERMIT_STATUSES = ["มีการขออนุญาต", "ไม่มีการขออนุญาต"]
+YES_NO = ["มี", "ไม่มี"]
 
 
 class AdvanceNews(db.Model, ReportMixin):
-    """ข่าวล่วงหน้า — intelligence / advance-warning news."""
+    """ข่าวล่วงหน้า — advance notice of a planned activity/gathering (title = ชื่อกิจกรรม)."""
 
     __tablename__ = "advance_news"
 
-    event_datetime = db.Column(db.DateTime, nullable=True)  # คาดว่าจะเกิดเหตุเมื่อใด
-    location = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    target_group = db.Column(db.String(255), nullable=True)  # กลุ่มเป้าหมาย/บุคคลที่เกี่ยวข้อง
-    source = db.Column(db.String(255), nullable=True)  # แหล่งข่าว
-    reliability_level = db.Column(db.String(16), nullable=False, default="ปานกลาง")
-    priority_level = db.Column(db.String(16), nullable=False, default="ปกติ")
-    preventive_measures = db.Column(db.Text, nullable=True)  # แนวทางเฝ้าระวัง/มาตรการรองรับ
-    related_agency = db.Column(db.String(255), nullable=True)
+    event_datetime = db.Column(db.DateTime, nullable=True)  # วันเวลานัดหมายทำกิจกรรม
+    permit_status = db.Column(db.String(32), nullable=False, default="ไม่มีการขออนุญาต")
+    permit_location = db.Column(db.String(255), nullable=True)  # ขออนุญาตที่ไหน (ถ้ามีการขออนุญาต)
+    permit_duration_days = db.Column(db.Integer, nullable=True)  # ระยะเวลาทำกิจกรรม (วัน)
+
+    location = db.Column(db.String(255), nullable=False)  # สถานที่นัดหมาย
+    group_name = db.Column(db.String(255), nullable=True)  # ชื่อกลุ่ม
+
+    mass_count = db.Column(db.String(64), nullable=True)  # จำนวนมวลชน
+    activity_format = db.Column(db.Text, nullable=True)  # รูปแบบการจัดกิจกรรม
+    demands = db.Column(db.Text, nullable=False)  # ข้อเรียกร้อง/วัตถุประสงค์
+    supporters = db.Column(db.Text, nullable=True)  # ผู้สนับสนุน
+    affiliations = db.Column(db.Text, nullable=True)  # ความเชื่อมโยงกับบุคคล/องค์กรอื่นๆ
+
+    overnight_equipment_status = db.Column(db.String(16), nullable=False, default="ไม่มี")  # สัมภาระค้างแรม/อุปกรณ์
+    overnight_equipment_detail = db.Column(db.Text, nullable=True)
+
+    vehicle_status = db.Column(db.String(16), nullable=False, default="ไม่มี")  # ยานพาหนะ
+
+    other_info = db.Column(db.Text, nullable=True)  # ข้อมูลน่าสนใจอื่นๆ
+    trend_assessment = db.Column(db.Text, nullable=True)  # แนวโน้ม/ข้อพิจารณา
+    reporter_name = db.Column(db.String(128), nullable=True)  # ผู้รายงาน
+    reporter_phone = db.Column(db.String(32), nullable=True)  # เบอร์ติดต่อ
 
     created_by = db.relationship("User", foreign_keys="AdvanceNews.created_by_id")
+    leaders = db.relationship(
+        "AdvanceNewsLeader", backref="advance_news", cascade="all, delete-orphan", order_by="AdvanceNewsLeader.id"
+    )
+    vehicles = db.relationship(
+        "AdvanceNewsVehicle", backref="advance_news", cascade="all, delete-orphan", order_by="AdvanceNewsVehicle.id"
+    )
+
+
+class AdvanceNewsLeader(db.Model):
+    """ชื่อ-นามสกุล แกนนำ (รายการเพิ่มได้ตามจำนวนที่เลือก)."""
+
+    __tablename__ = "advance_news_leaders"
+
+    id = db.Column(db.Integer, primary_key=True)
+    advance_news_id = db.Column(db.Integer, db.ForeignKey("advance_news.id"), nullable=False)
+    full_name = db.Column(db.String(128), nullable=False)
+
+
+class AdvanceNewsVehicle(db.Model):
+    """ยานพาหนะ (รายการเพิ่มได้ตามจำนวนที่เลือก)."""
+
+    __tablename__ = "advance_news_vehicles"
+
+    id = db.Column(db.Integer, primary_key=True)
+    advance_news_id = db.Column(db.Integer, db.ForeignKey("advance_news.id"), nullable=False)
+    vehicle_type = db.Column(db.String(128), nullable=True)  # ประเภทรถยนต์
+    plate_number = db.Column(db.String(32), nullable=True)  # หมายเลขทะเบียน
+    province = db.Column(db.String(64), nullable=True)  # จังหวัด
+    color = db.Column(db.String(64), nullable=True)  # สี
 
 
 class NewsClosure(db.Model, ReportMixin):

@@ -1,19 +1,24 @@
 from flask_wtf import FlaskForm
 from wtforms import (
     DateTimeField,
+    IntegerField,
     PasswordField,
     SelectField,
     StringField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Length, Optional, EqualTo, Regexp
+from wtforms.validators import DataRequired, Length, NumberRange, Optional, EqualTo, Regexp
 
 from .models import (
+    PERMIT_STATUSES,
     PRIORITY_LEVELS,
-    RELIABILITY_LEVELS,
     RESULT_STATUSES,
     SITUATION_STATUSES,
+    YES_NO,
 )
+
+LEADER_COUNT_CHOICES = [(i, str(i)) for i in range(0, 21)]
+VEHICLE_COUNT_CHOICES = [(i, str(i)) for i in range(0, 11)]
 
 
 class RegisterForm(FlaskForm):
@@ -42,18 +47,35 @@ def _choices(values):
 
 
 class AdvanceNewsForm(FlaskForm):
-    title = StringField("หัวข้อข่าว", validators=[DataRequired(), Length(max=255)])
-    event_datetime = DateTimeField(
-        "วัน/เวลา ที่คาดว่าจะเกิดเหตุ", format="%Y-%m-%dT%H:%M", validators=[Optional()]
+    title = StringField("ชื่อกิจกรรม", validators=[DataRequired(), Length(max=255)])
+    event_datetime = DateTimeField("วันเวลานัดหมายทำกิจกรรม", format="%Y-%m-%dT%H:%M", validators=[Optional()])
+    permit_status = SelectField("การขออนุญาต", choices=_choices(PERMIT_STATUSES))
+    permit_location = StringField("ขออนุญาตที่ไหน", validators=[Optional(), Length(max=255)])
+    permit_duration_days = IntegerField(
+        "ระยะเวลาทำกิจกรรม (วัน)", validators=[Optional(), NumberRange(min=0, max=3650)]
     )
-    location = StringField("สถานที่", validators=[DataRequired(), Length(max=255)])
-    description = TextAreaField("รายละเอียดเหตุการณ์ที่คาดว่าจะเกิด", validators=[DataRequired()])
-    target_group = StringField("กลุ่มเป้าหมาย/บุคคลที่เกี่ยวข้อง", validators=[Optional(), Length(max=255)])
-    source = StringField("แหล่งข่าว", validators=[Optional(), Length(max=255)])
-    reliability_level = SelectField("ระดับความน่าเชื่อถือของข่าว", choices=_choices(RELIABILITY_LEVELS))
-    priority_level = SelectField("ระดับความสำคัญ", choices=_choices(PRIORITY_LEVELS))
-    preventive_measures = TextAreaField("แนวทางเฝ้าระวัง/มาตรการรองรับ", validators=[Optional()])
-    related_agency = StringField("หน่วยงานที่เกี่ยวข้อง", validators=[Optional(), Length(max=255)])
+
+    location = StringField("สถานที่นัดหมาย", validators=[DataRequired(), Length(max=255)])
+    group_name = StringField("ชื่อกลุ่ม", validators=[Optional(), Length(max=255)])
+
+    leader_count = SelectField("จำนวนแกนนำ (คน)", choices=LEADER_COUNT_CHOICES, coerce=int, default=0)
+
+    mass_count = StringField("จำนวนมวลชน", validators=[Optional(), Length(max=64)])
+    activity_format = TextAreaField("รูปแบบการจัดกิจกรรม", validators=[Optional()])
+    demands = TextAreaField("ข้อเรียกร้อง/วัตถุประสงค์", validators=[DataRequired()])
+    supporters = TextAreaField("ผู้สนับสนุน", validators=[Optional()])
+    affiliations = TextAreaField("ความเชื่อมโยงกับบุคคลหรือองค์กรอื่นๆ", validators=[Optional()])
+
+    overnight_equipment_status = SelectField("สัมภาระค้างแรม/อุปกรณ์", choices=_choices(YES_NO))
+    overnight_equipment_detail = TextAreaField("รายละเอียดสัมภาระ/อุปกรณ์", validators=[Optional()])
+
+    vehicle_status = SelectField("ยานพาหนะ", choices=_choices(YES_NO))
+    vehicle_count = SelectField("จำนวนยานพาหนะ (คัน)", choices=VEHICLE_COUNT_CHOICES, coerce=int, default=0)
+
+    other_info = TextAreaField("ข้อมูลน่าสนใจอื่นๆ", validators=[Optional()])
+    trend_assessment = TextAreaField("แนวโน้ม/ข้อพิจารณา", validators=[Optional()])
+    reporter_name = StringField("ผู้รายงาน", validators=[Optional(), Length(max=128)])
+    reporter_phone = StringField("เบอร์ติดต่อ", validators=[Optional(), Length(max=32)])
 
 
 class NewsClosureForm(FlaskForm):

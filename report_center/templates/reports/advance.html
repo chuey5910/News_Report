@@ -10,17 +10,55 @@
     {{ form.hidden_tag() }}
     <div class="form-grid">
       {{ m.render_field(form.title, full=True) }}
+
       {{ m.render_field(form.event_datetime) }}
+      {{ m.render_field(form.permit_status) }}
+
+      <div id="permit-detail-wrapper" class="sub-section" hidden>
+        <div class="form-grid">
+          {{ m.render_field(form.permit_location) }}
+          {{ m.render_field(form.permit_duration_days) }}
+        </div>
+      </div>
+
       {{ m.render_field(form.location) }}
-      {{ m.render_field(form.description, full=True) }}
-      {{ m.render_field(form.target_group) }}
-      {{ m.render_field(form.source) }}
-      {{ m.render_field(form.reliability_level) }}
-      {{ m.render_field(form.priority_level) }}
-      {{ m.render_field(form.preventive_measures, full=True) }}
-      {{ m.render_field(form.related_agency) }}
+      {{ m.render_field(form.group_name) }}
+
+      <div class="form-field full">
+        {{ form.leader_count.label }}
+        {{ form.leader_count(data_label=form.leader_count.label.text) }}
+        <div id="leader-fields-container" class="dynamic-fields"></div>
+      </div>
+
+      {{ m.render_field(form.mass_count) }}
+      {{ m.render_field(form.activity_format, full=True) }}
+      {{ m.render_field(form.demands, full=True) }}
+      {{ m.render_field(form.supporters, full=True) }}
+      {{ m.render_field(form.affiliations, full=True) }}
+
+      {{ m.render_field(form.overnight_equipment_status) }}
+      <div id="equipment-detail-wrapper" class="sub-section" hidden>
+        {{ m.render_field(form.overnight_equipment_detail, full=True) }}
+      </div>
+
+      {{ m.render_field(form.vehicle_status) }}
+      <div id="vehicle-section-wrapper" class="sub-section" hidden>
+        <div class="form-field">
+          {{ form.vehicle_count.label }}
+          {{ form.vehicle_count(data_label=form.vehicle_count.label.text) }}
+        </div>
+        <div id="vehicle-fields-container" class="dynamic-fields"></div>
+      </div>
+
+      {{ m.render_field(form.other_info, full=True) }}
+      {{ m.render_field(form.trend_assessment, full=True) }}
+      {{ m.render_field(form.reporter_name) }}
+      {{ m.render_field(form.reporter_phone) }}
     </div>
     <button class="btn" type="submit">บันทึก</button>
   </form>
 </div>
+
+<script id="advance-form-data" type="application/json">{{ {"leaders": submitted_leaders, "vehicles": submitted_vehicles} | tojson }}</script>
+<script src="{{ url_for('static', filename='js/advance-form.js') }}"></script>
 {% endblock %}
