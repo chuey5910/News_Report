@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>รายงานข่าว 17 จังหวัด — ภาคเหนือ/เหนือตอนล่าง</title>
 <style>
-  :root { color-scheme: light dark; }
+  :root { color-scheme: light dark; font-size: 130%; }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
@@ -34,7 +34,7 @@
   .layout { display: flex; min-height: 100vh; align-items: flex-start; }
 
   .sidebar {
-    width: 280px; flex: 0 0 280px; background: #fff; border-right: 1px solid #e4e4e7;
+    width: 320px; flex: 0 0 320px; background: #fff; border-right: 1px solid #e4e4e7;
     padding: 1.2rem 1rem; position: sticky; top: 0; height: 100vh; overflow-y: auto;
   }
   .unit-name { font-size: .72rem; font-weight: 700; color: #0b5fff; letter-spacing: .04em; line-height: 1.4; margin-bottom: .6rem; }
@@ -83,24 +83,51 @@
   .content-card h3 .count { font-size: .8rem; font-weight: 400; color: #888; }
   .section-label { font-size: .78rem; font-weight: 600; color: #777; margin: 1rem 0 .5rem; text-transform: uppercase; letter-spacing: .03em; }
 
-  .article-row { border: 1px solid #eee; border-radius: 8px; padding: .6rem .8rem; margin-bottom: .5rem; }
-  .article-row-head { display: flex; align-items: center; gap: .6rem; cursor: pointer; }
+  .article-row {
+    border: 1px solid #eee; border-radius: 8px; padding: .7rem .9rem; margin-bottom: .6rem; cursor: pointer;
+  }
+  .article-row:hover { border-color: #cdd3dc; }
+  .article-badges { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-bottom: .4rem; }
   .source-badge {
-    font-size: .72rem; font-weight: 600; padding: .1rem .55rem; border-radius: 999px; white-space: nowrap; flex: 0 0 auto;
+    font-size: .72rem; font-weight: 600; padding: .15rem .6rem; border-radius: 999px; white-space: nowrap;
   }
   .major-badge {
-    font-size: .72rem; font-weight: 700; padding: .1rem .55rem; border-radius: 999px; white-space: nowrap; flex: 0 0 auto;
+    font-size: .72rem; font-weight: 700; padding: .15rem .6rem; border-radius: 999px; white-space: nowrap;
     background: #fde0e0; color: #b3261e;
   }
-  .article-title { flex: 1; font-weight: 600; font-size: .92rem; }
-  .article-time { font-size: .75rem; color: #888; flex: 0 0 auto; }
-  .toggle-icon { flex: 0 0 auto; color: #999; font-size: .95rem; width: 1rem; text-align: center; }
-  .article-detail { display: none; margin-top: .6rem; padding-top: .6rem; border-top: 1px dashed #e2e2e2; font-size: .88rem; color: #444; }
-  .article-detail.open { display: block; }
-  .article-detail .meta { color: #888; font-size: .8rem; margin-top: .4rem; }
+  .article-title { font-weight: 700; font-size: 1.05rem; margin-bottom: .3rem; line-height: 1.4; }
+  .article-preview {
+    font-size: .92rem; color: #444; margin: 0; line-height: 1.6;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+  }
 
   .empty { color: #888; padding: 1rem 0; }
   .footnote { color: #888; font-size: .78rem; margin-top: 2rem; border-top: 1px solid #e4e4e7; padding-top: 1rem; }
+
+  /* Fullscreen article detail view */
+  .article-modal {
+    display: none; position: fixed; inset: 0; z-index: 1000; background: #fff; overflow-y: auto;
+  }
+  .article-modal.open { display: block; }
+  .article-modal-header {
+    position: sticky; top: 0; background: #fff; border-bottom: 1px solid #e4e4e7;
+    padding: .8rem 1rem; z-index: 1;
+  }
+  .back-button {
+    font-family: inherit; font-size: 1rem; font-weight: 600; color: #0b5fff; background: none;
+    border: none; cursor: pointer; padding: .4rem .2rem; display: flex; align-items: center; gap: .3rem;
+  }
+  .article-modal-body { max-width: 640px; margin: 0 auto; padding: 1.2rem 1.2rem 3rem; }
+  .article-modal-body .article-title { font-size: 1.35rem; margin-bottom: .8rem; }
+  .article-modal-text { font-size: 1.05rem; line-height: 1.85; color: #222; white-space: pre-wrap; }
+  .article-modal-meta { color: #777; font-size: .9rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee; }
+
+  @media (prefers-color-scheme: dark) {
+    .article-modal { background: #101216; }
+    .article-modal-header { background: #101216; border-color: #262a31; }
+    .article-modal-text { color: #dfe2e6; }
+    .article-modal-meta { border-color: #262a31; }
+  }
 
   @media (max-width: 720px) {
     .layout { flex-direction: column; }
@@ -146,6 +173,18 @@
         จะไม่ถูกตัดทิ้ง แต่ย้ายไปอยู่ที่ "ข่าวทั่วไปวันนี้" ในเมนูด้านซ้ายแทน
       </div>
     </main>
+  </div>
+
+  <div class="article-modal" id="article-modal">
+    <div class="article-modal-header">
+      <button type="button" class="back-button" id="modal-back">&larr; กลับ</button>
+    </div>
+    <div class="article-modal-body">
+      <div class="article-badges" id="modal-badges"></div>
+      <div class="article-title" id="modal-title"></div>
+      <p class="article-modal-text" id="modal-text"></p>
+      <div class="article-modal-meta" id="modal-meta"></div>
+    </div>
   </div>
 
 <script>
@@ -256,6 +295,29 @@
     }
   }
 
+  function openArticleModal(article, group) {
+    const badgesEl = el("modal-badges");
+    const color = sourceColor(group.source);
+    badgesEl.innerHTML =
+      '<span class="source-badge" style="background:' + color.bg + ";color:" + color.fg + '">' + group.source + "</span>" +
+      (article.is_major_story
+        ? '<span class="major-badge">\u{1F525} ข่าวใหญ่ (' + article.major_story_source_count + " สำนัก)</span>"
+        : "");
+    el("modal-title").textContent = article.title;
+    el("modal-text").textContent = article.summary;
+    el("modal-meta").innerHTML =
+      "ที่มา: " + group.source + (article.title_original ? " (แปลจากต้นฉบับ)" : "") +
+      ' &middot; <a href="' + article.link + '" target="_blank" rel="noopener">อ่านต้นฉบับ</a>';
+
+    const modal = el("article-modal");
+    modal.classList.add("open");
+    modal.scrollTop = 0;
+  }
+
+  function closeArticleModal() {
+    el("article-modal").classList.remove("open");
+  }
+
   function renderArticles(rows) {
     const container = el("articles");
     container.innerHTML = "";
@@ -289,29 +351,16 @@
         for (const a of group.articles) {
           const row = document.createElement("div");
           row.className = "article-row";
-          const rowId = "detail-" + Math.random().toString(36).slice(2);
           row.innerHTML =
-            '<div class="article-row-head">' +
+            '<div class="article-badges">' +
             '<span class="source-badge" style="background:' + color.bg + ";color:" + color.fg + '">' + group.source + "</span>" +
             (a.is_major_story
               ? '<span class="major-badge" title="' + a.major_story_source_count + ' สำนักข่าวรายงานเรื่องนี้พร้อมกัน">\u{1F525} ข่าวใหญ่</span>'
               : "") +
-            '<span class="article-title">' + a.title + "</span>" +
-            '<span class="article-time">' + (a.published || "") + "</span>" +
-            '<span class="toggle-icon">+</span>' +
             "</div>" +
-            '<div class="article-detail" id="' + rowId + '">' +
-            "<p>" + a.summary + "</p>" +
-            '<div class="meta">ที่มา: ' + group.source + (a.title_original ? " (แปลจากต้นฉบับ)" : "") +
-            ' · <a href="' + a.link + '" target="_blank" rel="noopener">อ่านต้นฉบับ</a></div>' +
-            "</div>";
-          const head = row.querySelector(".article-row-head");
-          const detail = row.querySelector(".article-detail");
-          const icon = row.querySelector(".toggle-icon");
-          head.addEventListener("click", () => {
-            const open = detail.classList.toggle("open");
-            icon.textContent = open ? "−" : "+";
-          });
+            '<div class="article-title">' + a.title + "</div>" +
+            '<p class="article-preview">' + a.summary + "</p>";
+          row.addEventListener("click", () => openArticleModal(a, group));
           card.appendChild(row);
         }
       };
@@ -393,6 +442,10 @@
 
     dateSelect.addEventListener("change", () => loadDate(dateSelect.value));
     el("filter-search").addEventListener("input", refresh);
+    el("modal-back").addEventListener("click", closeArticleModal);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeArticleModal();
+    });
     for (const btn of document.querySelectorAll("#filter-origin button")) {
       btn.addEventListener("click", () => {
         for (const b of document.querySelectorAll("#filter-origin button")) b.classList.remove("active");
