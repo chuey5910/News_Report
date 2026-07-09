@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash
 from flask_login import current_user, login_required
 
+from .admin import admin_required
 from .extensions import db
 from .forms import (
     AdvanceNewsForm,
@@ -21,6 +22,7 @@ bp = Blueprint("reports", __name__, url_prefix="/reports")
 
 @bp.route("/")
 @login_required
+@admin_required
 def dashboard():
     counts = {key: meta["model"].query.count() for key, meta in REPORT_CATEGORIES.items()}
     recent = {
@@ -55,8 +57,7 @@ def advance():
         flash("บันทึกข่าวล่วงหน้าเรียบร้อยแล้ว", "success")
         return redirect(url_for("reports.advance"))
 
-    items = AdvanceNews.query.order_by(AdvanceNews.created_at.desc()).limit(50).all()
-    return render_template("reports/advance.html", form=form, items=items, categories=REPORT_CATEGORIES)
+    return render_template("reports/advance.html", form=form)
 
 
 @bp.route("/closure", methods=["GET", "POST"])
@@ -85,8 +86,7 @@ def closure():
         flash("บันทึกการปิดข่าวเรียบร้อยแล้ว", "success")
         return redirect(url_for("reports.closure"))
 
-    items = NewsClosure.query.order_by(NewsClosure.created_at.desc()).limit(50).all()
-    return render_template("reports/closure.html", form=form, items=items, categories=REPORT_CATEGORIES)
+    return render_template("reports/closure.html", form=form)
 
 
 @bp.route("/situation", methods=["GET", "POST"])
@@ -112,8 +112,7 @@ def situation():
         flash("บันทึกรายงานสถานการณ์ข่าวเรียบร้อยแล้ว", "success")
         return redirect(url_for("reports.situation"))
 
-    items = SituationReport.query.order_by(SituationReport.created_at.desc()).limit(50).all()
-    return render_template("reports/situation.html", form=form, items=items, categories=REPORT_CATEGORIES)
+    return render_template("reports/situation.html", form=form)
 
 
 @bp.route("/general", methods=["GET", "POST"])
@@ -136,5 +135,4 @@ def general():
         flash("บันทึกข่าวทั่วไปเรียบร้อยแล้ว", "success")
         return redirect(url_for("reports.general"))
 
-    items = GeneralNews.query.order_by(GeneralNews.created_at.desc()).limit(50).all()
-    return render_template("reports/general.html", form=form, items=items, categories=REPORT_CATEGORIES)
+    return render_template("reports/general.html", form=form)

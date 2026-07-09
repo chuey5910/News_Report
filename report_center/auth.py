@@ -8,6 +8,10 @@ from .models import LoginLog, User
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+def _default_landing_url(user):
+    return url_for("reports.dashboard") if user.is_admin else url_for("reports.advance")
+
+
 def _client_ip():
     forwarded = request.headers.get("X-Forwarded-For", "")
     if forwarded:
@@ -31,7 +35,7 @@ def _record_login(user_id, username_attempted, success, reason):
 @bp.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for("reports.dashboard"))
+        return redirect(_default_landing_url(current_user))
 
     form = RegisterForm()
     if form.validate_on_submit():
@@ -56,7 +60,7 @@ def register():
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("reports.dashboard"))
+        return redirect(_default_landing_url(current_user))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -74,7 +78,9 @@ def login():
             _record_login(user.id, username, True, None)
             flash(f"ยินดีต้อนรับ {user.full_name}", "success")
             next_url = request.args.get("next")
-            return redirect(next_url or url_for("reports.dashboard"))
+            if next_url and next_url.startswith("/"):
+                return redirect(next_url)
+            return redirect(_default_landing_url(user))
     return render_template("auth/login.html", form=form)
 
 
