@@ -10,8 +10,8 @@
   <form method="post" id="closure-form" class="confirm-before-submit">
     {{ form.hidden_tag() }}
     <div class="form-grid">
-      {{ m.render_field(form.title, full=True) }}
-      {{ m.render_field(form.related_advance_id, full=True) }}
+      {{ m.render_field(form.title, half=True) }}
+      {{ m.render_field(form.related_advance_id) }}
       {{ af.render_activity_fields(form) }}
     </div>
     <button class="btn" type="submit">บันทึก</button>

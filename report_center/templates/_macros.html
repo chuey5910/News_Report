@@ -1,5 +1,5 @@
-{% macro render_field(field, full=False) %}
-  <div class="form-field{{ ' full' if full else '' }}">
+{% macro render_field(field, full=False, half=False) %}
+  <div class="form-field{{ ' full' if full else '' }}{{ ' half' if half else '' }}">
     {{ field.label }}
     {{ field(data_label=field.label.text, **kwargs) }}
     {% if field.errors %}

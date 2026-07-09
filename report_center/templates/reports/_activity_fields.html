@@ -1,10 +1,20 @@
 {% import "_macros.html" as m %}
 
 {% macro render_activity_fields(form) %}
-  {{ m.render_field(form.event_date) }}
-  {{ m.render_field(form.event_time) }}
-  {{ m.render_field(form.event_end_date) }}
-  {{ m.render_field(form.event_end_time) }}
+  <div class="form-field half datetime-pair">
+    <label>วันที่และเวลานัดหมายทำกิจกรรม</label>
+    <div class="datetime-row">
+      {{ form.event_date(data_label="วันที่นัดหมายทำกิจกรรม") }}
+      {{ form.event_time(data_label="เวลานัดหมาย") }}
+    </div>
+  </div>
+  <div class="form-field half datetime-pair">
+    <label>วันที่และเวลาสิ้นสุดกิจกรรม</label>
+    <div class="datetime-row">
+      {{ form.event_end_date(data_label="วันที่สิ้นสุดกิจกรรม") }}
+      {{ form.event_end_time(data_label="เวลาสิ้นสุด") }}
+    </div>
+  </div>
   {{ m.render_field(form.permit_status) }}
 
   <div id="permit-detail-wrapper" class="sub-section" hidden>
@@ -17,21 +27,21 @@
   {{ m.render_field(form.location) }}
   {{ m.render_field(form.group_name) }}
 
-  <div class="form-field full">
+  <div class="form-field">
     {{ form.leader_count.label }}
     {{ form.leader_count(data_label=form.leader_count.label.text) }}
-    <div id="leader-fields-container" class="dynamic-fields"></div>
   </div>
+  <div id="leader-fields-container" class="dynamic-fields-flow"></div>
 
   {{ m.render_field(form.mass_count) }}
-  {{ m.render_field(form.activity_format, full=True) }}
+  {{ m.render_field(form.activity_format, half=True) }}
   {{ m.render_field(form.demands, full=True) }}
-  {{ m.render_field(form.supporters, full=True) }}
-  {{ m.render_field(form.affiliations, full=True) }}
+  {{ m.render_field(form.supporters, half=True) }}
+  {{ m.render_field(form.affiliations, half=True) }}
 
   {{ m.render_field(form.overnight_equipment_status) }}
   <div id="equipment-detail-wrapper" class="sub-section" hidden>
-    {{ m.render_field(form.overnight_equipment_detail, full=True) }}
+    {{ m.render_field(form.overnight_equipment_detail, half=True) }}
   </div>
 
   {{ m.render_field(form.vehicle_status) }}
@@ -43,8 +53,8 @@
     <div id="vehicle-fields-container" class="dynamic-fields"></div>
   </div>
 
-  {{ m.render_field(form.other_info, full=True) }}
-  {{ m.render_field(form.trend_assessment, full=True) }}
+  {{ m.render_field(form.other_info, half=True) }}
+  {{ m.render_field(form.trend_assessment, half=True) }}
   {{ m.render_field(form.reporter_name) }}
   {{ m.render_field(form.reporter_phone) }}
 {% endmacro %}
