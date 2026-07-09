@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}ภาพรวม — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">ภาพรวม</h2>
+
+<div class="stat-row">
+  {% for key, meta in categories.items() %}
+  <div class="stat-tile">
+    <div class="num">{{ counts[key] }}</div>
+    <div class="label">{{ meta.label }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{% for key, meta in categories.items() %}
+<div class="card">
+  <h2>{{ meta.label }} (ล่าสุด)</h2>
+  {% if recent[key] %}
+  <table>
+    <thead><tr><th>หัวข้อ</th><th>บันทึกเมื่อ</th><th>ผู้บันทึก</th></tr></thead>
+    <tbody>
+      {% for item in recent[key] %}
+      <tr>
+        <td>{{ item.title }}</td>
+        <td>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td>{{ item.created_by.full_name if item.created_by else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-note">ยังไม่มีข้อมูล</div>
+  {% endif %}
+  <a class="btn small" href="{{ url_for(meta.endpoint) }}">ไปที่ {{ meta.label }}</a>
+</div>
+{% endfor %}
+{% endblock %}

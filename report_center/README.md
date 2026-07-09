@@ -1,0 +1,103 @@
+# ศูนย์บันทึกข่าว (Report Center)
+
+ระบบเว็บสำหรับบันทึกและจัดเก็บข้อมูล 4 ประเภท พร้อมระบบสมาชิก (ลงทะเบียน/เข้าสู่ระบบ) และ
+บันทึกประวัติการเข้าใช้งานทุกครั้ง เป็น **ระบบแยกต่างหาก** จากเว็บสรุปข่าว RSS เดิม
+(`news_report/`, `docs/`) — มี backend + ฐานข้อมูลของตัวเอง (Flask + SQLite) และเปิด
+JSON API ให้ระบบเดิมดึงข้อมูลไปแจ้งเตือนได้ (ดูหัวข้อ "การเชื่อมต่อกับระบบแจ้งเตือนเดิม")
+
+## 4 ประเภทข้อมูล (เมนูซ้าย / ฟอร์มขวา)
+
+| ประเภท | ฟิลด์หลักในฟอร์ม |
+|---|---|
+| **ข่าวล่วงหน้า** | วัน/เวลาที่คาดว่าจะเกิดเหตุ, สถานที่, รายละเอียด, กลุ่มเป้าหมาย, แหล่งข่าว, ระดับความน่าเชื่อถือ, ระดับความสำคัญ, มาตรการเฝ้าระวัง, หน่วยงานที่เกี่ยวข้อง |
+| **ปิดข่าว** | ผูกกับข่าวล่วงหน้า (เลือกได้), วันที่ปิดข่าว, สถานะผล (จริง/เท็จ/ยังไม่ยืนยัน/ระงับได้แล้ว/คลี่คลายแล้ว), ผลการดำเนินการ, ผู้รับผิดชอบ, หน่วยงาน |
+| **รายงานสถานการณ์ข่าว** | วัน/เวลาเกิดเหตุ, สถานที่, ประเภทสถานการณ์, รายละเอียด, ระดับความสำคัญ, ผลกระทบ, การดำเนินการเบื้องต้น, สถานะปัจจุบัน |
+| **ข่าวทั่วไป** | วันที่ข่าว, แหล่งที่มา, สรุปเนื้อหา, พื้นที่/จังหวัด, หมวดหมู่ |
+
+ทุกรายการบันทึกผู้บันทึกและเวลาอัตโนมัติ
+
+## ระบบสมาชิกและความปลอดภัย
+
+- **สมัครสมาชิก** ต้องรอ **ผู้ดูแลระบบ (admin) อนุมัติ** ก่อนจึงจะเข้าสู่ระบบได้ (ป้องกันคนนอกเข้าถึงข้อมูล)
+- **สิทธิ์ผู้ใช้ 2 ระดับ**: `admin` (จัดการผู้ใช้/ดูประวัติการเข้าระบบ) และ `user` (บันทึก/ดูรายงานได้ตามปกติ)
+- **บันทึกการเข้าสู่ระบบทุกครั้ง** (`login_logs` table) ทั้งที่สำเร็จและล้มเหลว พร้อมเวลา, IP, User-Agent,
+  และเหตุผลที่ล้มเหลว (เช่น รหัสผ่านผิด / บัญชียังไม่ได้รับอนุมัติ) — ดูได้ที่เมนู "ประวัติการเข้าสู่ระบบ" (admin เท่านั้น)
+- รหัสผ่านเก็บแบบ hash (werkzeug `generate_password_hash`) ไม่เก็บเป็น plain text
+- ฟอร์มทุกหน้ามี CSRF protection (Flask-WTF)
+
+## รันในเครื่อง (local)
+
+```bash
+cd report_center
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# จากโฟลเดอร์ repo root (พาเรนต์ของ report_center/):
+cd ..
+python -m report_center.run
+# เปิดเบราว์เซอร์ที่ http://127.0.0.1:5001
+```
+
+สร้างบัญชีผู้ดูแลระบบคนแรก (จำเป็น เพราะสมาชิกใหม่ต้องรอ admin อนุมัติ):
+
+```bash
+export FLASK_APP=report_center
+flask create-admin admin "ผู้ดูแลระบบ"
+# ระบบจะถามรหัสผ่าน (interactive prompt)
+```
+
+## ตัวแปรแวดล้อม (environment variables)
+
+| ตัวแปร | ค่าเริ่มต้น | คำอธิบาย |
+|---|---|---|
+| `SECRET_KEY` | `dev-secret-key-change-me` | ใช้เซ็น session cookie — **ต้องเปลี่ยนก่อนใช้งานจริง** |
+| `DATABASE_URL` | SQLite ที่ `report_center/instance/report_center.db` | เปลี่ยนได้เป็น Postgres/MySQL URL |
+| `REPORT_CENTER_API_KEY` | `dev-api-key-change-me` | API key สำหรับให้ระบบภายนอกดึงข้อมูล — **ต้องเปลี่ยนก่อนใช้งานจริง** |
+
+## การเชื่อมต่อกับระบบแจ้งเตือนเดิม (news_report/)
+
+ระบบเดิม (`news_report/`) สามารถดึงรายงานใหม่จากระบบนี้ผ่าน JSON API เพื่อนำไปประกอบการแจ้งเตือน
+LINE ได้ (ยังไม่ได้เชื่อมต่ออัตโนมัติในโค้ด — ต้องเพิ่มโค้ดเรียก API นี้ใน `news_report/` เอง):
+
+```
+GET /api/reports/latest?since=<ISO8601>&category=<advance|closure|situation|general>&limit=50
+Header: X-API-Key: <REPORT_CENTER_API_KEY>
+```
+
+ตัวอย่าง response:
+
+```json
+{
+  "count": 2,
+  "results": [
+    {
+      "category": "advance",
+      "category_label": "ข่าวล่วงหน้า",
+      "id": 3,
+      "title": "...",
+      "detail": "...",
+      "created_at": "2026-07-09T09:00:00",
+      "created_by": "ผู้ดูแลระบบ"
+    }
+  ]
+}
+```
+
+## โครงสร้างไฟล์
+
+```
+report_center/
+  __init__.py      # app factory + CLI (flask create-admin)
+  config.py
+  extensions.py    # db, login_manager
+  models.py        # User, LoginLog, AdvanceNews, NewsClosure, SituationReport, GeneralNews
+  forms.py         # WTForms ต่อฟอร์มแต่ละประเภท
+  auth.py          # register / login / logout + login audit logging
+  reports.py       # list + create ต่อ 4 ประเภท
+  admin.py         # อนุมัติผู้ใช้ / ดู login logs
+  api.py           # JSON API สำหรับระบบภายนอก (API key)
+  templates/
+  static/css/
+  run.py
+```

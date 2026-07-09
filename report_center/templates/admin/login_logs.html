@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}ประวัติการเข้าสู่ระบบ — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">ประวัติการเข้าสู่ระบบ</h2>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>เวลา</th><th>ชื่อผู้ใช้</th><th>ผลลัพธ์</th><th>เหตุผล</th><th>IP</th><th>User Agent</th></tr>
+    </thead>
+    <tbody>
+      {% for log in pagination.items %}
+      <tr>
+        <td>{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+        <td>{{ log.username_attempted }}</td>
+        <td>
+          {% if log.success %}
+          <span class="badge success">สำเร็จ</span>
+          {% else %}
+          <span class="badge fail">ล้มเหลว</span>
+          {% endif %}
+        </td>
+        <td>{{ log.reason or '-' }}</td>
+        <td>{{ log.ip_address or '-' }}</td>
+        <td style="max-width:260px; overflow-wrap:anywhere;">{{ log.user_agent or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div style="margin-top:1rem;">
+    {% if pagination.has_prev %}
+    <a class="btn small secondary" href="{{ url_for('admin.login_logs', page=pagination.prev_num) }}">ก่อนหน้า</a>
+    {% endif %}
+    <span style="margin:0 .5rem; font-size:.85rem; color:var(--muted);">หน้า {{ pagination.page }} / {{ pagination.pages or 1 }}</span>
+    {% if pagination.has_next %}
+    <a class="btn small secondary" href="{{ url_for('admin.login_logs', page=pagination.next_num) }}">ถัดไป</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

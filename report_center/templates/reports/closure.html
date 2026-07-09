@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}ปิดข่าว — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">ปิดข่าว</h2>
+
+<div class="card">
+  <h2>บันทึกการปิดข่าวใหม่</h2>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <div class="form-grid">
+      {{ m.render_field(form.title, full=True) }}
+      {{ m.render_field(form.related_advance_id) }}
+      {{ m.render_field(form.reference_note) }}
+      {{ m.render_field(form.closure_date) }}
+      {{ m.render_field(form.result_status) }}
+      {{ m.render_field(form.operation_result, full=True) }}
+      {{ m.render_field(form.responsible_person) }}
+      {{ m.render_field(form.responsible_agency) }}
+      {{ m.render_field(form.notes, full=True) }}
+    </div>
+    <button class="btn" type="submit">บันทึก</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>รายการล่าสุด</h2>
+  {% if items %}
+  <table>
+    <thead>
+      <tr><th>หัวข้อ</th><th>ข่าวที่อ้างอิง</th><th>สถานะ</th><th>บันทึกเมื่อ</th><th>ผู้บันทึก</th></tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.title }}</td>
+        <td>{{ item.related_advance.title if item.related_advance else (item.reference_note or '-') }}</td>
+        <td>{{ item.result_status }}</td>
+        <td>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td>{{ item.created_by.full_name if item.created_by else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-note">ยังไม่มีข้อมูล</div>
+  {% endif %}
+</div>
+{% endblock %}

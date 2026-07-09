@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ศูนย์บันทึกข่าว{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h1>ศูนย์บันทึกข่าว</h1>
+    <nav>
+      <div class="section-label">รายงาน</div>
+      <a href="{{ url_for('reports.dashboard') }}" class="{{ 'active' if request.endpoint == 'reports.dashboard' else '' }}">ภาพรวม</a>
+      <a href="{{ url_for('reports.advance') }}" class="{{ 'active' if request.endpoint == 'reports.advance' else '' }}">ข่าวล่วงหน้า</a>
+      <a href="{{ url_for('reports.closure') }}" class="{{ 'active' if request.endpoint == 'reports.closure' else '' }}">ปิดข่าว</a>
+      <a href="{{ url_for('reports.situation') }}" class="{{ 'active' if request.endpoint == 'reports.situation' else '' }}">รายงานสถานการณ์ข่าว</a>
+      <a href="{{ url_for('reports.general') }}" class="{{ 'active' if request.endpoint == 'reports.general' else '' }}">ข่าวทั่วไป</a>
+      {% if current_user.is_authenticated and current_user.is_admin %}
+      <div class="section-label">ผู้ดูแลระบบ</div>
+      <a href="{{ url_for('admin.users') }}" class="{{ 'active' if request.endpoint == 'admin.users' else '' }}">จัดการผู้ใช้</a>
+      <a href="{{ url_for('admin.login_logs') }}" class="{{ 'active' if request.endpoint == 'admin.login_logs' else '' }}">ประวัติการเข้าสู่ระบบ</a>
+      {% endif %}
+    </nav>
+    {% if current_user.is_authenticated %}
+    <div class="user-box">
+      <div class="name">{{ current_user.full_name }}</div>
+      <div class="role">{{ 'ผู้ดูแลระบบ' if current_user.is_admin else 'ผู้ใช้งาน' }}</div>
+      <a href="{{ url_for('auth.logout') }}">ออกจากระบบ</a>
+    </div>
+    {% endif %}
+  </aside>
+  <main class="main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>
