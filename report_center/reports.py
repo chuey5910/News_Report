@@ -1,3 +1,5 @@
+from datetime import datetime, time as time_cls
+
 from flask import Blueprint, render_template, redirect, request, url_for, flash
 from flask_login import current_user, login_required
 
@@ -16,10 +18,80 @@ from .models import (
     AdvanceNewsVehicle,
     GeneralNews,
     NewsClosure,
+    NewsClosureLeader,
+    NewsClosureVehicle,
     SituationReport,
 )
 
 bp = Blueprint("reports", __name__, url_prefix="/reports")
+
+
+def _combine_date_time(date_val, time_val):
+    if date_val is None:
+        return None
+    return datetime.combine(date_val, time_val or time_cls.min)
+
+
+def _activity_fields_from_form(form):
+    permit_granted = form.permit_status.data == "มีการขออนุญาต"
+    equipment_present = form.overnight_equipment_status.data == "มี"
+
+    return {
+        "title": form.title.data,
+        "event_datetime": _combine_date_time(form.event_date.data, form.event_time.data),
+        "event_end_datetime": _combine_date_time(form.event_end_date.data, form.event_end_time.data),
+        "permit_status": form.permit_status.data,
+        "permit_location": form.permit_location.data if permit_granted else None,
+        "permit_duration_days": form.permit_duration_days.data if permit_granted else None,
+        "location": form.location.data,
+        "group_name": form.group_name.data,
+        "mass_count": form.mass_count.data,
+        "activity_format": form.activity_format.data,
+        "demands": form.demands.data,
+        "supporters": form.supporters.data,
+        "affiliations": form.affiliations.data,
+        "overnight_equipment_status": form.overnight_equipment_status.data,
+        "overnight_equipment_detail": form.overnight_equipment_detail.data if equipment_present else None,
+        "vehicle_status": form.vehicle_status.data,
+        "other_info": form.other_info.data,
+        "trend_assessment": form.trend_assessment.data,
+        "reporter_name": form.reporter_name.data,
+        "reporter_phone": form.reporter_phone.data,
+        "created_by_id": current_user.id,
+    }
+
+
+def _leaders_from_request():
+    return [name.strip() for name in request.form.getlist("leader_name") if name.strip()]
+
+
+def _vehicles_from_request():
+    vehicle_types = request.form.getlist("vehicle_type")
+    plate_numbers = request.form.getlist("vehicle_plate")
+    provinces = request.form.getlist("vehicle_province")
+    colors = request.form.getlist("vehicle_color")
+    rows = []
+    for vtype, plate, province, color in zip(vehicle_types, plate_numbers, provinces, colors):
+        if any(v.strip() for v in (vtype, plate, province, color)):
+            rows.append(
+                {"vehicle_type": vtype.strip(), "plate_number": plate.strip(), "province": province.strip(), "color": color.strip()}
+            )
+    return rows
+
+
+def _submitted_dynamic_fields():
+    """For re-rendering the form with previously-entered leader/vehicle rows after a validation error."""
+    if request.method != "POST":
+        return [], []
+    leaders = request.form.getlist("leader_name")
+    vehicles = []
+    vehicle_types = request.form.getlist("vehicle_type")
+    plate_numbers = request.form.getlist("vehicle_plate")
+    provinces = request.form.getlist("vehicle_province")
+    colors = request.form.getlist("vehicle_color")
+    for vtype, plate, province, color in zip(vehicle_types, plate_numbers, provinces, colors):
+        vehicles.append({"vehicle_type": vtype, "plate_number": plate, "province": province, "color": color})
+    return leaders, vehicles
 
 
 @bp.route("/")
@@ -41,71 +113,21 @@ def dashboard():
 def advance():
     form = AdvanceNewsForm()
     if form.validate_on_submit():
-        permit_granted = form.permit_status.data == "มีการขออนุญาต"
-        equipment_present = form.overnight_equipment_status.data == "มี"
-        vehicles_present = form.vehicle_status.data == "มี"
+        item = AdvanceNews(**_activity_fields_from_form(form))
 
-        item = AdvanceNews(
-            title=form.title.data,
-            event_datetime=form.event_datetime.data,
-            permit_status=form.permit_status.data,
-            permit_location=form.permit_location.data if permit_granted else None,
-            permit_duration_days=form.permit_duration_days.data if permit_granted else None,
-            location=form.location.data,
-            group_name=form.group_name.data,
-            mass_count=form.mass_count.data,
-            activity_format=form.activity_format.data,
-            demands=form.demands.data,
-            supporters=form.supporters.data,
-            affiliations=form.affiliations.data,
-            overnight_equipment_status=form.overnight_equipment_status.data,
-            overnight_equipment_detail=form.overnight_equipment_detail.data if equipment_present else None,
-            vehicle_status=form.vehicle_status.data,
-            other_info=form.other_info.data,
-            trend_assessment=form.trend_assessment.data,
-            reporter_name=form.reporter_name.data,
-            reporter_phone=form.reporter_phone.data,
-            created_by_id=current_user.id,
-        )
+        for full_name in _leaders_from_request():
+            item.leaders.append(AdvanceNewsLeader(full_name=full_name))
 
-        for full_name in request.form.getlist("leader_name"):
-            full_name = full_name.strip()
-            if full_name:
-                item.leaders.append(AdvanceNewsLeader(full_name=full_name))
-
-        if vehicles_present:
-            vehicle_types = request.form.getlist("vehicle_type")
-            plate_numbers = request.form.getlist("vehicle_plate")
-            provinces = request.form.getlist("vehicle_province")
-            colors = request.form.getlist("vehicle_color")
-            for vtype, plate, province, color in zip(vehicle_types, plate_numbers, provinces, colors):
-                if any(v.strip() for v in (vtype, plate, province, color)):
-                    item.vehicles.append(
-                        AdvanceNewsVehicle(
-                            vehicle_type=vtype.strip(),
-                            plate_number=plate.strip(),
-                            province=province.strip(),
-                            color=color.strip(),
-                        )
-                    )
+        if form.vehicle_status.data == "มี":
+            for row in _vehicles_from_request():
+                item.vehicles.append(AdvanceNewsVehicle(**row))
 
         db.session.add(item)
         db.session.commit()
         flash("บันทึกข่าวล่วงหน้าเรียบร้อยแล้ว", "success")
         return redirect(url_for("reports.advance"))
 
-    submitted_leaders = request.form.getlist("leader_name") if request.method == "POST" else []
-    submitted_vehicles = []
-    if request.method == "POST":
-        vehicle_types = request.form.getlist("vehicle_type")
-        plate_numbers = request.form.getlist("vehicle_plate")
-        provinces = request.form.getlist("vehicle_province")
-        colors = request.form.getlist("vehicle_color")
-        for vtype, plate, province, color in zip(vehicle_types, plate_numbers, provinces, colors):
-            submitted_vehicles.append(
-                {"vehicle_type": vtype, "plate_number": plate, "province": province, "color": color}
-            )
-
+    submitted_leaders, submitted_vehicles = _submitted_dynamic_fields()
     return render_template(
         "reports/advance.html",
         form=form,
@@ -123,24 +145,27 @@ def closure():
     ]
     if form.validate_on_submit():
         related_id = form.related_advance_id.data or None
-        item = NewsClosure(
-            title=form.title.data,
-            related_advance_id=related_id if related_id else None,
-            reference_note=form.reference_note.data,
-            closure_date=form.closure_date.data,
-            result_status=form.result_status.data,
-            operation_result=form.operation_result.data,
-            responsible_person=form.responsible_person.data,
-            responsible_agency=form.responsible_agency.data,
-            notes=form.notes.data,
-            created_by_id=current_user.id,
-        )
+        item = NewsClosure(related_advance_id=related_id, **_activity_fields_from_form(form))
+
+        for full_name in _leaders_from_request():
+            item.leaders.append(NewsClosureLeader(full_name=full_name))
+
+        if form.vehicle_status.data == "มี":
+            for row in _vehicles_from_request():
+                item.vehicles.append(NewsClosureVehicle(**row))
+
         db.session.add(item)
         db.session.commit()
         flash("บันทึกการปิดข่าวเรียบร้อยแล้ว", "success")
         return redirect(url_for("reports.closure"))
 
-    return render_template("reports/closure.html", form=form)
+    submitted_leaders, submitted_vehicles = _submitted_dynamic_fields()
+    return render_template(
+        "reports/closure.html",
+        form=form,
+        submitted_leaders=submitted_leaders,
+        submitted_vehicles=submitted_vehicles,
+    )
 
 
 @bp.route("/situation", methods=["GET", "POST"])
@@ -150,15 +175,12 @@ def situation():
     if form.validate_on_submit():
         item = SituationReport(
             title=form.title.data,
-            incident_datetime=form.incident_datetime.data,
-            location=form.location.data,
-            situation_type=form.situation_type.data,
-            description=form.description.data,
-            severity_level=form.severity_level.data,
-            impact=form.impact.data,
-            initial_action=form.initial_action.data,
-            related_agency=form.related_agency.data,
-            current_status=form.current_status.data,
+            who=form.who.data,
+            what=form.what.data,
+            when=form.when.data,
+            where=form.where.data,
+            why=form.why.data,
+            how=form.how.data,
             created_by_id=current_user.id,
         )
         db.session.add(item)
@@ -176,12 +198,12 @@ def general():
     if form.validate_on_submit():
         item = GeneralNews(
             title=form.title.data,
-            news_date=form.news_date.data,
-            source=form.source.data,
-            summary=form.summary.data,
-            area=form.area.data,
-            category_tag=form.category_tag.data,
-            notes=form.notes.data,
+            who=form.who.data,
+            what=form.what.data,
+            when=form.when.data,
+            where=form.where.data,
+            why=form.why.data,
+            how=form.how.data,
             created_by_id=current_user.id,
         )
         db.session.add(item)

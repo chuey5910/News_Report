@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m %}
+{% import "reports/_activity_fields.html" as af %}
 {% block title %}ปิดข่าว — ศูนย์บันทึกข่าว{% endblock %}
 {% block content %}
 <h2 class="page-title">ปิดข่าว</h2>
@@ -10,16 +11,13 @@
     {{ form.hidden_tag() }}
     <div class="form-grid">
       {{ m.render_field(form.title, full=True) }}
-      {{ m.render_field(form.related_advance_id) }}
-      {{ m.render_field(form.reference_note) }}
-      {{ m.render_field(form.closure_date) }}
-      {{ m.render_field(form.result_status) }}
-      {{ m.render_field(form.operation_result, full=True) }}
-      {{ m.render_field(form.responsible_person) }}
-      {{ m.render_field(form.responsible_agency) }}
-      {{ m.render_field(form.notes, full=True) }}
+      {{ m.render_field(form.related_advance_id, full=True) }}
+      {{ af.render_activity_fields(form) }}
     </div>
     <button class="btn" type="submit">บันทึก</button>
   </form>
 </div>
+
+<script id="activity-form-data" type="application/json">{{ {"leaders": submitted_leaders, "vehicles": submitted_vehicles} | tojson }}</script>
+<script src="{{ url_for('static', filename='js/activity-form.js') }}"></script>
 {% endblock %}

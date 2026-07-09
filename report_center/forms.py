@@ -1,21 +1,17 @@
 from flask_wtf import FlaskForm
 from wtforms import (
-    DateTimeField,
+    DateField,
+    DateTimeLocalField,
     IntegerField,
     PasswordField,
     SelectField,
     StringField,
     TextAreaField,
+    TimeField,
 )
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, EqualTo, Regexp
 
-from .models import (
-    PERMIT_STATUSES,
-    PRIORITY_LEVELS,
-    RESULT_STATUSES,
-    SITUATION_STATUSES,
-    YES_NO,
-)
+from .models import PERMIT_STATUSES, YES_NO
 
 LEADER_COUNT_CHOICES = [(i, str(i)) for i in range(0, 21)]
 VEHICLE_COUNT_CHOICES = [(i, str(i)) for i in range(0, 11)]
@@ -46,9 +42,16 @@ def _choices(values):
     return [(v, v) for v in values]
 
 
-class AdvanceNewsForm(FlaskForm):
+class ActivityReportForm(FlaskForm):
+    """ฟิลด์ชุดเดียวกัน ใช้ทั้งข่าวล่วงหน้าและปิดข่าว."""
+
     title = StringField("ชื่อกิจกรรม", validators=[DataRequired(), Length(max=255)])
-    event_datetime = DateTimeField("วันเวลานัดหมายทำกิจกรรม", format="%Y-%m-%dT%H:%M", validators=[Optional()])
+
+    event_date = DateField("วันที่นัดหมายทำกิจกรรม", validators=[Optional()])
+    event_time = TimeField("เวลานัดหมาย", validators=[Optional()])
+    event_end_date = DateField("วันที่สิ้นสุดกิจกรรม", validators=[Optional()])
+    event_end_time = TimeField("เวลาสิ้นสุด", validators=[Optional()])
+
     permit_status = SelectField("การขออนุญาต", choices=_choices(PERMIT_STATUSES))
     permit_location = StringField("ขออนุญาตที่ไหน", validators=[Optional(), Length(max=255)])
     permit_duration_days = IntegerField(
@@ -78,36 +81,31 @@ class AdvanceNewsForm(FlaskForm):
     reporter_phone = StringField("เบอร์ติดต่อ", validators=[Optional(), Length(max=32)])
 
 
-class NewsClosureForm(FlaskForm):
-    title = StringField("หัวข้อข่าว", validators=[DataRequired(), Length(max=255)])
+class AdvanceNewsForm(ActivityReportForm):
+    """ข่าวล่วงหน้า."""
+
+
+class NewsClosureForm(ActivityReportForm):
+    """ปิดข่าว — ฟิลด์ชุดเดียวกันกับข่าวล่วงหน้า เพิ่มการผูกกับข่าวล่วงหน้าต้นเรื่อง (ถ้ามี)."""
+
     related_advance_id = SelectField("ผูกกับข่าวล่วงหน้า (ถ้ามี)", coerce=int, validators=[Optional()])
-    reference_note = StringField("อ้างอิงข่าวต้นเรื่อง (ถ้าไม่ได้ผูกรายการด้านบน)", validators=[Optional(), Length(max=255)])
-    closure_date = DateTimeField("วันที่ปิดข่าว", format="%Y-%m-%dT%H:%M", validators=[Optional()])
-    result_status = SelectField("สถานะผลการตรวจสอบ", choices=_choices(RESULT_STATUSES))
-    operation_result = TextAreaField("ผลการดำเนินการ", validators=[DataRequired()])
-    responsible_person = StringField("ผู้รับผิดชอบ", validators=[Optional(), Length(max=128)])
-    responsible_agency = StringField("หน่วยงานที่ดำเนินการ", validators=[Optional(), Length(max=255)])
-    notes = TextAreaField("หมายเหตุ", validators=[Optional()])
 
 
-class SituationReportForm(FlaskForm):
-    title = StringField("หัวข้อรายงาน", validators=[DataRequired(), Length(max=255)])
-    incident_datetime = DateTimeField("วัน/เวลาที่เกิดเหตุ", format="%Y-%m-%dT%H:%M", validators=[Optional()])
-    location = StringField("สถานที่เกิดเหตุ", validators=[DataRequired(), Length(max=255)])
-    situation_type = StringField("ประเภทสถานการณ์", validators=[Optional(), Length(max=128)])
-    description = TextAreaField("รายละเอียดสถานการณ์", validators=[DataRequired()])
-    severity_level = SelectField("ระดับความสำคัญ", choices=_choices(PRIORITY_LEVELS))
-    impact = TextAreaField("ผลกระทบ", validators=[Optional()])
-    initial_action = TextAreaField("การดำเนินการเบื้องต้น", validators=[Optional()])
-    related_agency = StringField("หน่วยงานที่เกี่ยวข้อง", validators=[Optional(), Length(max=255)])
-    current_status = SelectField("สถานะปัจจุบัน", choices=_choices(SITUATION_STATUSES))
+class FiveWOneHForm(FlaskForm):
+    """หัวข้อ 5W1H ใช้ร่วมกันระหว่างรายงานสถานการณ์ข่าวและข่าวทั่วไป."""
+
+    title = StringField("หัวข้อ", validators=[DataRequired(), Length(max=255)])
+    who = TextAreaField("ใคร (Who)", validators=[Optional()])
+    what = TextAreaField("เกิดอะไรขึ้น (What)", validators=[DataRequired()])
+    when = DateTimeLocalField("เมื่อไหร่ (When)", validators=[Optional()])
+    where = StringField("ที่ไหน (Where)", validators=[Optional(), Length(max=255)])
+    why = TextAreaField("ทำไม/เพราะเหตุใด (Why)", validators=[Optional()])
+    how = TextAreaField("อย่างไร (How)", validators=[Optional()])
 
 
-class GeneralNewsForm(FlaskForm):
-    title = StringField("หัวข้อข่าว", validators=[DataRequired(), Length(max=255)])
-    news_date = DateTimeField("วันที่ข่าว", format="%Y-%m-%dT%H:%M", validators=[Optional()])
-    source = StringField("แหล่งที่มา", validators=[Optional(), Length(max=255)])
-    summary = TextAreaField("เนื้อหาข่าวโดยสรุป", validators=[DataRequired()])
-    area = StringField("พื้นที่/จังหวัดที่เกี่ยวข้อง", validators=[Optional(), Length(max=255)])
-    category_tag = StringField("หมวดหมู่", validators=[Optional(), Length(max=128)])
-    notes = TextAreaField("หมายเหตุ", validators=[Optional()])
+class SituationReportForm(FiveWOneHForm):
+    """รายงานสถานการณ์ข่าว."""
+
+
+class GeneralNewsForm(FiveWOneHForm):
+    """ข่าวทั่วไป."""

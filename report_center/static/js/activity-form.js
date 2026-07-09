@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
   var initialData = {};
-  var dataEl = document.getElementById("advance-form-data");
+  var dataEl = document.getElementById("activity-form-data");
   if (dataEl) {
     try {
       initialData = JSON.parse(dataEl.textContent);

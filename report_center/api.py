@@ -14,13 +14,9 @@ def _require_api_key():
 
 
 def _detail_text(category, item):
-    if category == "advance":
+    if category in ("advance", "closure"):
         return item.demands
-    if category == "closure":
-        return item.operation_result
-    if category == "situation":
-        return item.description
-    return item.summary  # general
+    return item.what  # situation, general (5W1H)
 
 
 def _serialize(category, item):
@@ -33,9 +29,10 @@ def _serialize(category, item):
         "created_at": item.created_at.isoformat(),
         "created_by": item.created_by.full_name if item.created_by else None,
     }
-    if category == "advance":
+    if category in ("advance", "closure"):
         data["location"] = item.location
         data["event_datetime"] = item.event_datetime.isoformat() if item.event_datetime else None
+        data["event_end_datetime"] = item.event_end_datetime.isoformat() if item.event_end_datetime else None
         data["mass_count"] = item.mass_count
         data["leaders"] = [leader.full_name for leader in item.leaders]
         data["vehicles"] = [
@@ -47,6 +44,14 @@ def _serialize(category, item):
             }
             for v in item.vehicles
         ]
+        if category == "closure":
+            data["related_advance_id"] = item.related_advance_id
+    if category in ("situation", "general"):
+        data["who"] = item.who
+        data["when"] = item.when.isoformat() if item.when else None
+        data["where"] = item.where
+        data["why"] = item.why
+        data["how"] = item.how
     return data
 
 

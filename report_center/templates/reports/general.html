@@ -5,17 +5,17 @@
 <h2 class="page-title">ข่าวทั่วไป</h2>
 
 <div class="card">
-  <h2>บันทึกข่าวทั่วไปใหม่</h2>
+  <h2>บันทึกข่าวทั่วไปใหม่ (5W1H)</h2>
   <form method="post" id="general-form" class="confirm-before-submit">
     {{ form.hidden_tag() }}
     <div class="form-grid">
       {{ m.render_field(form.title, full=True) }}
-      {{ m.render_field(form.news_date) }}
-      {{ m.render_field(form.source) }}
-      {{ m.render_field(form.summary, full=True) }}
-      {{ m.render_field(form.area) }}
-      {{ m.render_field(form.category_tag) }}
-      {{ m.render_field(form.notes, full=True) }}
+      {{ m.render_field(form.who, full=True) }}
+      {{ m.render_field(form.what, full=True) }}
+      {{ m.render_field(form.when) }}
+      {{ m.render_field(form.where) }}
+      {{ m.render_field(form.why, full=True) }}
+      {{ m.render_field(form.how, full=True) }}
     </div>
     <button class="btn" type="submit">บันทึก</button>
   </form>
