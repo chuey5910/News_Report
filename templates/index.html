@@ -21,6 +21,8 @@
     .origin-toggle button.active { background: #0b5fff; color: #fff; border-color: #0b5fff; }
     .province-item:hover { background: #1f2228; }
     .province-item.active { background: #223055; }
+    .sidebar-divider { border-top-color: #262a31; }
+    .general-item.active { background: #3a2a10; color: #f0b90b; }
     a { color: #6ea8ff; }
     .footnote { color: #8a8f98; border-color: #262a31; }
     .section-label { color: #9aa0aa; }
@@ -62,6 +64,10 @@
   .province-item .count {
     font-size: .75rem; color: #888; background: #eee; border-radius: 999px; padding: 0 .5rem; min-width: 1.4rem; text-align: center;
   }
+  .sidebar-divider { border: none; border-top: 1px solid #e4e4e7; margin: .7rem 0; }
+  .general-item { font-weight: 600; }
+  .general-item .dot { background: #d97706; }
+  .general-item.active { background: #fdf0e0; color: #b45309; }
 
   .content { flex: 1; min-width: 0; padding: 1.4rem 2rem 4rem; }
   .content-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem; gap: 1rem; }
@@ -110,14 +116,16 @@
         <button type="button" data-value="domestic">ในประเทศ</button>
         <button type="button" data-value="international">ต่างประเทศ</button>
       </div>
+      <div id="general-nav-item"></div>
+      <hr class="sidebar-divider">
       <div class="province-list" id="province-list"></div>
     </aside>
 
     <main class="content">
       <div class="content-header">
         <div>
-          <h2>ภาพรวมข่าว 17 จังหวัดภาคเหนือ</h2>
-          <div class="content-subtitle">จัดกลุ่มตามจังหวัด เรียงสื่อในประเทศก่อนสื่อต่างประเทศ</div>
+          <h2 id="content-title">ภาพรวมข่าว 17 จังหวัดภาคเหนือ</h2>
+          <div class="content-subtitle" id="content-subtitle">จัดกลุ่มตามจังหวัด เรียงสื่อในประเทศก่อนสื่อต่างประเทศ</div>
         </div>
         <div class="total-badge">
           <div class="num" id="total-count">0</div>
@@ -129,13 +137,15 @@
 
       <div class="footnote">
         สรุปข่าวนี้ใช้หัวข้อ/เนื้อหาย่อจากต้นฉบับของแต่ละสำนักข่าวโดยตรง (ไม่ได้ใช้ AI วิเคราะห์เชิงลึก)
-        ข่าวต่างประเทศแปลเป็นไทยอัตโนมัติและมีลิงก์อ้างอิงต้นฉบับกำกับทุกข่าว
+        ข่าวต่างประเทศแปลเป็นไทยอัตโนมัติและมีลิงก์อ้างอิงต้นฉบับกำกับทุกข่าว — ข่าวที่ไม่เข้าเกณฑ์ 17 จังหวัด
+        จะไม่ถูกตัดทิ้ง แต่ย้ายไปอยู่ที่ "ข่าวทั่วไปวันนี้" ในเมนูด้านซ้ายแทน
       </div>
     </main>
   </div>
 
 <script>
 (function () {
+  const GENERAL_KEY = "__GENERAL__";
   const state = { report: null, dates: [], selectedProvince: "", selectedOrigin: "" };
   const el = (id) => document.getElementById(id);
 
@@ -151,6 +161,13 @@
       for (const a of articles) rows.push(Object.assign({}, a, { province }));
     }
     return rows;
+  }
+
+  // Everything that didn't match any of the 17 provinces — kept, not discarded,
+  // so nothing gets silently missed. Tagged with one pseudo-province name so the
+  // existing grouping/rendering code (grouped by source, domestic-first) just works.
+  function flattenGeneral(report) {
+    return (report.general || []).map((a) => Object.assign({}, a, { province: "ข่าวทั่วไปวันนี้" }));
   }
 
   function groupBySource(articles) {
@@ -191,6 +208,23 @@
     });
   }
 
+  function renderGeneralNavItem(count) {
+    const container = el("general-nav-item");
+    const item = document.createElement("div");
+    item.className = "province-item general-item" + (state.selectedProvince === GENERAL_KEY ? " active" : "");
+    item.innerHTML =
+      '<span style="display:flex;align-items:center;gap:.5rem;overflow:hidden;">' +
+      '<span class="dot"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+      "ข่าวทั่วไปวันนี้</span></span>" +
+      '<span class="count">' + count + "</span>";
+    item.addEventListener("click", () => {
+      state.selectedProvince = state.selectedProvince === GENERAL_KEY ? "" : GENERAL_KEY;
+      refresh();
+    });
+    container.innerHTML = "";
+    container.appendChild(item);
+  }
+
   function renderProvinceList(rowsForCounts) {
     const counts = {};
     for (const r of rowsForCounts) counts[r.province] = (counts[r.province] || 0) + 1;
@@ -221,7 +255,10 @@
     const container = el("articles");
     container.innerHTML = "";
 
-    const filtered = state.selectedProvince ? rows.filter((r) => r.province === state.selectedProvince) : rows;
+    const filtered =
+      state.selectedProvince && state.selectedProvince !== GENERAL_KEY
+        ? rows.filter((r) => r.province === state.selectedProvince)
+        : rows;
 
     if (!filtered.length) {
       container.innerHTML = '<p class="empty">ไม่พบข่าวตามเงื่อนไขที่เลือก</p>';
@@ -294,11 +331,25 @@
     const rows = flatten(state.report);
     const filteredByOriginAndSearch = applySearchAndOrigin(rows);
     renderProvinceList(filteredByOriginAndSearch);
-    renderArticles(filteredByOriginAndSearch);
-    const shown = state.selectedProvince
-      ? filteredByOriginAndSearch.filter((r) => r.province === state.selectedProvince).length
-      : filteredByOriginAndSearch.length;
-    el("total-count").textContent = shown;
+
+    const generalRows = applySearchAndOrigin(flattenGeneral(state.report));
+    renderGeneralNavItem(generalRows.length);
+
+    if (state.selectedProvince === GENERAL_KEY) {
+      el("content-title").textContent = "ข่าวทั่วไปวันนี้";
+      el("content-subtitle").textContent =
+        "ข่าวที่ไม่ได้เกี่ยวข้องโดยตรงกับ 17 จังหวัด — เก็บไว้ให้ดูครบ ไม่ตัดทิ้ง";
+      renderArticles(generalRows);
+      el("total-count").textContent = generalRows.length;
+    } else {
+      el("content-title").textContent = "ภาพรวมข่าว 17 จังหวัดภาคเหนือ";
+      el("content-subtitle").textContent = "จัดกลุ่มตามจังหวัด เรียงสื่อในประเทศก่อนสื่อต่างประเทศ";
+      renderArticles(filteredByOriginAndSearch);
+      const shown = state.selectedProvince
+        ? filteredByOriginAndSearch.filter((r) => r.province === state.selectedProvince).length
+        : filteredByOriginAndSearch.length;
+      el("total-count").textContent = shown;
+    }
   }
 
   async function loadDate(date) {

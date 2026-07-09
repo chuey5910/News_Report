@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone
 
 from news_report import fetcher, notifier, site_generator, storage, summarizer, translator
-from news_report.province_filter import filter_by_province
+from news_report.province_filter import split_by_province
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -32,18 +32,24 @@ def run(report_date: str | None = None) -> None:
     articles = translator.translate_articles(articles)
 
     logger.info("filtering by target province")
-    articles = filter_by_province(articles, PROVINCES_CONFIG)
+    articles, general_articles = split_by_province(articles, PROVINCES_CONFIG)
 
-    logger.info("summarizing %d matched articles", len(articles))
+    logger.info(
+        "summarizing %d province-matched + %d general articles", len(articles), len(general_articles)
+    )
     articles = summarizer.summarize_articles(articles)
+    general_articles = summarizer.summarize_articles(general_articles)
 
     # Merged into that day's report (accumulates across same-day runs, e.g. 07:00 + 16:00)
-    # rather than overwritten, since `articles` here only ever holds guids not seen before.
+    # rather than overwritten, since `articles`/`general_articles` here only ever hold
+    # guids not seen before.
     new_by_province = storage.group_by_province(articles)
-    report_path = storage.save_daily_report(articles, report_date)
+    report_path = storage.save_daily_report(articles, general_articles, report_date)
     logger.info("saved daily report to %s", report_path)
 
-    storage.mark_seen(articles)
+    # General articles are marked seen too, so they aren't re-fetched/re-translated
+    # every run just to be discarded again — they're kept, not dropped.
+    storage.mark_seen(articles + general_articles)
 
     site_generator.generate_site()
     logger.info("regenerated static site")

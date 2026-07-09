@@ -27,6 +27,21 @@ def test_generate_site_writes_data_files_and_app_shell(tmp_path):
                 }
             ]
         },
+        "general": [
+            {
+                "guid": "2",
+                "title": "ข่าวทั่วไปไม่เกี่ยวกับ 17 จังหวัด",
+                "link": "http://x/2",
+                "summary": "s",
+                "published": "",
+                "source": "ข่าวสด",
+                "language": "th",
+                "source_origin": "domestic",
+                "provinces": [],
+                "title_original": None,
+                "summary_original": None,
+            }
+        ],
     }
     (reports_dir / "2026-07-08.json").write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
 
@@ -37,6 +52,7 @@ def test_generate_site_writes_data_files_and_app_shell(tmp_path):
 
     saved_report = json.loads((output_dir / "data" / "2026-07-08.json").read_text(encoding="utf-8"))
     assert saved_report["provinces"]["เชียงใหม่"][0]["title"] == "น้ำท่วมเชียงใหม่"
+    assert saved_report["general"][0]["title"] == "ข่าวทั่วไปไม่เกี่ยวกับ 17 จังหวัด"
 
     app_html = (output_dir / "index.html").read_text(encoding="utf-8")
     assert "province-list" in app_html

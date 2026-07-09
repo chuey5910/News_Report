@@ -55,22 +55,27 @@ def group_by_province(articles: list[Article]) -> dict[str, list[dict]]:
 
 def save_daily_report(
     articles: list[Article],
+    general_articles: list[Article],
     report_date: str,
     reports_dir: str | Path = DEFAULT_REPORTS_DIR,
 ) -> Path:
-    """Groups articles by matched province and merges them into data/reports/<date>.json.
+    """Groups articles by matched province (plus a "general" bucket for everything that
+    didn't match any of the 17 provinces) and merges them into data/reports/<date>.json.
 
     Multiple runs on the same day (e.g. 07:00 and 16:00) accumulate into one
-    report instead of overwriting each other, since `articles` only ever
-    contains guids not previously marked seen.
+    report instead of overwriting each other, since `articles`/`general_articles`
+    only ever contain guids not previously marked seen.
     """
     Path(reports_dir).mkdir(parents=True, exist_ok=True)
     path = Path(reports_dir) / f"{report_date}.json"
 
     grouped: dict[str, list[dict]] = {}
+    general: list[dict] = []
     if path.exists():
         with open(path, encoding="utf-8") as f:
-            grouped = json.load(f).get("provinces", {})
+            existing = json.load(f)
+        grouped = existing.get("provinces", {})
+        general = existing.get("general", [])
 
     for province, new_articles in group_by_province(articles).items():
         existing_guids = {a["guid"] for a in grouped.get(province, [])}
@@ -78,6 +83,16 @@ def save_daily_report(
             a for a in new_articles if a["guid"] not in existing_guids
         )
 
+    existing_general_guids = {a["guid"] for a in general}
+    general.extend(
+        asdict(a) for a in general_articles if a.guid not in existing_general_guids
+    )
+
     with open(path, "w", encoding="utf-8") as f:
-        json.dump({"date": report_date, "provinces": grouped}, f, ensure_ascii=False, indent=2)
+        json.dump(
+            {"date": report_date, "provinces": grouped, "general": general},
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
     return path

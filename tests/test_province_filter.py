@@ -1,5 +1,10 @@
 from news_report.models import Article
-from news_report.province_filter import filter_by_province, load_provinces, match_provinces
+from news_report.province_filter import (
+    filter_by_province,
+    load_provinces,
+    match_provinces,
+    split_by_province,
+)
 
 
 def test_match_provinces_matches_alias_case_insensitive():
@@ -40,3 +45,22 @@ def test_ambiguous_province_names_require_disambiguated_form():
     # "ตากผ้า" (hang laundry to dry) is unrelated to Tak province.
     assert match_provinces("แม่บ้านตากผ้าหน้าบ้าน", provinces) == []
     assert "ตาก" in match_provinces("จังหวัดตากเตือนภัยแล้ง", provinces)
+
+
+def test_split_by_province_keeps_unmatched_articles_in_second_list(tmp_path):
+    config_path = tmp_path / "provinces.yaml"
+    config_path.write_text(
+        'provinces:\n  - name: เชียงใหม่\n    aliases: ["Chiang Mai"]\n',
+        encoding="utf-8",
+    )
+
+    articles = [
+        Article(guid="1", title="Chiang Mai flood", link="", summary="", published="", source="s", language="en"),
+        Article(guid="2", title="Unrelated news", link="", summary="", published="", source="s", language="en"),
+    ]
+
+    matched, unmatched = split_by_province(articles, config_path=config_path)
+
+    assert [a.guid for a in matched] == ["1"]
+    assert [a.guid for a in unmatched] == ["2"]
+    assert unmatched[0].provinces == []  # nothing gets discarded, just untagged

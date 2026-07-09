@@ -38,17 +38,35 @@ def match_provinces(text: str, provinces: dict[str, list[str]]) -> list[str]:
     return matched
 
 
-def filter_by_province(
+def split_by_province(
     articles: list[Article],
     config_path: str | Path = DEFAULT_PROVINCES_PATH,
-) -> list[Article]:
-    """Keeps only articles mentioning at least one target province, tagging matches."""
+) -> tuple[list[Article], list[Article]]:
+    """Splits articles into (matches >=1 target province, matches none), tagging matches.
+
+    Kept deliberately broad/recall-favoring: an article matches if any target province's
+    name is mentioned anywhere in the title/summary, even if the article isn't really
+    "about" that province (e.g. it just quotes an official based there). The unmatched
+    list isn't discarded so nothing gets silently dropped.
+    """
     provinces = load_provinces(config_path)
-    kept: list[Article] = []
+    matched_articles: list[Article] = []
+    unmatched_articles: list[Article] = []
     for article in articles:
         haystack = f"{article.title}\n{article.summary}"
         matched = match_provinces(haystack, provinces)
         if matched:
             article.provinces = matched
-            kept.append(article)
-    return kept
+            matched_articles.append(article)
+        else:
+            unmatched_articles.append(article)
+    return matched_articles, unmatched_articles
+
+
+def filter_by_province(
+    articles: list[Article],
+    config_path: str | Path = DEFAULT_PROVINCES_PATH,
+) -> list[Article]:
+    """Keeps only articles mentioning at least one target province, tagging matches."""
+    matched, _ = split_by_province(articles, config_path)
+    return matched
