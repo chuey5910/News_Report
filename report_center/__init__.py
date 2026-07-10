@@ -3,7 +3,7 @@ import os
 import click
 from flask import Flask
 
-from .config import Config
+from .config import Config  # importing this also loads .env (see config._load_dotenv)
 from .extensions import db, login_manager
 
 

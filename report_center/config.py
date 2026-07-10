@@ -3,6 +3,21 @@ import os
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
+def _load_dotenv():
+    """Load a .env file (repo root or report_center/) before Config reads env vars,
+    so deployments can configure everything by editing one file. Best-effort."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    for candidate in (os.path.join(BASE_DIR, "..", ".env"), os.path.join(BASE_DIR, ".env")):
+        if os.path.exists(candidate):
+            load_dotenv(candidate, override=False)
+
+
+_load_dotenv()
+
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
     SQLALCHEMY_DATABASE_URI = os.environ.get(
