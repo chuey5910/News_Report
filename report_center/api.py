@@ -2,7 +2,7 @@ from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, request
 
-from .models import REPORT_CATEGORIES
+from .models import NewsReport
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -13,31 +13,25 @@ def _require_api_key():
     return supplied and expected and supplied == expected
 
 
-def _detail_text(category, item):
-    if category in ("advance", "closure"):
-        return item.demands
-    return item.what  # situation, general (5W1H)
-
-
-def _serialize(category, item):
-    data = {
-        "category": category,
-        "category_label": REPORT_CATEGORIES[category]["label"],
+def _serialize(item):
+    return {
         "id": item.id,
+        "report_type": {
+            "advance": item.is_advance_news,
+            "closure": item.is_closure,
+            "incident": item.is_incident_report,
+            "general": item.is_general_news,
+        },
         "title": item.title,
-        "detail": _detail_text(category, item),
-        "created_at": item.created_at.isoformat(),
-        "created_by": item.created_by.full_name if item.created_by else None,
-    }
-    if category in ("advance", "closure"):
-        data["activity_types"] = item.activity_types
-        data["problem_group_types"] = item.problem_group_types
-        data["location"] = item.location
-        data["event_datetime"] = item.event_datetime.isoformat() if item.event_datetime else None
-        data["event_end_datetime"] = item.event_end_datetime.isoformat() if item.event_end_datetime else None
-        data["mass_count"] = item.mass_count
-        data["leaders"] = [leader.full_name for leader in item.leaders]
-        data["vehicles"] = [
+        "activity_types": item.activity_types,
+        "problem_group_types": item.problem_group_types,
+        "location": item.location,
+        "event_datetime": item.event_datetime.isoformat() if item.event_datetime else None,
+        "event_end_datetime": item.event_end_datetime.isoformat() if item.event_end_datetime else None,
+        "mass_count": item.mass_count,
+        "demands": item.demands,
+        "leaders": [leader.full_name for leader in item.leaders],
+        "vehicles": [
             {
                 "vehicle_type": v.vehicle_type,
                 "plate_number": v.plate_number,
@@ -45,16 +39,10 @@ def _serialize(category, item):
                 "color": v.color,
             }
             for v in item.vehicles
-        ]
-        if category == "closure":
-            data["related_advance_id"] = item.related_advance_id
-    if category in ("situation", "general"):
-        data["who"] = item.who
-        data["when"] = item.when.isoformat() if item.when else None
-        data["where"] = item.where
-        data["why"] = item.why
-        data["how"] = item.how
-    return data
+        ],
+        "created_at": item.created_at.isoformat(),
+        "created_by": item.created_by.full_name if item.created_by else None,
+    }
 
 
 @bp.route("/reports/latest")
@@ -65,8 +53,8 @@ def latest_reports():
     Auth: header `X-API-Key: <REPORT_CENTER_API_KEY>`
     Query params:
       - since: ISO 8601 timestamp, only return reports created after this
-      - category: one of advance|closure|situation|general (default: all)
-      - limit: max items per category (default 50)
+      - type: one of advance|closure|incident|general — filter by ประเภทรายงาน
+      - limit: max items (default 50)
     """
     if not _require_api_key():
         return jsonify({"error": "unauthorized"}), 401
@@ -79,21 +67,24 @@ def latest_reports():
         except ValueError:
             return jsonify({"error": "invalid 'since' timestamp, expected ISO 8601"}), 400
 
-    category_param = request.args.get("category")
-    if category_param and category_param not in REPORT_CATEGORIES:
-        return jsonify({"error": f"unknown category '{category_param}'"}), 400
+    type_column_map = {
+        "advance": NewsReport.is_advance_news,
+        "closure": NewsReport.is_closure,
+        "incident": NewsReport.is_incident_report,
+        "general": NewsReport.is_general_news,
+    }
+    type_param = request.args.get("type")
+    if type_param and type_param not in type_column_map:
+        return jsonify({"error": f"unknown type '{type_param}'"}), 400
 
     limit = request.args.get("limit", 50, type=int)
-    categories = [category_param] if category_param else list(REPORT_CATEGORIES.keys())
 
-    results = []
-    for category in categories:
-        model = REPORT_CATEGORIES[category]["model"]
-        query = model.query
-        if since is not None:
-            query = query.filter(model.created_at > since)
-        items = query.order_by(model.created_at.desc()).limit(limit).all()
-        results.extend(_serialize(category, item) for item in items)
+    query = NewsReport.query
+    if since is not None:
+        query = query.filter(NewsReport.created_at > since)
+    if type_param:
+        query = query.filter(type_column_map[type_param].is_(True))
 
-    results.sort(key=lambda r: r["created_at"], reverse=True)
+    items = query.order_by(NewsReport.created_at.desc()).limit(limit).all()
+    results = [_serialize(item) for item in items]
     return jsonify({"count": len(results), "results": results})

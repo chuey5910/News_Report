@@ -4,24 +4,43 @@
 <h2 class="page-title">ภาพรวม</h2>
 
 <div class="stat-row">
-  {% for key, meta in categories.items() %}
   <div class="stat-tile">
-    <div class="num">{{ counts[key] }}</div>
-    <div class="label">{{ meta.label }}</div>
+    <div class="num">{{ counts.total }}</div>
+    <div class="label">รายงานทั้งหมด</div>
   </div>
-  {% endfor %}
+  <div class="stat-tile">
+    <div class="num">{{ counts.advance }}</div>
+    <div class="label">ข่าวล่วงหน้า</div>
+  </div>
+  <div class="stat-tile">
+    <div class="num">{{ counts.closure }}</div>
+    <div class="label">ปิดข่าว</div>
+  </div>
+  <div class="stat-tile">
+    <div class="num">{{ counts.incident }}</div>
+    <div class="label">รายงานเหตุการณ์</div>
+  </div>
+  <div class="stat-tile">
+    <div class="num">{{ counts.general }}</div>
+    <div class="label">ข่าวทั่วไป</div>
+  </div>
 </div>
 
-{% for key, meta in categories.items() %}
 <div class="card">
-  <h2>{{ meta.label }} (ล่าสุด)</h2>
-  {% if recent[key] %}
+  <h2>รายงานล่าสุด</h2>
+  {% if recent %}
   <table>
-    <thead><tr><th>หัวข้อ</th><th>บันทึกเมื่อ</th><th>ผู้บันทึก</th></tr></thead>
+    <thead><tr><th>หัวข้อ</th><th>ประเภทรายงาน</th><th>บันทึกเมื่อ</th><th>ผู้บันทึก</th></tr></thead>
     <tbody>
-      {% for item in recent[key] %}
+      {% for item in recent %}
       <tr>
         <td>{{ item.title }}</td>
+        <td>
+          {% if item.is_advance_news %}<span class="badge admin">ข่าวล่วงหน้า</span>{% endif %}
+          {% if item.is_closure %}<span class="badge user">ปิดข่าว</span>{% endif %}
+          {% if item.is_incident_report %}<span class="badge pending">รายงานเหตุการณ์</span>{% endif %}
+          {% if item.is_general_news %}<span class="badge approved">ข่าวทั่วไป</span>{% endif %}
+        </td>
         <td>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
         <td>{{ item.created_by.full_name if item.created_by else '-' }}</td>
       </tr>
@@ -31,7 +50,6 @@
   {% else %}
   <div class="empty-note">ยังไม่มีข้อมูล</div>
   {% endif %}
-  <a class="btn small" href="{{ url_for(meta.endpoint) }}">ไปที่ {{ meta.label }}</a>
+  <a class="btn small" href="{{ url_for('reports.news_report') }}">ไปที่รายงานข่าว</a>
 </div>
-{% endfor %}
 {% endblock %}

@@ -5,23 +5,8 @@ from flask_login import current_user, login_required
 
 from .admin import admin_required
 from .extensions import db
-from .forms import (
-    AdvanceNewsForm,
-    GeneralNewsForm,
-    NewsClosureForm,
-    SituationReportForm,
-)
-from .models import (
-    REPORT_CATEGORIES,
-    AdvanceNews,
-    AdvanceNewsLeader,
-    AdvanceNewsVehicle,
-    GeneralNews,
-    NewsClosure,
-    NewsClosureLeader,
-    NewsClosureVehicle,
-    SituationReport,
-)
+from .forms import NewsReportForm
+from .models import NewsReport, NewsReportLeader, NewsReportVehicle
 
 bp = Blueprint("reports", __name__, url_prefix="/reports")
 
@@ -32,11 +17,16 @@ def _combine_date_time(date_val, time_val):
     return datetime.combine(date_val, time_val or time_cls.min)
 
 
-def _activity_fields_from_form(form):
+def _fields_from_form(form):
     permit_granted = form.permit_status.data == "มีการขออนุญาต"
     equipment_present = form.overnight_equipment_status.data == "มี"
+    selected_types = form.report_type.data
 
     return {
+        "is_advance_news": "advance" in selected_types,
+        "is_closure": "closure" in selected_types,
+        "is_incident_report": "incident" in selected_types,
+        "is_general_news": "general" in selected_types,
         "title": form.title.data,
         "activity_types": ", ".join(form.activity_types.data) or None,
         "problem_group_types": ", ".join(form.problem_group_types.data) or None,
@@ -100,117 +90,40 @@ def _submitted_dynamic_fields():
 @login_required
 @admin_required
 def dashboard():
-    counts = {key: meta["model"].query.count() for key, meta in REPORT_CATEGORIES.items()}
-    recent = {
-        key: meta["model"].query.order_by(meta["model"].created_at.desc()).limit(5).all()
-        for key, meta in REPORT_CATEGORIES.items()
+    counts = {
+        "total": NewsReport.query.count(),
+        "advance": NewsReport.query.filter_by(is_advance_news=True).count(),
+        "closure": NewsReport.query.filter_by(is_closure=True).count(),
+        "incident": NewsReport.query.filter_by(is_incident_report=True).count(),
+        "general": NewsReport.query.filter_by(is_general_news=True).count(),
     }
-    return render_template(
-        "reports/dashboard.html", counts=counts, recent=recent, categories=REPORT_CATEGORIES
-    )
+    recent = NewsReport.query.order_by(NewsReport.created_at.desc()).limit(10).all()
+    return render_template("reports/dashboard.html", counts=counts, recent=recent)
 
 
-@bp.route("/advance", methods=["GET", "POST"])
+@bp.route("/news-report", methods=["GET", "POST"])
 @login_required
-def advance():
-    form = AdvanceNewsForm()
+def news_report():
+    form = NewsReportForm()
     if form.validate_on_submit():
-        item = AdvanceNews(**_activity_fields_from_form(form))
+        item = NewsReport(**_fields_from_form(form))
 
         for full_name in _leaders_from_request():
-            item.leaders.append(AdvanceNewsLeader(full_name=full_name))
+            item.leaders.append(NewsReportLeader(full_name=full_name))
 
         if form.vehicle_status.data == "มี":
             for row in _vehicles_from_request():
-                item.vehicles.append(AdvanceNewsVehicle(**row))
+                item.vehicles.append(NewsReportVehicle(**row))
 
         db.session.add(item)
         db.session.commit()
-        flash("บันทึกข่าวล่วงหน้าเรียบร้อยแล้ว", "success")
-        return redirect(url_for("reports.advance"))
+        flash("บันทึกรายงานข่าวเรียบร้อยแล้ว", "success")
+        return redirect(url_for("reports.news_report"))
 
     submitted_leaders, submitted_vehicles = _submitted_dynamic_fields()
     return render_template(
-        "reports/advance.html",
+        "reports/news_report.html",
         form=form,
         submitted_leaders=submitted_leaders,
         submitted_vehicles=submitted_vehicles,
     )
-
-
-@bp.route("/closure", methods=["GET", "POST"])
-@login_required
-def closure():
-    form = NewsClosureForm()
-    form.related_advance_id.choices = [(0, "— ไม่ผูกกับข่าวล่วงหน้า —")] + [
-        (a.id, f"#{a.id} {a.title}") for a in AdvanceNews.query.order_by(AdvanceNews.created_at.desc()).all()
-    ]
-    if form.validate_on_submit():
-        related_id = form.related_advance_id.data or None
-        item = NewsClosure(related_advance_id=related_id, **_activity_fields_from_form(form))
-
-        for full_name in _leaders_from_request():
-            item.leaders.append(NewsClosureLeader(full_name=full_name))
-
-        if form.vehicle_status.data == "มี":
-            for row in _vehicles_from_request():
-                item.vehicles.append(NewsClosureVehicle(**row))
-
-        db.session.add(item)
-        db.session.commit()
-        flash("บันทึกการปิดข่าวเรียบร้อยแล้ว", "success")
-        return redirect(url_for("reports.closure"))
-
-    submitted_leaders, submitted_vehicles = _submitted_dynamic_fields()
-    return render_template(
-        "reports/closure.html",
-        form=form,
-        submitted_leaders=submitted_leaders,
-        submitted_vehicles=submitted_vehicles,
-    )
-
-
-@bp.route("/situation", methods=["GET", "POST"])
-@login_required
-def situation():
-    form = SituationReportForm()
-    if form.validate_on_submit():
-        item = SituationReport(
-            title=form.title.data,
-            who=form.who.data,
-            what=form.what.data,
-            when=form.when.data,
-            where=form.where.data,
-            why=form.why.data,
-            how=form.how.data,
-            created_by_id=current_user.id,
-        )
-        db.session.add(item)
-        db.session.commit()
-        flash("บันทึกรายงานสถานการณ์ข่าวเรียบร้อยแล้ว", "success")
-        return redirect(url_for("reports.situation"))
-
-    return render_template("reports/situation.html", form=form)
-
-
-@bp.route("/general", methods=["GET", "POST"])
-@login_required
-def general():
-    form = GeneralNewsForm()
-    if form.validate_on_submit():
-        item = GeneralNews(
-            title=form.title.data,
-            who=form.who.data,
-            what=form.what.data,
-            when=form.when.data,
-            where=form.where.data,
-            why=form.why.data,
-            how=form.how.data,
-            created_by_id=current_user.id,
-        )
-        db.session.add(item)
-        db.session.commit()
-        flash("บันทึกข่าวทั่วไปเรียบร้อยแล้ว", "success")
-        return redirect(url_for("reports.general"))
-
-    return render_template("reports/general.html", form=form)

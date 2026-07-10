@@ -48,16 +48,6 @@ class LoginLog(db.Model):
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
 
 
-class ReportMixin:
-    """Common columns shared by all four report categories."""
-
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255), nullable=False)
-    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
 PERMIT_STATUSES = ["มีการขออนุญาต", "ไม่มีการขออนุญาต"]
 YES_NO = ["มี", "ไม่มี"]
 
@@ -80,10 +70,36 @@ PROBLEM_GROUP_TYPES = [
     "ด้านต่างประเทศ (ด้านอาชญากรรมข้ามชาติก่อการร้ายสากล)",
 ]
 
+# ประเภทรายงาน — a small, fixed set of exactly 4 tags, so each one gets its own
+# boolean column (type-safe, indexable, no string-parsing) rather than a
+# comma-joined text field. The checkbox group in the form shares one input
+# name ("report_type") with these slugs as values; the view maps the
+# selected slugs onto these four columns.
+REPORT_TYPE_CHOICES = [
+    ("advance", "ข่าวล่วงหน้า"),
+    ("closure", "ปิดข่าว"),
+    ("incident", "รายงานเหตุการณ์"),
+    ("general", "ข่าวทั่วไป"),
+]
 
-class ActivityFieldsMixin:
-    """Shared activity-report columns used by both ข่าวล่วงหน้า and ปิดข่าว
-    (ปิดข่าว uses the exact same form/fields as ข่าวล่วงหน้า)."""
+
+class NewsReport(db.Model):
+    """รายงานข่าว — the single unified report form (ชื่อกิจกรรม = title)."""
+
+    __tablename__ = "news_reports"
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # ประเภทรายงาน (เลือกได้หลายข้อ)
+    is_advance_news = db.Column(db.Boolean, nullable=False, default=False)  # ข่าวล่วงหน้า
+    is_closure = db.Column(db.Boolean, nullable=False, default=False)  # ปิดข่าว
+    is_incident_report = db.Column(db.Boolean, nullable=False, default=False)  # รายงานเหตุการณ์
+    is_general_news = db.Column(db.Boolean, nullable=False, default=False)  # ข่าวทั่วไป
+
+    title = db.Column(db.String(255), nullable=False)  # ชื่อกิจกรรม
 
     activity_types = db.Column(db.Text, nullable=True)  # ประเภทกิจกรรม (comma-separated, multi-select)
     problem_group_types = db.Column(db.Text, nullable=True)  # ประเภทกลุ่มปัญหา (comma-separated, multi-select)
@@ -114,112 +130,33 @@ class ActivityFieldsMixin:
     reporter_name = db.Column(db.String(128), nullable=True)  # ผู้รายงาน
     reporter_phone = db.Column(db.String(32), nullable=True)  # เบอร์ติดต่อ
 
-
-class AdvanceNews(db.Model, ReportMixin, ActivityFieldsMixin):
-    """ข่าวล่วงหน้า — advance notice of a planned activity/gathering (title = ชื่อกิจกรรม)."""
-
-    __tablename__ = "advance_news"
-
-    created_by = db.relationship("User", foreign_keys="AdvanceNews.created_by_id")
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
     leaders = db.relationship(
-        "AdvanceNewsLeader", backref="advance_news", cascade="all, delete-orphan", order_by="AdvanceNewsLeader.id"
+        "NewsReportLeader", backref="news_report", cascade="all, delete-orphan", order_by="NewsReportLeader.id"
     )
     vehicles = db.relationship(
-        "AdvanceNewsVehicle", backref="advance_news", cascade="all, delete-orphan", order_by="AdvanceNewsVehicle.id"
+        "NewsReportVehicle", backref="news_report", cascade="all, delete-orphan", order_by="NewsReportVehicle.id"
     )
 
 
-class AdvanceNewsLeader(db.Model):
+class NewsReportLeader(db.Model):
     """ชื่อ-นามสกุล แกนนำ (รายการเพิ่มได้ตามจำนวนที่เลือก)."""
 
-    __tablename__ = "advance_news_leaders"
+    __tablename__ = "news_report_leaders"
 
     id = db.Column(db.Integer, primary_key=True)
-    advance_news_id = db.Column(db.Integer, db.ForeignKey("advance_news.id"), nullable=False)
+    news_report_id = db.Column(db.Integer, db.ForeignKey("news_reports.id"), nullable=False)
     full_name = db.Column(db.String(128), nullable=False)
 
 
-class AdvanceNewsVehicle(db.Model):
+class NewsReportVehicle(db.Model):
     """ยานพาหนะ (รายการเพิ่มได้ตามจำนวนที่เลือก)."""
 
-    __tablename__ = "advance_news_vehicles"
+    __tablename__ = "news_report_vehicles"
 
     id = db.Column(db.Integer, primary_key=True)
-    advance_news_id = db.Column(db.Integer, db.ForeignKey("advance_news.id"), nullable=False)
+    news_report_id = db.Column(db.Integer, db.ForeignKey("news_reports.id"), nullable=False)
     vehicle_type = db.Column(db.String(128), nullable=True)  # ประเภทรถยนต์
     plate_number = db.Column(db.String(32), nullable=True)  # หมายเลขทะเบียน
     province = db.Column(db.String(64), nullable=True)  # จังหวัด
     color = db.Column(db.String(64), nullable=True)  # สี
-
-
-class NewsClosure(db.Model, ReportMixin, ActivityFieldsMixin):
-    """ปิดข่าว — ใช้ฟอร์ม/ฟิลด์ชุดเดียวกันกับข่าวล่วงหน้าทุกประการ เพิ่มเติมคือผูกกับ
-    ข่าวล่วงหน้าต้นเรื่องได้ (ถ้ามี)."""
-
-    __tablename__ = "news_closures"
-
-    related_advance_id = db.Column(db.Integer, db.ForeignKey("advance_news.id"), nullable=True)
-
-    created_by = db.relationship("User", foreign_keys="NewsClosure.created_by_id")
-    related_advance = db.relationship("AdvanceNews", foreign_keys=[related_advance_id])
-    leaders = db.relationship(
-        "NewsClosureLeader", backref="news_closure", cascade="all, delete-orphan", order_by="NewsClosureLeader.id"
-    )
-    vehicles = db.relationship(
-        "NewsClosureVehicle", backref="news_closure", cascade="all, delete-orphan", order_by="NewsClosureVehicle.id"
-    )
-
-
-class NewsClosureLeader(db.Model):
-    __tablename__ = "news_closure_leaders"
-
-    id = db.Column(db.Integer, primary_key=True)
-    news_closure_id = db.Column(db.Integer, db.ForeignKey("news_closures.id"), nullable=False)
-    full_name = db.Column(db.String(128), nullable=False)
-
-
-class NewsClosureVehicle(db.Model):
-    __tablename__ = "news_closure_vehicles"
-
-    id = db.Column(db.Integer, primary_key=True)
-    news_closure_id = db.Column(db.Integer, db.ForeignKey("news_closures.id"), nullable=False)
-    vehicle_type = db.Column(db.String(128), nullable=True)
-    plate_number = db.Column(db.String(32), nullable=True)
-    province = db.Column(db.String(64), nullable=True)
-    color = db.Column(db.String(64), nullable=True)
-
-
-class FiveWOneHMixin:
-    """หัวข้อ 5W1H ใช้ร่วมกันระหว่างรายงานสถานการณ์ข่าวและข่าวทั่วไป."""
-
-    who = db.Column(db.Text, nullable=True)  # ใคร
-    what = db.Column(db.Text, nullable=False)  # เกิดอะไรขึ้น
-    when = db.Column(db.DateTime, nullable=True)  # เมื่อไหร่
-    where = db.Column(db.String(255), nullable=True)  # ที่ไหน
-    why = db.Column(db.Text, nullable=True)  # ทำไม/เพราะเหตุใด
-    how = db.Column(db.Text, nullable=True)  # อย่างไร
-
-
-class SituationReport(db.Model, ReportMixin, FiveWOneHMixin):
-    """รายงานสถานการณ์ข่าว — ใช้หัวข้อ 5W1H."""
-
-    __tablename__ = "situation_reports"
-
-    created_by = db.relationship("User", foreign_keys="SituationReport.created_by_id")
-
-
-class GeneralNews(db.Model, ReportMixin, FiveWOneHMixin):
-    """ข่าวทั่วไป — ใช้หัวข้อ 5W1H."""
-
-    __tablename__ = "general_news"
-
-    created_by = db.relationship("User", foreign_keys="GeneralNews.created_by_id")
-
-
-# Registry used by views/templates to iterate over the 4 report categories generically.
-REPORT_CATEGORIES = {
-    "advance": {"model": AdvanceNews, "label": "ข่าวล่วงหน้า", "endpoint": "reports.advance"},
-    "closure": {"model": NewsClosure, "label": "ปิดข่าว", "endpoint": "reports.closure"},
-    "situation": {"model": SituationReport, "label": "รายงานสถานการณ์ข่าว", "endpoint": "reports.situation"},
-    "general": {"model": GeneralNews, "label": "ข่าวทั่วไป", "endpoint": "reports.general"},
-}

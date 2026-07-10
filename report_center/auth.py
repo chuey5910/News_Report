@@ -9,7 +9,7 @@ bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 def _default_landing_url(user):
-    return url_for("reports.dashboard") if user.is_admin else url_for("reports.advance")
+    return url_for("reports.dashboard") if user.is_admin else url_for("reports.news_report")
 
 
 def _client_ip():

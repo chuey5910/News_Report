@@ -38,7 +38,7 @@ def create_app(config_object=Config):
     @app.route("/")
     def index():
         if current_user.is_authenticated:
-            target = "reports.dashboard" if current_user.is_admin else "reports.advance"
+            target = "reports.dashboard" if current_user.is_admin else "reports.news_report"
             return redirect(url_for(target))
         return redirect(url_for("auth.login"))
 

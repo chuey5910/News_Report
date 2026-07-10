@@ -18,10 +18,7 @@
       <a href="{{ url_for('admin.login_logs') }}" class="{{ 'active' if request.endpoint == 'admin.login_logs' else '' }}">ประวัติการเข้าสู่ระบบ</a>
       {% endif %}
       <div class="section-label">บันทึกข่าว</div>
-      <a href="{{ url_for('reports.advance') }}" class="{{ 'active' if request.endpoint == 'reports.advance' else '' }}">ข่าวล่วงหน้า</a>
-      <a href="{{ url_for('reports.closure') }}" class="{{ 'active' if request.endpoint == 'reports.closure' else '' }}">ปิดข่าว</a>
-      <a href="{{ url_for('reports.situation') }}" class="{{ 'active' if request.endpoint == 'reports.situation' else '' }}">รายงานสถานการณ์ข่าว</a>
-      <a href="{{ url_for('reports.general') }}" class="{{ 'active' if request.endpoint == 'reports.general' else '' }}">ข่าวทั่วไป</a>
+      <a href="{{ url_for('reports.news_report') }}" class="{{ 'active' if request.endpoint == 'reports.news_report' else '' }}">รายงานข่าว</a>
     </nav>
     {% if current_user.is_authenticated %}
     <div class="user-box">

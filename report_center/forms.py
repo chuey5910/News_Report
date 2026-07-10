@@ -1,7 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import (
     DateField,
-    DateTimeLocalField,
     IntegerField,
     PasswordField,
     SelectField,
@@ -13,7 +12,7 @@ from wtforms import (
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, EqualTo, Regexp
 from wtforms.widgets import CheckboxInput, ListWidget
 
-from .models import ACTIVITY_TYPES, PERMIT_STATUSES, PROBLEM_GROUP_TYPES, YES_NO
+from .models import ACTIVITY_TYPES, PERMIT_STATUSES, PROBLEM_GROUP_TYPES, REPORT_TYPE_CHOICES, YES_NO
 
 LEADER_COUNT_CHOICES = [(i, str(i)) for i in range(0, 21)]
 VEHICLE_COUNT_CHOICES = [(i, str(i)) for i in range(0, 11)]
@@ -51,8 +50,10 @@ def _choices(values):
     return [(v, v) for v in values]
 
 
-class ActivityReportForm(FlaskForm):
-    """ฟิลด์ชุดเดียวกัน ใช้ทั้งข่าวล่วงหน้าและปิดข่าว."""
+class NewsReportForm(FlaskForm):
+    """รายงานข่าว — ฟอร์มเดียวที่รวมข่าวล่วงหน้า/ปิดข่าว/รายงานเหตุการณ์/ข่าวทั่วไป."""
+
+    report_type = MultiCheckboxField("ประเภทรายงาน", choices=REPORT_TYPE_CHOICES, validators=[Optional()])
 
     title = StringField("ชื่อกิจกรรม", validators=[DataRequired(), Length(max=255)])
 
@@ -93,33 +94,3 @@ class ActivityReportForm(FlaskForm):
     trend_assessment = TextAreaField("แนวโน้ม/ข้อพิจารณา", validators=[Optional()])
     reporter_name = StringField("ผู้รายงาน", validators=[Optional(), Length(max=128)])
     reporter_phone = StringField("เบอร์ติดต่อ", validators=[Optional(), Length(max=32)])
-
-
-class AdvanceNewsForm(ActivityReportForm):
-    """ข่าวล่วงหน้า."""
-
-
-class NewsClosureForm(ActivityReportForm):
-    """ปิดข่าว — ฟิลด์ชุดเดียวกันกับข่าวล่วงหน้า เพิ่มการผูกกับข่าวล่วงหน้าต้นเรื่อง (ถ้ามี)."""
-
-    related_advance_id = SelectField("ผูกกับข่าวล่วงหน้า (ถ้ามี)", coerce=int, validators=[Optional()])
-
-
-class FiveWOneHForm(FlaskForm):
-    """หัวข้อ 5W1H ใช้ร่วมกันระหว่างรายงานสถานการณ์ข่าวและข่าวทั่วไป."""
-
-    title = StringField("หัวข้อ", validators=[DataRequired(), Length(max=255)])
-    who = TextAreaField("ใคร (Who)", validators=[Optional()])
-    what = TextAreaField("เกิดอะไรขึ้น (What)", validators=[DataRequired()])
-    when = DateTimeLocalField("เมื่อไหร่ (When)", validators=[Optional()])
-    where = StringField("ที่ไหน (Where)", validators=[Optional(), Length(max=255)])
-    why = TextAreaField("ทำไม/เพราะเหตุใด (Why)", validators=[Optional()])
-    how = TextAreaField("อย่างไร (How)", validators=[Optional()])
-
-
-class SituationReportForm(FiveWOneHForm):
-    """รายงานสถานการณ์ข่าว."""
-
-
-class GeneralNewsForm(FiveWOneHForm):
-    """ข่าวทั่วไป."""
