@@ -17,3 +17,14 @@ class Config:
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+
+    # --- Google Sheets auto-sync (optional) ---
+    # เมื่อบันทึกรายงานใหม่ ระบบจะ sync ลง Google Sheet ให้อัตโนมัติ เพื่อให้เว็บอื่นดึงไปแสดงได้
+    # ตั้งค่า credentials ได้ 2 แบบ (เลือกอย่างใดอย่างหนึ่ง):
+    #   1) GOOGLE_SHEETS_CREDENTIALS_FILE = path ไปยังไฟล์ service-account JSON
+    #   2) GOOGLE_SHEETS_CREDENTIALS_JSON = เนื้อหา JSON ของ service account (ใส่ตรงๆ)
+    # ถ้าไม่ตั้งค่า SPREADSHEET_ID ระบบจะข้ามการ sync ไปเงียบๆ (ไม่ทำให้การบันทึกล้มเหลว)
+    GOOGLE_SHEETS_CREDENTIALS_FILE = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_FILE", "")
+    GOOGLE_SHEETS_CREDENTIALS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON", "")
+    GOOGLE_SHEETS_SPREADSHEET_ID = os.environ.get("GOOGLE_SHEETS_SPREADSHEET_ID", "")
+    GOOGLE_SHEETS_WORKSHEET = os.environ.get("GOOGLE_SHEETS_WORKSHEET", "reports")

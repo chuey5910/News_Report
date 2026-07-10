@@ -97,6 +97,51 @@ flask create-admin admin "ผู้ดูแลระบบ"
 | `SECRET_KEY` | `dev-secret-key-change-me` | ใช้เซ็น session cookie — **ต้องเปลี่ยนก่อนใช้งานจริง** |
 | `DATABASE_URL` | SQLite ที่ `report_center/instance/report_center.db` | เปลี่ยนได้เป็น Postgres/MySQL URL |
 | `REPORT_CENTER_API_KEY` | `dev-api-key-change-me` | API key สำหรับให้ระบบภายนอกดึงข้อมูล — **ต้องเปลี่ยนก่อนใช้งานจริง** |
+| `GOOGLE_SHEETS_SPREADSHEET_ID` | (ว่าง = ปิด sync) | ID ของ Google Sheet ปลายทาง |
+| `GOOGLE_SHEETS_CREDENTIALS_FILE` | (ว่าง) | path ไฟล์ service-account JSON |
+| `GOOGLE_SHEETS_CREDENTIALS_JSON` | (ว่าง) | หรือใส่เนื้อหา JSON ตรงๆ (ใช้แทน FILE) |
+| `GOOGLE_SHEETS_WORKSHEET` | `reports` | ชื่อแท็บใน Sheet |
+
+## Sync เข้า Google Sheets อัตโนมัติ (ให้เว็บอื่นดึงไปแสดง)
+
+ทุกครั้งที่บันทึกรายงานใหม่ ระบบจะเขียนข้อมูลลง Google Sheet ให้อัตโนมัติ (1 รายงาน = 1 แถว,
+แกนนำ/ยานพาหนะถูกรวมเป็นข้อความในแถวเดียวเพื่อให้เว็บปลายทางอ่านง่าย) — เว็บอีกตัวก็ไปดึงจาก
+Google Sheet นี้ไปแสดงได้เลย **ถ้ายังไม่ตั้งค่า ระบบจะข้ามการ sync ไปเงียบๆ และการบันทึกยังทำงาน
+ปกติทุกอย่าง** (ข้อมูลจริงอยู่ใน SQLite เสมอ Google Sheet เป็นสำเนาสำหรับให้เว็บอื่นอ่าน)
+
+### วิธีตั้งค่า (ทำครั้งเดียว)
+
+1. **สร้าง Google Cloud project + เปิด Google Sheets API**
+   - ไปที่ https://console.cloud.google.com/ → สร้าง project ใหม่ (หรือใช้ที่มีอยู่)
+   - เมนู "APIs & Services" → "Enable APIs and Services" → ค้นหา **Google Sheets API** → กด Enable
+2. **สร้าง Service Account**
+   - "APIs & Services" → "Credentials" → "Create Credentials" → "Service account"
+   - ตั้งชื่อ เช่น `report-center-sync` แล้วกดสร้าง
+   - เข้าไปที่ service account ที่สร้าง → แท็บ "Keys" → "Add Key" → "Create new key" → เลือก **JSON**
+     → ไฟล์ JSON จะถูกดาวน์โหลดมา (เก็บไฟล์นี้ให้ดี ห้าม commit ขึ้น git)
+   - จำ **email ของ service account** ไว้ (หน้าตาเหมือน `xxx@yyy.iam.gserviceaccount.com`)
+3. **สร้าง Google Sheet ปลายทาง แล้วแชร์ให้ service account**
+   - สร้าง Google Sheet เปล่าๆ 1 อัน
+   - กดปุ่ม "Share" → ใส่ email ของ service account (จากข้อ 2) → ให้สิทธิ์ **Editor** → Send
+   - คัดลอก **Spreadsheet ID** จาก URL: `https://docs.google.com/spreadsheets/d/`**`<ตรงนี้คือ ID>`**`/edit`
+4. **ตั้งค่า environment variables** ก่อนรันแอป เช่น
+   ```bash
+   export GOOGLE_SHEETS_SPREADSHEET_ID="วาง Spreadsheet ID ที่คัดลอกมา"
+   export GOOGLE_SHEETS_CREDENTIALS_FILE="/path/ไปยัง/service-account.json"
+   # (หรือใช้ GOOGLE_SHEETS_CREDENTIALS_JSON ใส่เนื้อหา JSON ตรงๆ แทน ถ้า deploy บนที่ที่แนบไฟล์ไม่ได้)
+   ```
+5. **(ทางเลือก) ดันข้อมูลเก่าที่มีอยู่แล้วขึ้น Sheet ทีเดียว**
+   ```bash
+   export FLASK_APP=report_center
+   flask sync-sheets
+   ```
+
+หลังจากนี้ทุกการบันทึกใหม่จะขึ้น Google Sheet เอง หัวคอลัมน์ (แถวแรก) ระบบสร้างให้อัตโนมัติ ชื่อ
+คอลัมน์ตรงกับฟิลด์ในฐานข้อมูล (`id`, `report_type`, `title`, …, `leaders`, `vehicles`, …) — เว็บ
+ปลายทางอ้างอิงชื่อคอลัมน์เหล่านี้ได้เลย
+
+> **หมายเหตุ**: ถ้า sync ล้มเหลว (เช่น เน็ตเวิร์ก/สิทธิ์ผิด) การบันทึกจะยัง**สำเร็จ**เสมอ แต่จะขึ้น
+> ข้อความเตือนและบันทึก error ไว้ใน log ให้ตรวจสอบ — ข้อมูลไม่หาย เพราะอยู่ใน SQLite แล้ว
 
 ## การเชื่อมต่อกับระบบแจ้งเตือนเดิม (news_report/)
 
@@ -118,7 +163,8 @@ Header: X-API-Key: <REPORT_CENTER_API_KEY>
   "results": [
     {
       "id": 3,
-      "report_type": {"advance": true, "closure": false, "incident": false, "general": false},
+      "report_type": "advance",
+      "report_type_label": "ข่าวล่วงหน้า",
       "title": "...",
       "location": "...",
       "event_datetime": "2026-07-09T09:00:00",
@@ -137,7 +183,7 @@ Header: X-API-Key: <REPORT_CENTER_API_KEY>
 
 ```
 report_center/
-  __init__.py      # app factory + CLI (flask create-admin)
+  __init__.py      # app factory + CLI (flask create-admin, flask sync-sheets)
   config.py
   extensions.py    # db, login_manager
   models.py        # User, LoginLog, NewsReport (+leader/vehicle child tables)
@@ -146,7 +192,8 @@ report_center/
   reports.py       # dashboard (admin) + news_report (บันทึกรายงาน)
   admin.py         # อนุมัติผู้ใช้ / ดู login logs
   api.py           # JSON API สำหรับระบบภายนอก (API key)
+  sheets_sync.py   # sync รายงานเข้า Google Sheets อัตโนมัติ (optional)
   templates/
-  static/css/
+  static/css/  static/js/
   run.py
 ```

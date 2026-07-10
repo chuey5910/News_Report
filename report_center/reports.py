@@ -1,8 +1,9 @@
 from datetime import datetime, time as time_cls
 
-from flask import Blueprint, render_template, redirect, request, url_for, flash
+from flask import Blueprint, current_app, render_template, redirect, request, url_for, flash
 from flask_login import current_user, login_required
 
+from . import sheets_sync
 from .admin import admin_required
 from .extensions import db
 from .forms import NewsReportForm
@@ -115,7 +116,13 @@ def news_report():
 
         db.session.add(item)
         db.session.commit()
-        flash("บันทึกรายงานข่าวเรียบร้อยแล้ว", "success")
+
+        # Best-effort sync to Google Sheets (never blocks or fails the save)
+        synced = sheets_sync.sync_report(current_app._get_current_object(), item)
+        if sheets_sync.is_configured(current_app.config) and not synced:
+            flash("บันทึกเรียบร้อย แต่ sync ขึ้น Google Sheets ไม่สำเร็จ (ดู log) — ข้อมูลถูกเก็บในระบบแล้ว", "warning")
+        else:
+            flash("บันทึกรายงานข่าวเรียบร้อยแล้ว", "success")
         return redirect(url_for("reports.news_report"))
 
     submitted_leaders, submitted_vehicles = _submitted_dynamic_fields()

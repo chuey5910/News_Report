@@ -72,3 +72,19 @@ def register_cli(app):
         db.session.add(user)
         db.session.commit()
         click.echo(f"Admin user '{username}' created/updated and approved.")
+
+    @app.cli.command("sync-sheets")
+    def sync_sheets():
+        """Backfill: push ALL existing reports into the configured Google Sheet.
+        Useful after first setting up Google Sheets credentials.
+        """
+        from . import sheets_sync
+        from .models import NewsReport
+
+        if not sheets_sync.is_configured(app.config):
+            click.echo("Google Sheets ยังไม่ได้ตั้งค่า (GOOGLE_SHEETS_SPREADSHEET_ID) — ข้ามการ sync")
+            return
+
+        reports = NewsReport.query.order_by(NewsReport.id.asc()).all()
+        ok = sheets_sync.sync_all(app, reports)
+        click.echo(f"Synced {ok}/{len(reports)} reports to Google Sheets.")
