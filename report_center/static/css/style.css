@@ -295,6 +295,9 @@ tr:hover td { background: #f9fafb; }
 /* leader name inputs flow as regular items in the parent .form-grid instead of stacking full-width */
 .dynamic-fields-flow { display: contents; }
 
+/* wrapper has no box of its own — its children become regular items in the parent grid */
+.flow { display: contents; }
+
 .vehicle-group {
   border: 1px solid var(--border);
   border-radius: 8px;

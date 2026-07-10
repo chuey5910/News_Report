@@ -42,7 +42,7 @@
       if (el.name === "csrf_token" || el.type === "hidden") return;
       if (el.offsetParent === null) return; // skip fields hidden by conditional show/hide
 
-      if (el.type === "checkbox") {
+      if (el.type === "checkbox" || el.type === "radio") {
         var group = checkboxGroups[el.name];
         if (!group) {
           var built = makeRow(el.dataset.groupLabel || el.name, "");

@@ -70,17 +70,16 @@ PROBLEM_GROUP_TYPES = [
     "ด้านต่างประเทศ (ด้านอาชญากรรมข้ามชาติก่อการร้ายสากล)",
 ]
 
-# ประเภทรายงาน — a small, fixed set of exactly 4 tags, so each one gets its own
-# boolean column (type-safe, indexable, no string-parsing) rather than a
-# comma-joined text field. The checkbox group in the form shares one input
-# name ("report_type") with these slugs as values; the view maps the
-# selected slugs onto these four columns.
+# ประเภทรายงาน — a small, fixed set of exactly 4 mutually-exclusive options
+# (a report is exactly one type), rendered as radio buttons and stored as a
+# single string column (type-safe, indexable, no string-parsing).
 REPORT_TYPE_CHOICES = [
     ("advance", "ข่าวล่วงหน้า"),
     ("closure", "ปิดข่าว"),
     ("incident", "รายงานเหตุการณ์"),
     ("general", "ข่าวทั่วไป"),
 ]
+REPORT_TYPE_LABELS = dict(REPORT_TYPE_CHOICES)
 
 
 class NewsReport(db.Model):
@@ -93,11 +92,8 @@ class NewsReport(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # ประเภทรายงาน (เลือกได้หลายข้อ)
-    is_advance_news = db.Column(db.Boolean, nullable=False, default=False)  # ข่าวล่วงหน้า
-    is_closure = db.Column(db.Boolean, nullable=False, default=False)  # ปิดข่าว
-    is_incident_report = db.Column(db.Boolean, nullable=False, default=False)  # รายงานเหตุการณ์
-    is_general_news = db.Column(db.Boolean, nullable=False, default=False)  # ข่าวทั่วไป
+    # ประเภทรายงาน (เลือกได้ข้อเดียว — advance | closure | incident | general)
+    report_type = db.Column(db.String(16), nullable=False)
 
     title = db.Column(db.String(255), nullable=False)  # ชื่อกิจกรรม
 

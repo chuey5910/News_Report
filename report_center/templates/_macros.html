@@ -23,3 +23,22 @@
     </div>
   </div>
 {% endmacro %}
+
+{% macro render_radio_group(field) %}
+  <div class="form-field full">
+    <label>{{ field.label.text }}</label>
+    <div class="checkbox-grid">
+      {% for subfield in field %}
+        <label class="checkbox-option">
+          {{ subfield(data_group_label=field.label.text, data_option_label=subfield.label.text) }}
+          <span>{{ subfield.label.text }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    {% if field.errors %}
+      {% for error in field.errors %}
+        <div class="field-error">{{ error }}</div>
+      {% endfor %}
+    {% endif %}
+  </div>
+{% endmacro %}

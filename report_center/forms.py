@@ -3,6 +3,7 @@ from wtforms import (
     DateField,
     IntegerField,
     PasswordField,
+    RadioField,
     SelectField,
     SelectMultipleField,
     StringField,
@@ -53,7 +54,9 @@ def _choices(values):
 class NewsReportForm(FlaskForm):
     """รายงานข่าว — ฟอร์มเดียวที่รวมข่าวล่วงหน้า/ปิดข่าว/รายงานเหตุการณ์/ข่าวทั่วไป."""
 
-    report_type = MultiCheckboxField("ประเภทรายงาน", choices=REPORT_TYPE_CHOICES, validators=[Optional()])
+    report_type = RadioField(
+        "ประเภทรายงาน", choices=REPORT_TYPE_CHOICES, validators=[DataRequired(message="กรุณาเลือกประเภทรายงาน")]
+    )
 
     title = StringField("ชื่อกิจกรรม", validators=[DataRequired(), Length(max=255)])
 

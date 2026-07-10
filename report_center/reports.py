@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 from .admin import admin_required
 from .extensions import db
 from .forms import NewsReportForm
-from .models import NewsReport, NewsReportLeader, NewsReportVehicle
+from .models import REPORT_TYPE_LABELS, NewsReport, NewsReportLeader, NewsReportVehicle
 
 bp = Blueprint("reports", __name__, url_prefix="/reports")
 
@@ -20,13 +20,9 @@ def _combine_date_time(date_val, time_val):
 def _fields_from_form(form):
     permit_granted = form.permit_status.data == "มีการขออนุญาต"
     equipment_present = form.overnight_equipment_status.data == "มี"
-    selected_types = form.report_type.data
 
     return {
-        "is_advance_news": "advance" in selected_types,
-        "is_closure": "closure" in selected_types,
-        "is_incident_report": "incident" in selected_types,
-        "is_general_news": "general" in selected_types,
+        "report_type": form.report_type.data,
         "title": form.title.data,
         "activity_types": ", ".join(form.activity_types.data) or None,
         "problem_group_types": ", ".join(form.problem_group_types.data) or None,
@@ -92,13 +88,15 @@ def _submitted_dynamic_fields():
 def dashboard():
     counts = {
         "total": NewsReport.query.count(),
-        "advance": NewsReport.query.filter_by(is_advance_news=True).count(),
-        "closure": NewsReport.query.filter_by(is_closure=True).count(),
-        "incident": NewsReport.query.filter_by(is_incident_report=True).count(),
-        "general": NewsReport.query.filter_by(is_general_news=True).count(),
+        "advance": NewsReport.query.filter_by(report_type="advance").count(),
+        "closure": NewsReport.query.filter_by(report_type="closure").count(),
+        "incident": NewsReport.query.filter_by(report_type="incident").count(),
+        "general": NewsReport.query.filter_by(report_type="general").count(),
     }
     recent = NewsReport.query.order_by(NewsReport.created_at.desc()).limit(10).all()
-    return render_template("reports/dashboard.html", counts=counts, recent=recent)
+    return render_template(
+        "reports/dashboard.html", counts=counts, recent=recent, report_type_labels=REPORT_TYPE_LABELS
+    )
 
 
 @bp.route("/news-report", methods=["GET", "POST"])

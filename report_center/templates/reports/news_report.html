@@ -9,7 +9,7 @@
   <form method="post" id="news-report-form" class="confirm-before-submit">
     {{ form.hidden_tag() }}
     <div class="form-grid">
-      {{ m.render_checkbox_group(form.report_type) }}
+      {{ m.render_radio_group(form.report_type) }}
 
       {{ m.render_field(form.title, half=True) }}
       {{ m.render_checkbox_group(form.activity_types) }}
@@ -31,11 +31,14 @@
       </div>
       {{ m.render_field(form.permit_status, class_="w-select-sm") }}
 
-      <div id="permit-detail-wrapper" class="sub-section" hidden>
-        <div class="form-grid">
-          {{ m.render_field(form.permit_location) }}
-          {{ m.render_field(form.permit_duration_days, class_="w-num") }}
-        </div>
+      <div id="permit-detail-wrapper" class="flow" hidden>
+        {{ m.render_field(form.permit_location) }}
+        {{ m.render_field(form.permit_duration_days, class_="w-num") }}
+      </div>
+
+      {{ m.render_field(form.overnight_equipment_status, class_="w-select-sm") }}
+      <div id="equipment-detail-wrapper" class="sub-section" hidden>
+        {{ m.render_field(form.overnight_equipment_detail, half=True) }}
       </div>
 
       {{ m.render_field(form.location) }}
@@ -52,11 +55,6 @@
       {{ m.render_field(form.demands, full=True) }}
       {{ m.render_field(form.supporters, half=True) }}
       {{ m.render_field(form.affiliations, half=True) }}
-
-      {{ m.render_field(form.overnight_equipment_status, class_="w-select-sm") }}
-      <div id="equipment-detail-wrapper" class="sub-section" hidden>
-        {{ m.render_field(form.overnight_equipment_detail, half=True) }}
-      </div>
 
       {{ m.render_field(form.vehicle_status, class_="w-select-sm") }}
       <div id="vehicle-section-wrapper" class="sub-section" hidden>

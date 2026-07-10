@@ -35,12 +35,7 @@
       {% for item in recent %}
       <tr>
         <td>{{ item.title }}</td>
-        <td>
-          {% if item.is_advance_news %}<span class="badge admin">ข่าวล่วงหน้า</span>{% endif %}
-          {% if item.is_closure %}<span class="badge user">ปิดข่าว</span>{% endif %}
-          {% if item.is_incident_report %}<span class="badge pending">รายงานเหตุการณ์</span>{% endif %}
-          {% if item.is_general_news %}<span class="badge approved">ข่าวทั่วไป</span>{% endif %}
-        </td>
+        <td><span class="badge admin">{{ report_type_labels.get(item.report_type, item.report_type) }}</span></td>
         <td>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
         <td>{{ item.created_by.full_name if item.created_by else '-' }}</td>
       </tr>

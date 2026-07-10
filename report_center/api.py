@@ -2,7 +2,7 @@ from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, request
 
-from .models import NewsReport
+from .models import REPORT_TYPE_LABELS, NewsReport
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -16,12 +16,8 @@ def _require_api_key():
 def _serialize(item):
     return {
         "id": item.id,
-        "report_type": {
-            "advance": item.is_advance_news,
-            "closure": item.is_closure,
-            "incident": item.is_incident_report,
-            "general": item.is_general_news,
-        },
+        "report_type": item.report_type,
+        "report_type_label": REPORT_TYPE_LABELS.get(item.report_type, item.report_type),
         "title": item.title,
         "activity_types": item.activity_types,
         "problem_group_types": item.problem_group_types,
@@ -67,14 +63,8 @@ def latest_reports():
         except ValueError:
             return jsonify({"error": "invalid 'since' timestamp, expected ISO 8601"}), 400
 
-    type_column_map = {
-        "advance": NewsReport.is_advance_news,
-        "closure": NewsReport.is_closure,
-        "incident": NewsReport.is_incident_report,
-        "general": NewsReport.is_general_news,
-    }
     type_param = request.args.get("type")
-    if type_param and type_param not in type_column_map:
+    if type_param and type_param not in REPORT_TYPE_LABELS:
         return jsonify({"error": f"unknown type '{type_param}'"}), 400
 
     limit = request.args.get("limit", 50, type=int)
@@ -83,7 +73,7 @@ def latest_reports():
     if since is not None:
         query = query.filter(NewsReport.created_at > since)
     if type_param:
-        query = query.filter(type_column_map[type_param].is_(True))
+        query = query.filter(NewsReport.report_type == type_param)
 
     items = query.order_by(NewsReport.created_at.desc()).limit(limit).all()
     results = [_serialize(item) for item in items]
