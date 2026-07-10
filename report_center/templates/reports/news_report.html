@@ -41,7 +41,6 @@
         {{ m.render_field(form.overnight_equipment_detail, half=True) }}
       </div>
 
-      {{ m.render_field(form.location) }}
       {{ m.render_field(form.group_name) }}
 
       <div class="form-field">
@@ -49,6 +48,8 @@
         {{ form.leader_count(data_label=form.leader_count.label.text, class_="w-num") }}
       </div>
       <div id="leader-fields-container" class="dynamic-fields-flow"></div>
+
+      {{ m.render_field(form.location) }}
 
       {{ m.render_field(form.mass_count, class_="w-short") }}
       {{ m.render_field(form.activity_format, half=True) }}
@@ -67,7 +68,7 @@
 
       {{ m.render_field(form.other_info, half=True) }}
       {{ m.render_field(form.trend_assessment, half=True) }}
-      {{ m.render_field(form.reporter_name) }}
+      {{ m.render_field(form.reporter_name, half=True) }}
       {{ m.render_field(form.reporter_phone, class_="w-short") }}
     </div>
     <button class="btn" type="submit">บันทึก</button>

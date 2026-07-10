@@ -79,7 +79,7 @@ class NewsReportForm(FlaskForm):
     location = StringField("สถานที่นัดหมาย", validators=[DataRequired(), Length(max=255)])
     group_name = StringField("ชื่อกลุ่ม", validators=[Optional(), Length(max=255)])
 
-    leader_count = SelectField("จำนวนแกนนำ (คน)", choices=LEADER_COUNT_CHOICES, coerce=int, default=0)
+    leader_count = SelectField("แกนนำ (คน)", choices=LEADER_COUNT_CHOICES, coerce=int, default=0)
 
     mass_count = StringField("จำนวนมวลชน", validators=[Optional(), Length(max=64)])
     activity_format = TextAreaField("รูปแบบการจัดกิจกรรม", validators=[Optional()])
