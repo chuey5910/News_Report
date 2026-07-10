@@ -61,10 +61,32 @@ class ReportMixin:
 PERMIT_STATUSES = ["มีการขออนุญาต", "ไม่มีการขออนุญาต"]
 YES_NO = ["มี", "ไม่มี"]
 
+ACTIVITY_TYPES = [
+    "ร้องเรียน",
+    "เสวนา",
+    "แสดงออกเชิงสัญลักษณ์ในพื้นที่",
+    "ประชุมสมาชิก/รวบรวมกลุ่มจัดกิจกรรม",
+    "หน่วยงาน/สส.ลงพื้นที่",
+]
+
+PROBLEM_GROUP_TYPES = [
+    "ความมั่นคงด้านสถาบันพระมหากษัตริย์และสังคม",
+    "การก่อความไม่สงบและสถานการณ์ชายแดน",
+    "กลุ่มนักวิชาการ องค์กรเอกชน สื่อมวลชน",
+    "ด้านการเมืองและกลุ่มพลังทางการเมือง",
+    "ด้านวิทยาศาสตร์ เทคโนโลยี พลังงาน และสิ่งแวดล้อม",
+    "ด้านเศรษฐกิจ",
+    "ยาเสพติด",
+    "ด้านต่างประเทศ (ด้านอาชญากรรมข้ามชาติก่อการร้ายสากล)",
+]
+
 
 class ActivityFieldsMixin:
     """Shared activity-report columns used by both ข่าวล่วงหน้า and ปิดข่าว
     (ปิดข่าว uses the exact same form/fields as ข่าวล่วงหน้า)."""
+
+    activity_types = db.Column(db.Text, nullable=True)  # ประเภทกิจกรรม (comma-separated, multi-select)
+    problem_group_types = db.Column(db.Text, nullable=True)  # ประเภทกลุ่มปัญหา (comma-separated, multi-select)
 
     event_datetime = db.Column(db.DateTime, nullable=True)  # เริ่มกิจกรรม (วันที่ + เวลา รวมกัน)
     event_end_datetime = db.Column(db.DateTime, nullable=True)  # สิ้นสุดกิจกรรม (วันที่ + เวลา รวมกัน)

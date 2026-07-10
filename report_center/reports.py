@@ -38,6 +38,8 @@ def _activity_fields_from_form(form):
 
     return {
         "title": form.title.data,
+        "activity_types": ", ".join(form.activity_types.data) or None,
+        "problem_group_types": ", ".join(form.problem_group_types.data) or None,
         "event_datetime": _combine_date_time(form.event_date.data, form.event_time.data),
         "event_end_datetime": _combine_date_time(form.event_end_date.data, form.event_end_time.data),
         "permit_status": form.permit_status.data,

@@ -5,16 +5,25 @@ from wtforms import (
     IntegerField,
     PasswordField,
     SelectField,
+    SelectMultipleField,
     StringField,
     TextAreaField,
     TimeField,
 )
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, EqualTo, Regexp
+from wtforms.widgets import CheckboxInput, ListWidget
 
-from .models import PERMIT_STATUSES, YES_NO
+from .models import ACTIVITY_TYPES, PERMIT_STATUSES, PROBLEM_GROUP_TYPES, YES_NO
 
 LEADER_COUNT_CHOICES = [(i, str(i)) for i in range(0, 21)]
 VEHICLE_COUNT_CHOICES = [(i, str(i)) for i in range(0, 11)]
+
+
+class MultiCheckboxField(SelectMultipleField):
+    """Renders as a group of checkboxes instead of a <select multiple>."""
+
+    widget = ListWidget(prefix_label=False)
+    option_widget = CheckboxInput()
 
 
 class RegisterForm(FlaskForm):
@@ -46,6 +55,11 @@ class ActivityReportForm(FlaskForm):
     """ฟิลด์ชุดเดียวกัน ใช้ทั้งข่าวล่วงหน้าและปิดข่าว."""
 
     title = StringField("ชื่อกิจกรรม", validators=[DataRequired(), Length(max=255)])
+
+    activity_types = MultiCheckboxField("ประเภทกิจกรรม", choices=_choices(ACTIVITY_TYPES), validators=[Optional()])
+    problem_group_types = MultiCheckboxField(
+        "ประเภทกลุ่มปัญหา", choices=_choices(PROBLEM_GROUP_TYPES), validators=[Optional()]
+    )
 
     event_date = DateField("วันที่นัดหมายทำกิจกรรม", validators=[Optional()])
     event_time = TimeField("เวลานัดหมาย", validators=[Optional()])

@@ -30,6 +30,8 @@ def _serialize(category, item):
         "created_by": item.created_by.full_name if item.created_by else None,
     }
     if category in ("advance", "closure"):
+        data["activity_types"] = item.activity_types
+        data["problem_group_types"] = item.problem_group_types
         data["location"] = item.location
         data["event_datetime"] = item.event_datetime.isoformat() if item.event_datetime else None
         data["event_end_datetime"] = item.event_end_datetime.isoformat() if item.event_end_datetime else None

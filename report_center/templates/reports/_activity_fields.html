@@ -1,6 +1,9 @@
 {% import "_macros.html" as m %}
 
 {% macro render_activity_fields(form) %}
+  {{ m.render_checkbox_group(form.activity_types) }}
+  {{ m.render_checkbox_group(form.problem_group_types) }}
+
   <div class="form-field half datetime-pair">
     <label>วันที่และเวลานัดหมายทำกิจกรรม</label>
     <div class="datetime-row">
