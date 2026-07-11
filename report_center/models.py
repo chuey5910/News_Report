@@ -81,6 +81,13 @@ REPORT_TYPE_CHOICES = [
 ]
 REPORT_TYPE_LABELS = dict(REPORT_TYPE_CHOICES)
 
+# สันติบาล จว. — เลือกได้จังหวัดเดียวต่อรายงาน (radio) เก็บเป็น string เดียว
+SPECIAL_BRANCH_PROVINCES = [
+    "ลำพูน", "พิจิตร", "น่าน", "เชียงราย", "พิษณุโลก", "อุทัยธานี",
+    "เพชรบูรณ์", "สุโขทัย", "อุตรดิตถ์", "แพร่", "พะเยา", "นครสวรรค์",
+    "กำแพงเพชร", "ลำปาง", "ตาก", "แม่ฮ่องสอน", "เชียงใหม่",
+]
+
 
 class NewsReport(db.Model):
     """รายงานข่าว — the single unified report form (ชื่อกิจกรรม = title)."""
@@ -94,6 +101,9 @@ class NewsReport(db.Model):
 
     # ประเภทรายงาน (เลือกได้ข้อเดียว — advance | closure | incident | general)
     report_type = db.Column(db.String(16), nullable=False)
+
+    # สันติบาล จว. (เลือกได้จังหวัดเดียว)
+    special_branch_province = db.Column(db.String(32), nullable=True)
 
     title = db.Column(db.String(255), nullable=False)  # ชื่อกิจกรรม
 

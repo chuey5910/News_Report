@@ -18,6 +18,7 @@ def _serialize(item):
         "id": item.id,
         "report_type": item.report_type,
         "report_type_label": REPORT_TYPE_LABELS.get(item.report_type, item.report_type),
+        "special_branch_province": item.special_branch_province,
         "title": item.title,
         "activity_types": item.activity_types,
         "problem_group_types": item.problem_group_types,

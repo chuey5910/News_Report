@@ -13,7 +13,14 @@ from wtforms import (
 from wtforms.validators import DataRequired, Length, NumberRange, Optional, EqualTo, Regexp
 from wtforms.widgets import CheckboxInput, ListWidget
 
-from .models import ACTIVITY_TYPES, PERMIT_STATUSES, PROBLEM_GROUP_TYPES, REPORT_TYPE_CHOICES, YES_NO
+from .models import (
+    ACTIVITY_TYPES,
+    PERMIT_STATUSES,
+    PROBLEM_GROUP_TYPES,
+    REPORT_TYPE_CHOICES,
+    SPECIAL_BRANCH_PROVINCES,
+    YES_NO,
+)
 
 LEADER_COUNT_CHOICES = [(i, str(i)) for i in range(0, 21)]
 VEHICLE_COUNT_CHOICES = [(i, str(i)) for i in range(0, 11)]
@@ -56,6 +63,10 @@ class NewsReportForm(FlaskForm):
 
     report_type = RadioField(
         "ประเภทรายงาน", choices=REPORT_TYPE_CHOICES, validators=[DataRequired(message="กรุณาเลือกประเภทรายงาน")]
+    )
+
+    special_branch_province = RadioField(
+        "สันติบาล จว.", choices=_choices(SPECIAL_BRANCH_PROVINCES), validators=[Optional()]
     )
 
     title = StringField("ชื่อกิจกรรม", validators=[DataRequired(), Length(max=255)])

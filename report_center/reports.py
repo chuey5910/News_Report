@@ -24,6 +24,7 @@ def _fields_from_form(form):
 
     return {
         "report_type": form.report_type.data,
+        "special_branch_province": form.special_branch_province.data or None,
         "title": form.title.data,
         "activity_types": ", ".join(form.activity_types.data) or None,
         "problem_group_types": ", ".join(form.problem_group_types.data) or None,

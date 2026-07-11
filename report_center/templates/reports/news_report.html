@@ -10,6 +10,7 @@
     {{ form.hidden_tag() }}
     <div class="form-grid">
       {{ m.render_radio_group(form.report_type) }}
+      {{ m.render_radio_group(form.special_branch_province) }}
 
       {{ m.render_field(form.title, half=True) }}
       {{ m.render_checkbox_group(form.activity_types) }}
