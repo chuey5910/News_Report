@@ -32,6 +32,12 @@ class Config:
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
+    # ตั้ง SESSION_COOKIE_SECURE=1 เมื่อรันหลัง HTTPS (แนะนำสำหรับใช้งานจริง)
+    SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"
+
+    # ป้องกัน brute-force: ล็อกการล็อกอินชั่วคราวเมื่อกรอกผิดหลายครั้งติดกัน
+    LOGIN_MAX_FAILED_ATTEMPTS = int(os.environ.get("LOGIN_MAX_FAILED_ATTEMPTS", "5"))
+    LOGIN_LOCKOUT_MINUTES = int(os.environ.get("LOGIN_LOCKOUT_MINUTES", "15"))
 
     # --- Google Sheets auto-sync (optional) ---
     # เมื่อบันทึกรายงานใหม่ ระบบจะ sync ลง Google Sheet ให้อัตโนมัติ เพื่อให้เว็บอื่นดึงไปแสดงได้

@@ -1,4 +1,6 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from datetime import datetime, timedelta
+
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from .extensions import db
@@ -6,6 +8,27 @@ from .forms import LoginForm, RegisterForm
 from .models import LoginLog, User
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+
+def _recent_failed_count(username, ip):
+    """Count failed login attempts for this username OR this IP within the lockout window.
+    Used to throttle brute-force attempts (counting from the last successful login resets it)."""
+    window_start = datetime.utcnow() - timedelta(minutes=current_app.config["LOGIN_LOCKOUT_MINUTES"])
+    q = LoginLog.query.filter(LoginLog.timestamp >= window_start)
+    q = q.filter(
+        db.or_(LoginLog.username_attempted == username, LoginLog.ip_address == ip)
+    )
+    attempts = q.order_by(LoginLog.timestamp.desc()).all()
+    failed = 0
+    for a in attempts:
+        if a.success:
+            break  # a success within the window clears the streak
+        failed += 1
+    return failed
+
+
+def _is_locked_out(username, ip):
+    return _recent_failed_count(username, ip) >= current_app.config["LOGIN_MAX_FAILED_ATTEMPTS"]
 
 
 def _default_landing_url(user):
@@ -65,6 +88,17 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         username = form.username.data.strip()
+        ip = _client_ip()
+
+        if _is_locked_out(username, ip):
+            _record_login(None, username, False, "locked_out")
+            flash(
+                f"พยายามเข้าสู่ระบบผิดหลายครั้งเกินไป — ถูกล็อกชั่วคราว "
+                f"{current_app.config['LOGIN_LOCKOUT_MINUTES']} นาที กรุณาลองใหม่ภายหลัง",
+                "danger",
+            )
+            return render_template("auth/login.html", form=form)
+
         user = User.query.filter_by(username=username).first()
 
         if user is None or not user.check_password(form.password.data):
