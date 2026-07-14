@@ -20,7 +20,9 @@ class User(UserMixin, db.Model):
     login_logs = db.relationship("LoginLog", backref="user", lazy="dynamic")
 
     def set_password(self, raw_password):
-        self.password_hash = generate_password_hash(raw_password)
+        # ระบุ pbkdf2:sha256 ตรงๆ แทนค่า default (scrypt) เพราะ Python ที่ติดมากับ
+        # macOS บางรุ่นคอมไพล์โดยไม่มี hashlib.scrypt ทำให้ล็อกอิน/สร้างผู้ใช้พัง
+        self.password_hash = generate_password_hash(raw_password, method="pbkdf2:sha256")
 
     def check_password(self, raw_password):
         return check_password_hash(self.password_hash, raw_password)
