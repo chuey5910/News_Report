@@ -9,7 +9,7 @@
     <div class="label">รายงานทั้งหมด</div>
   </div>
   {% for key, label in report_type_choices %}
-  <div class="stat-tile">
+  <div class="stat-tile tile-{{ key }}">
     <div class="num">{{ counts[key] }}</div>
     <div class="label">{{ label }}</div>
   </div>
@@ -19,7 +19,7 @@
 <div class="card">
   <h2>ค้นหารายงาน</h2>
   <form method="get" class="filter-bar">
-    <input type="text" name="q" value="{{ q }}" placeholder="ค้นหา: ชื่อกิจกรรม / กลุ่ม / สถานที่ / ข้อเรียกร้อง...">
+    <input type="text" name="q" value="{{ q }}" placeholder="ค้นหา: ชื่อกิจกรรม / กลุ่ม / สถานที่ / ชื่อ-นามสกุล / ทะเบียนรถ / ประเภทรถ...">
     <select name="province">
       <option value="">— ทุกจังหวัด —</option>
       {% for p in provinces %}
@@ -89,7 +89,7 @@
         <tr>
           <td>{{ item.created_at | thai_time }}</td>
           <td>{{ item.special_branch_province or '-' }}</td>
-          <td><span class="badge admin">{{ report_type_labels.get(item.report_type, item.report_type) }}</span></td>
+          <td><span class="badge type-{{ item.report_type }}">{{ report_type_labels.get(item.report_type, item.report_type) }}</span></td>
           <td>{{ item.title }}</td>
           <td>{{ item.created_by.full_name if item.created_by else '-' }}</td>
           <td class="row-actions">

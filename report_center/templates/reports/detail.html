@@ -6,7 +6,7 @@
 <div class="card">
   <div class="detail-head">
     <div class="detail-head-info">
-      <span class="badge admin">{{ report_type_labels.get(item.report_type, item.report_type) }}</span>
+      <span class="badge type-{{ item.report_type }}">{{ report_type_labels.get(item.report_type, item.report_type) }}</span>
       {% if item.special_branch_province %}<span class="badge user">สันติบาล จว.{{ item.special_branch_province }}</span>{% endif %}
       <div class="detail-meta">
         บันทึกเมื่อ {{ item.created_at | thai_time('%d/%m/%Y %H:%M') }}
@@ -17,6 +17,7 @@
       </div>
     </div>
     <div class="detail-actions">
+      <button type="button" class="btn small secondary" onclick="history.back()">← ย้อนกลับ</button>
       <button type="button" class="btn small" id="copy-report-btn">คัดลอกข้อมูล (Copy)</button>
       {% if current_user.is_admin %}
       <a class="btn small secondary" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไขรายงาน</a>

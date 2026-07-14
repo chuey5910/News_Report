@@ -30,6 +30,14 @@ def create_app(config_object=Config):
             return "-"
         return (dt + timedelta(hours=7)).strftime(fmt)
 
+    # เมนูซ้าย (แท็บบันทึกข่าว 3 แบบฟอร์ม) ใช้ใน base.html ทุกหน้า
+    @app.context_processor
+    def inject_form_tabs():
+        return {
+            "report_form_tabs": models.REPORT_FORM_TABS,
+            "report_type_labels": models.REPORT_TYPE_LABELS,
+        }
+
     from .auth import bp as auth_bp
     from .reports import bp as reports_bp
     from .admin import bp as admin_bp
@@ -46,16 +54,49 @@ def create_app(config_object=Config):
     @app.route("/")
     def index():
         if current_user.is_authenticated:
-            target = "reports.dashboard" if current_user.is_admin else "reports.news_report"
-            return redirect(url_for(target))
+            if current_user.is_admin:
+                return redirect(url_for("reports.dashboard"))
+            return redirect(url_for("reports.new_report", form_type="advance"))
         return redirect(url_for("auth.login"))
 
     with app.app_context():
         db.create_all()
+        _auto_migrate()
 
     register_cli(app)
 
     return app
+
+
+def _auto_migrate():
+    """อัปเกรดฐานข้อมูลเดิมอัตโนมัติตอนสตาร์ท (SQLite ADD COLUMN — ไม่กระทบข้อมูลเดิม).
+
+    create_all() สร้างเฉพาะ "ตารางใหม่" แต่ไม่เพิ่มคอลัมน์ให้ตารางที่มีอยู่แล้ว
+    ส่วนนี้จึงตรวจและเติมคอลัมน์ที่ขาดให้ ทำให้เครื่องจริงอัปเดตได้ด้วย git pull + restart
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    new_columns = {
+        "news_reports": [
+            ("activity_detail", "TEXT"),
+            ("considerations", "TEXT"),
+            ("mass_members", "VARCHAR(255)"),
+            ("mass_media", "VARCHAR(255)"),
+            ("mass_others", "VARCHAR(255)"),
+        ],
+        "news_report_leaders": [("position", "VARCHAR(128)"), ("role", "VARCHAR(255)")],
+        "news_report_vehicles": [("owner", "VARCHAR(128)"), ("usage", "VARCHAR(255)")],
+    }
+    with db.engine.begin() as conn:
+        for table, columns in new_columns.items():
+            existing = {col["name"] for col in inspector.get_columns(table)}
+            for name, ddl_type in columns:
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl_type}"))
+        # แบบฟอร์ม "เหตุการณ์(สถานการณ์)" กับ "ข่าวทั่วไป" ถูกรวมเป็นแท็บเดียว
+        # จึงรวมข้อมูลเก่าประเภท general เข้ากับ incident
+        conn.execute(text("UPDATE news_reports SET report_type = 'incident' WHERE report_type = 'general'"))
 
 
 def register_cli(app):

@@ -72,16 +72,28 @@ PROBLEM_GROUP_TYPES = [
     "ด้านต่างประเทศ (ด้านอาชญากรรมข้ามชาติก่อการร้ายสากล)",
 ]
 
-# ประเภทรายงาน — a small, fixed set of exactly 4 mutually-exclusive options
-# (a report is exactly one type), rendered as radio buttons and stored as a
-# single string column (type-safe, indexable, no string-parsing).
+# ประเภทรายงาน — กำหนดโดย "แท็บฟอร์ม" ที่ผู้ใช้เลือกจากเมนูซ้าย (ไม่มีช่องเลือกในฟอร์มแล้ว)
+# เหตุการณ์(สถานการณ์) กับข่าวทั่วไปถูกรวมเป็นแบบฟอร์มเดียว จึงเก็บเป็นประเภทเดียว ("incident")
 REPORT_TYPE_CHOICES = [
     ("advance", "ข่าวล่วงหน้า"),
     ("closure", "ปิดข่าว"),
-    ("incident", "รายงานเหตุการณ์"),
-    ("general", "ข่าวทั่วไป"),
+    ("incident", "รายงานเหตุการณ์/ข่าวทั่วไป"),
 ]
 REPORT_TYPE_LABELS = dict(REPORT_TYPE_CHOICES)
+
+# ชื่อแท็บในเมนูซ้าย (บันทึกข่าว) — ทั้ง 3 แท็บใช้ template ฟอร์มเดียวกัน
+# แต่โชว์/ซ่อนบางส่วนต่างกันตามประเภท
+REPORT_FORM_TABS = [
+    ("advance", "แบบรายงานข่าวล่วงหน้า"),
+    ("closure", "แบบรายงานปิดข่าว"),
+    ("incident", "แบบรายงานเหตุการณ์(สถานการณ์)/ข่าวทั่วไป"),
+]
+
+# ความเกี่ยวข้องกับบุคคล/องค์กรอื่นๆ (ฟอร์มข่าวล่วงหน้า) — 3 ลักษณะความเกี่ยวข้อง
+AFFILIATE_CATEGORIES = ["เป็นเครือข่ายของกลุ่ม", "ได้รับการประสานมาจาก", "เคยร่วมกิจกรรมด้วยกับ"]
+
+# กลุ่มการเมือง องค์กร หรือบุคคลอื่นๆ ที่มาเกี่ยวข้อง (ฟอร์มปิดข่าว) — 3 กลุ่ม
+RELATED_ORG_CATEGORIES = ["พรรคการเมือง", "NGO", "หน่วยงานรัฐ"]
 
 # สันติบาล จว. — เลือกได้จังหวัดเดียวต่อรายงาน (radio) เก็บเป็น string เดียว
 SPECIAL_BRANCH_PROVINCES = [
@@ -122,10 +134,14 @@ class NewsReport(db.Model):
     location = db.Column(db.String(255), nullable=False)  # สถานที่นัดหมาย
     group_name = db.Column(db.String(255), nullable=True)  # ชื่อกลุ่ม
 
-    mass_count = db.Column(db.String(64), nullable=True)  # จำนวนมวลชน
+    mass_count = db.Column(db.String(64), nullable=True)  # จำนวนมวลชน (ที่มาร่วมงานจริง)
+    mass_members = db.Column(db.String(255), nullable=True)  # จำแนก: สมาชิกกลุ่มอะไร จำนวนเท่าไร
+    mass_media = db.Column(db.String(255), nullable=True)  # จำแนก: นักข่าว/สื่อ จำนวนเท่าไร
+    mass_others = db.Column(db.String(255), nullable=True)  # จำแนก: อื่นๆ จำนวนเท่าไร
     activity_format = db.Column(db.Text, nullable=True)  # รูปแบบการจัดกิจกรรม
     demands = db.Column(db.Text, nullable=False)  # ข้อเรียกร้อง/วัตถุประสงค์
-    supporters = db.Column(db.Text, nullable=True)  # ผู้สนับสนุน
+    activity_detail = db.Column(db.Text, nullable=True)  # รายละเอียดการทำกิจกรรม (ไทม์ไลน์/เนื้อหาเสวนา)
+    supporters = db.Column(db.Text, nullable=True)  # ผู้สนับสนุน (ข้อความอิสระ — ฟอร์มข่าวล่วงหน้า/เหตุการณ์)
     affiliations = db.Column(db.Text, nullable=True)  # ความเชื่อมโยงกับบุคคล/องค์กรอื่นๆ
 
     overnight_equipment_status = db.Column(db.String(16), nullable=False, default="ไม่มี")  # สัมภาระค้างแรม/อุปกรณ์
@@ -134,7 +150,8 @@ class NewsReport(db.Model):
     vehicle_status = db.Column(db.String(16), nullable=False, default="ไม่มี")  # ยานพาหนะ
 
     other_info = db.Column(db.Text, nullable=True)  # ข้อมูลน่าสนใจอื่นๆ
-    trend_assessment = db.Column(db.Text, nullable=True)  # แนวโน้ม/ข้อพิจารณา
+    trend_assessment = db.Column(db.Text, nullable=True)  # แนวโน้มสถานการณ์ / แนวโน้มในอนาคต
+    considerations = db.Column(db.Text, nullable=True)  # ข้อพิจารณา (แยกจากแนวโน้ม)
     reporter_name = db.Column(db.String(128), nullable=True)  # ผู้รายงาน
     reporter_phone = db.Column(db.String(32), nullable=True)  # เบอร์ติดต่อ
 
@@ -145,20 +162,34 @@ class NewsReport(db.Model):
     vehicles = db.relationship(
         "NewsReportVehicle", backref="news_report", cascade="all, delete-orphan", order_by="NewsReportVehicle.id"
     )
+    people = db.relationship(
+        "NewsReportPerson", backref="news_report", cascade="all, delete-orphan", order_by="NewsReportPerson.id"
+    )
+    media_posts = db.relationship(
+        "NewsReportMedia", backref="news_report", cascade="all, delete-orphan", order_by="NewsReportMedia.id"
+    )
+
+    def people_of(self, kind, category=None):
+        return [
+            p for p in self.people
+            if p.kind == kind and (category is None or p.category == category)
+        ]
 
 
 class NewsReportLeader(db.Model):
-    """ชื่อ-นามสกุล แกนนำ (รายการเพิ่มได้ตามจำนวนที่เลือก)."""
+    """แกนนำ (รายการเพิ่มได้ตามจำนวนที่เลือก) — ตำแหน่ง/บทบาทใช้ในฟอร์มปิดข่าว."""
 
     __tablename__ = "news_report_leaders"
 
     id = db.Column(db.Integer, primary_key=True)
     news_report_id = db.Column(db.Integer, db.ForeignKey("news_reports.id"), nullable=False)
     full_name = db.Column(db.String(128), nullable=False)
+    position = db.Column(db.String(128), nullable=True)  # ตำแหน่ง
+    role = db.Column(db.String(255), nullable=True)  # บทบาทหน้าที่
 
 
 class NewsReportVehicle(db.Model):
-    """ยานพาหนะ (รายการเพิ่มได้ตามจำนวนที่เลือก)."""
+    """ยานพาหนะ (รายการเพิ่มได้ตามจำนวนที่เลือก) — เจ้าของ/การใช้งานใช้ในฟอร์มปิดข่าว."""
 
     __tablename__ = "news_report_vehicles"
 
@@ -168,3 +199,37 @@ class NewsReportVehicle(db.Model):
     plate_number = db.Column(db.String(32), nullable=True)  # หมายเลขทะเบียน
     province = db.Column(db.String(64), nullable=True)  # จังหวัด
     color = db.Column(db.String(64), nullable=True)  # สี
+    owner = db.Column(db.String(128), nullable=True)  # เจ้าของ/ผู้ครอบครอง
+    usage = db.Column(db.String(255), nullable=True)  # ใช้ทำอะไรในกิจกรรม
+
+
+class NewsReportPerson(db.Model):
+    """บุคคล/องค์กรที่เกี่ยวข้องกับรายงาน (โครงสร้างเดียวรองรับหลายหมวด):
+
+    kind = "affiliate"    ความเกี่ยวข้องกับบุคคล/องค์กรอื่นๆ (ข่าวล่วงหน้า, category = ลักษณะความเกี่ยวข้อง)
+    kind = "participant"  แนวร่วมหรือบุคคลสำคัญที่มาร่วมกิจกรรม (ปิดข่าว)
+    kind = "supporter"    ผู้สนับสนุน/ผู้อยู่เบื้องหลัง (ปิดข่าว)
+    kind = "related_org"  กลุ่มการเมือง องค์กร บุคคลอื่นๆ ที่มาเกี่ยวข้อง (ปิดข่าว, category = พรรคการเมือง/NGO/หน่วยงานรัฐ)
+    """
+
+    __tablename__ = "news_report_people"
+
+    id = db.Column(db.Integer, primary_key=True)
+    news_report_id = db.Column(db.Integer, db.ForeignKey("news_reports.id"), nullable=False)
+    kind = db.Column(db.String(32), nullable=False, index=True)
+    category = db.Column(db.String(64), nullable=True)
+    full_name = db.Column(db.String(128), nullable=False)
+    group_name = db.Column(db.String(255), nullable=True)  # กลุ่ม / กลุ่ม-ตำแหน่ง
+    role = db.Column(db.String(255), nullable=True)  # บทบาท/หน้าที่
+
+
+class NewsReportMedia(db.Model):
+    """การเผยแพร่กิจกรรมทางสื่อออนไลน์และกระแสสนใจ (ปิดข่าว)."""
+
+    __tablename__ = "news_report_media"
+
+    id = db.Column(db.Integer, primary_key=True)
+    news_report_id = db.Column(db.Integer, db.ForeignKey("news_reports.id"), nullable=False)
+    page_name = db.Column(db.String(255), nullable=False)  # ชื่อเพจ
+    likes = db.Column(db.String(64), nullable=True)  # ยอดคนกด Like
+    shares = db.Column(db.String(64), nullable=True)  # ยอดคนกดแชร์

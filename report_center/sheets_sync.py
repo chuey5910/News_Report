@@ -54,6 +54,14 @@ HEADER = [
     "reporter_phone",
     "created_by",
     "created_at",
+    # คอลัมน์ใหม่ (ต่อท้ายเพื่อไม่ให้กระทบ sheet เดิม)
+    "activity_detail",
+    "considerations",
+    "mass_members",
+    "mass_media",
+    "mass_others",
+    "people",
+    "media_posts",
 ]
 
 
@@ -63,10 +71,20 @@ def _fmt_dt(value):
 
 def report_to_row(report):
     """Flatten a NewsReport (and its child rows) into a single sheet row."""
-    leaders = "; ".join(leader.full_name for leader in report.leaders)
+    leaders = "; ".join(
+        "/".join(filter(None, [leader.full_name, leader.position, leader.role]))
+        for leader in report.leaders
+    )
     vehicles = " | ".join(
-        "/".join(filter(None, [v.vehicle_type, v.plate_number, v.province, v.color]))
+        "/".join(filter(None, [v.vehicle_type, v.plate_number, v.province, v.color, v.owner, v.usage]))
         for v in report.vehicles
+    )
+    people = " | ".join(
+        "/".join(filter(None, [p.kind, p.category, p.full_name, p.group_name, p.role]))
+        for p in report.people
+    )
+    media_posts = " | ".join(
+        "/".join(filter(None, [m.page_name, m.likes, m.shares])) for m in report.media_posts
     )
     return [
         report.id,
@@ -99,6 +117,13 @@ def report_to_row(report):
         report.reporter_phone or "",
         report.created_by.full_name if report.created_by else "",
         _fmt_dt(report.created_at),
+        report.activity_detail or "",
+        report.considerations or "",
+        report.mass_members or "",
+        report.mass_media or "",
+        report.mass_others or "",
+        people,
+        media_posts,
     ]
 
 

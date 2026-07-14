@@ -26,16 +26,41 @@ def _serialize(item):
         "event_datetime": item.event_datetime.isoformat() if item.event_datetime else None,
         "event_end_datetime": item.event_end_datetime.isoformat() if item.event_end_datetime else None,
         "mass_count": item.mass_count,
+        "mass_members": item.mass_members,
+        "mass_media": item.mass_media,
+        "mass_others": item.mass_others,
         "demands": item.demands,
-        "leaders": [leader.full_name for leader in item.leaders],
+        "activity_detail": item.activity_detail,
+        "trend_assessment": item.trend_assessment,
+        "considerations": item.considerations,
+        "leaders": [
+            {"full_name": leader.full_name, "position": leader.position, "role": leader.role}
+            for leader in item.leaders
+        ],
         "vehicles": [
             {
                 "vehicle_type": v.vehicle_type,
                 "plate_number": v.plate_number,
                 "province": v.province,
                 "color": v.color,
+                "owner": v.owner,
+                "usage": v.usage,
             }
             for v in item.vehicles
+        ],
+        "people": [
+            {
+                "kind": p.kind,
+                "category": p.category,
+                "full_name": p.full_name,
+                "group_name": p.group_name,
+                "role": p.role,
+            }
+            for p in item.people
+        ],
+        "media_posts": [
+            {"page_name": m.page_name, "likes": m.likes, "shares": m.shares}
+            for m in item.media_posts
         ],
         "created_at": item.created_at.isoformat(),
         "created_by": item.created_by.full_name if item.created_by else None,

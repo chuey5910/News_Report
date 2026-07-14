@@ -32,7 +32,7 @@ def _is_locked_out(username, ip):
 
 
 def _default_landing_url(user):
-    return url_for("reports.dashboard") if user.is_admin else url_for("reports.news_report")
+    return url_for("reports.dashboard") if user.is_admin else url_for("reports.new_report", form_type="advance")
 
 
 def _client_ip():

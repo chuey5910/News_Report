@@ -13,7 +13,10 @@
     <h1>ศูนย์บันทึกข่าว</h1>
     <nav>
       <div class="section-label">บันทึกข่าว</div>
-      <a href="{{ url_for('reports.news_report') }}" class="{{ 'active' if request.endpoint == 'reports.news_report' else '' }}">รายงานข่าว</a>
+      {% for tab_key, tab_label in report_form_tabs %}
+      <a href="{{ url_for('reports.new_report', form_type=tab_key) }}"
+         class="{{ 'active' if request.endpoint == 'reports.new_report' and request.view_args.get('form_type') == tab_key else '' }}">{{ tab_label }}</a>
+      {% endfor %}
       <a href="{{ url_for('reports.dashboard') }}" class="{{ 'active' if request.endpoint in ('reports.dashboard', 'reports.view_report') else '' }}">ภาพรวม</a>
       {% if current_user.is_authenticated and current_user.is_admin %}
       <div class="section-label">ผู้ดูแลระบบ</div>

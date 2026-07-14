@@ -1,74 +1,42 @@
+/* ฟอร์มรายงานข่าว — เรนเดอร์ช่องกรอกแบบไดนามิกตามจำนวนที่เลือก และโชว์/ซ่อนส่วนที่มีเงื่อนไข
+   อ่าน config จาก <script id="activity-form-data" type="application/json"> ที่ view สร้างให้:
+   { toggles: [{select, value, wrappers:[id]}],
+     sections: [{count, container, heading, fields:[{name,label}], rows:[{...}]}] } */
 document.addEventListener("DOMContentLoaded", function () {
-  var initialData = {};
+  var config = {};
   var dataEl = document.getElementById("activity-form-data");
   if (dataEl) {
     try {
-      initialData = JSON.parse(dataEl.textContent);
+      config = JSON.parse(dataEl.textContent);
     } catch (e) {
-      initialData = {};
+      config = {};
     }
   }
 
-  setupToggle("permit_status", "มีการขออนุญาต", "permit-detail-wrapper");
-  setupToggle("overnight_equipment_status", "มี", "equipment-detail-wrapper");
-  setupToggle("vehicle_status", "มี", "vehicle-section-wrapper");
-
-  setupLeaderFields(initialData.leaders || []);
-  setupVehicleFields(initialData.vehicles || []);
-
-  function setupToggle(selectName, showValue, wrapperId) {
-    var select = document.querySelector('select[name="' + selectName + '"]');
-    var wrapper = document.getElementById(wrapperId);
-    if (!select || !wrapper) return;
+  (config.toggles || []).forEach(function (toggle) {
+    var select = document.querySelector('select[name="' + toggle.select + '"]');
+    if (!select) return;
 
     function update() {
-      wrapper.hidden = select.value !== showValue;
+      var show = select.value === toggle.value;
+      toggle.wrappers.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.hidden = !show;
+      });
     }
 
     select.addEventListener("change", update);
     update();
-  }
+  });
 
-  function setupLeaderFields(existingNames) {
-    var countSelect = document.querySelector('select[name="leader_count"]');
-    var container = document.getElementById("leader-fields-container");
+  (config.sections || []).forEach(function (section) {
+    var countSelect = document.querySelector('select[name="' + section.count + '"]');
+    var container = document.getElementById(section.container);
     if (!countSelect || !container) return;
 
-    function render() {
-      var count = parseInt(countSelect.value, 10) || 0;
-      container.innerHTML = "";
-      for (var i = 0; i < count; i++) {
-        var wrap = document.createElement("div");
-        wrap.className = "form-field";
+    var rows = section.rows || [];
 
-        var label = document.createElement("label");
-        label.textContent = "ชื่อ-นามสกุล แกนนำ คนที่ " + (i + 1);
-
-        var input = document.createElement("input");
-        input.type = "text";
-        input.name = "leader_name";
-        input.dataset.label = "แกนนำ คนที่ " + (i + 1);
-        if (existingNames[i]) input.value = existingNames[i];
-
-        wrap.appendChild(label);
-        wrap.appendChild(input);
-        container.appendChild(wrap);
-      }
-    }
-
-    countSelect.addEventListener("change", function () {
-      existingNames = [];
-      render();
-    });
-    render();
-  }
-
-  function setupVehicleFields(existingVehicles) {
-    var countSelect = document.querySelector('select[name="vehicle_count"]');
-    var container = document.getElementById("vehicle-fields-container");
-    if (!countSelect || !container) return;
-
-    function makeField(labelText, name, value, index) {
+    function makeField(labelText, name, value, dataLabel) {
       var wrap = document.createElement("div");
       wrap.className = "form-field";
 
@@ -78,7 +46,7 @@ document.addEventListener("DOMContentLoaded", function () {
       var input = document.createElement("input");
       input.type = "text";
       input.name = name;
-      input.dataset.label = labelText + " (คันที่ " + (index + 1) + ")";
+      input.dataset.label = dataLabel;
       if (value) input.value = value;
 
       wrap.appendChild(label);
@@ -90,32 +58,45 @@ document.addEventListener("DOMContentLoaded", function () {
       var count = parseInt(countSelect.value, 10) || 0;
       container.innerHTML = "";
       for (var i = 0; i < count; i++) {
-        var row = existingVehicles[i] || {};
+        var row = rows[i] || {};
+        var suffix = " (" + section.heading + " " + (i + 1) + ")";
 
-        var group = document.createElement("div");
-        group.className = "vehicle-group";
+        if (section.fields.length === 1) {
+          // ช่องเดียวต่อรายการ (เช่น ชื่อแกนนำในฟอร์มข่าวล่วงหน้า) — ไม่ต้องมีกรอบกลุ่ม
+          var field = section.fields[0];
+          container.appendChild(
+            makeField(
+              field.label + " " + section.heading + " " + (i + 1),
+              field.name,
+              row[field.name] || "",
+              field.label + suffix
+            )
+          );
+        } else {
+          var group = document.createElement("div");
+          group.className = "field-group";
 
-        var heading = document.createElement("div");
-        heading.className = "vehicle-group-heading";
-        heading.textContent = "ยานพาหนะคันที่ " + (i + 1);
-        group.appendChild(heading);
+          var heading = document.createElement("div");
+          heading.className = "field-group-heading";
+          heading.textContent = section.heading + " " + (i + 1);
+          group.appendChild(heading);
 
-        var grid = document.createElement("div");
-        grid.className = "form-grid vehicle-grid";
-        grid.appendChild(makeField("ประเภทรถยนต์", "vehicle_type", row.vehicle_type, i));
-        grid.appendChild(makeField("หมายเลขทะเบียน", "vehicle_plate", row.plate_number, i));
-        grid.appendChild(makeField("จังหวัด", "vehicle_province", row.province, i));
-        grid.appendChild(makeField("สี", "vehicle_color", row.color, i));
-        group.appendChild(grid);
+          var grid = document.createElement("div");
+          grid.className = "form-grid field-group-grid";
+          section.fields.forEach(function (field) {
+            grid.appendChild(makeField(field.label, field.name, row[field.name] || "", field.label + suffix));
+          });
+          group.appendChild(grid);
 
-        container.appendChild(group);
+          container.appendChild(group);
+        }
       }
     }
 
     countSelect.addEventListener("change", function () {
-      existingVehicles = [];
+      rows = [];
       render();
     });
     render();
-  }
+  });
 });
