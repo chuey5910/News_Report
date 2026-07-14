@@ -1,14 +1,23 @@
 import json
+import logging
 import sqlite3
 from contextlib import closing
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from news_report.models import Article
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_DB_PATH = "data/seen.db"
 DEFAULT_REPORTS_DIR = "data/reports"
+
+# ข้อกำหนด: เก็บข่าวย้อนหลังได้ 7 วัน (รวมวันนี้) — เกินกว่านั้นลบทิ้ง
+REPORT_RETENTION_DAYS = 7
+# guid ใน seen.db ต้องอยู่นานกว่ารายงาน ไม่งั้นข่าวที่ยังค้างอยู่ใน RSS feed
+# จะถูกนับเป็น "ข่าวใหม่" แล้วรายงานซ้ำหลังรายงานเก่าถูกลบ
+SEEN_RETENTION_DAYS = 14
 
 
 def init_db(db_path: str | Path = DEFAULT_DB_PATH) -> None:
@@ -43,6 +52,48 @@ def mark_seen(articles: list[Article], db_path: str | Path = DEFAULT_DB_PATH) ->
             [(a.guid, now) for a in articles],
         )
         conn.commit()
+
+
+def purge_old_data(
+    today: str,
+    reports_dir: str | Path = DEFAULT_REPORTS_DIR,
+    db_path: str | Path = DEFAULT_DB_PATH,
+    report_retention_days: int = REPORT_RETENTION_DAYS,
+    seen_retention_days: int = SEEN_RETENTION_DAYS,
+) -> list[str]:
+    """Deletes daily reports older than the retention window (7 days incl. today)
+    and prunes stale guids from seen.db. Returns the dates whose reports were removed.
+
+    Files that don't look like a daily report (not named YYYY-MM-DD.json) are left alone.
+    """
+    today_date = date.fromisoformat(today)
+    report_cutoff = today_date - timedelta(days=report_retention_days - 1)
+
+    removed: list[str] = []
+    reports_path = Path(reports_dir)
+    if reports_path.is_dir():
+        for path in sorted(reports_path.glob("*.json")):
+            try:
+                report_date = date.fromisoformat(path.stem)
+            except ValueError:
+                continue
+            if report_date < report_cutoff:
+                path.unlink()
+                removed.append(path.stem)
+    if removed:
+        logger.info("purged %d report(s) older than %s: %s", len(removed), report_cutoff, removed)
+
+    seen_cutoff = (
+        datetime.now(timezone.utc) - timedelta(days=seen_retention_days)
+    ).isoformat()
+    init_db(db_path)
+    with closing(sqlite3.connect(db_path)) as conn:
+        cur = conn.execute("DELETE FROM seen_articles WHERE first_seen_at < ?", (seen_cutoff,))
+        conn.commit()
+        if cur.rowcount:
+            logger.info("pruned %d stale guid(s) from seen.db", cur.rowcount)
+
+    return removed
 
 
 def group_by_province(articles: list[Article]) -> dict[str, list[dict]]:

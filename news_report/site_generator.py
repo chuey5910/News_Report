@@ -40,6 +40,13 @@ def generate_site(
     with open(data_dir / "index.json", "w", encoding="utf-8") as f:
         json.dump(dates_newest_first, f)
 
+    # Reports purged from data/reports/ (older than the 7-day retention window)
+    # must disappear from the site too, or the date dropdown would 404.
+    current_dates = set(dates_newest_first)
+    for stale in data_dir.glob("*.json"):
+        if stale.name != "index.json" and stale.stem not in current_dates:
+            stale.unlink()
+
     env = Environment(
         loader=FileSystemLoader(str(templates_dir)),
         autoescape=select_autoescape(["html"]),
