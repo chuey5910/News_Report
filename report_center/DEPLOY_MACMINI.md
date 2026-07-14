@@ -67,33 +67,64 @@ gunicorn -w 2 -b 0.0.0.0:5001 report_center.wsgi:application
 - เปิดจากเครื่องอื่นในวง LAN: `http://192.168.1.50:5001`
 
 ## 7. ให้รันอัตโนมัติตลอด (ไม่ต้องเปิด Terminal ค้าง)
-สร้างไฟล์ `~/Library/LaunchAgents/com.chuey.reportcenter.plist`:
-```xml
+
+> ⚠️ **สำคัญ (บทเรียนจากการติดตั้งจริง)**: macOS รุ่นใหม่บล็อกไม่ให้โปรแกรมที่รัน
+> เบื้องหลังผ่าน launchd อ่านไฟล์บน**ฮาร์ดดิสก์ USB** (ขึ้น
+> `PermissionError: Operation not permitted` และ launchctl โชว์รหัส 78/1)
+> ต้องทำ 3 อย่าง: (ก) เรียกผ่าน `/bin/bash -c`, (ข) เก็บ log ไว้ในดิสก์ภายใน
+> ไม่ใช่บน USB, (ค) ให้สิทธิ์ **Full Disk Access** กับ `/bin/bash`
+
+สร้างไฟล์ plist (แทน `USERNAME` ด้วยชื่อผู้ใช้เครื่อง — ดูได้จาก `whoami`):
+```bash
+cat > ~/Library/LaunchAgents/com.chuey.reportcenter.plist << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>Label</key><string>com.chuey.reportcenter</string>
-  <key>WorkingDirectory</key><string>/Volumes/CHUEY/News_Report</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Volumes/CHUEY/News_Report/.venv/bin/gunicorn</string>
-    <string>-w</string><string>2</string>
-    <string>-b</string><string>0.0.0.0:5001</string>
-    <string>report_center.wsgi:application</string>
+    <string>/bin/bash</string>
+    <string>-c</string>
+    <string>cd /Volumes/CHUEY/News_Report && exec .venv/bin/gunicorn -w 2 -b 0.0.0.0:5001 report_center.wsgi:application</string>
   </array>
-  <key>EnvironmentVariables</key>
-  <dict><key>FLASK_APP</key><string>report_center</string></dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>/Volumes/CHUEY/News_Report/data/server.log</string>
-  <key>StandardErrorPath</key><string>/Volumes/CHUEY/News_Report/data/server.err.log</string>
+  <key>StandardOutPath</key><string>/Users/USERNAME/reportcenter.log</string>
+  <key>StandardErrorPath</key><string>/Users/USERNAME/reportcenter.err.log</string>
 </dict>
 </plist>
+EOF
 ```
-โหลดให้ทำงาน:
+
+ให้สิทธิ์ Full Disk Access กับ bash (ครั้งเดียว):
+1. **System Settings → Privacy & Security → Full Disk Access**
+2. กด `+` → กด **Cmd+Shift+G** → พิมพ์ `/bin/bash` → Enter → **Open**
+3. ตรวจว่าสวิตช์ของ `bash` เป็น ON
+4. ตรวจใน **System Settings → General → Login Items & Extensions** ส่วน
+   "Allow in the Background" ว่ารายการ `bash` เปิดอยู่ด้วย
+
+โหลดให้ทำงาน แล้วตรวจสถานะ:
 ```bash
 launchctl load ~/Library/LaunchAgents/com.chuey.reportcenter.plist
+sleep 3
+launchctl list | grep reportcenter    # ต้องขึ้นตัวเลข PID เช่น "32476  0  com.chuey.reportcenter"
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5001/   # ต้องได้ 302
+```
+ถ้าคอลัมน์แรกเป็น `-` (ไม่ใช่ตัวเลข) = ยังล้มอยู่ ให้ดูสาเหตุใน `~/reportcenter.err.log`
+
+### วิธีอัปเดตโค้ดครั้งต่อไป (หลังตั้ง launchd แล้ว)
+```bash
+cd /Volumes/CHUEY/News_Report && git pull
+launchctl kickstart -k gui/$(id -u)/com.chuey.reportcenter
+```
+
+### คำสั่งดูแลระบบที่ใช้บ่อย
+```bash
+launchctl list | grep reportcenter     # ดูสถานะ (ตัวเลข = รันอยู่)
+launchctl unload ~/Library/LaunchAgents/com.chuey.reportcenter.plist   # ปิดเว็บ
+launchctl load ~/Library/LaunchAgents/com.chuey.reportcenter.plist     # เปิดเว็บ
+> ~/reportcenter.err.log               # ล้างไฟล์ log (ไฟล์ log เป็นข้อความล้วน กินที่น้อยมาก)
 ```
 
 ---
