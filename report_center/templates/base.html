@@ -14,9 +14,9 @@
     <nav>
       <div class="section-label">บันทึกข่าว</div>
       <a href="{{ url_for('reports.news_report') }}" class="{{ 'active' if request.endpoint == 'reports.news_report' else '' }}">รายงานข่าว</a>
+      <a href="{{ url_for('reports.dashboard') }}" class="{{ 'active' if request.endpoint in ('reports.dashboard', 'reports.view_report') else '' }}">ภาพรวม</a>
       {% if current_user.is_authenticated and current_user.is_admin %}
       <div class="section-label">ผู้ดูแลระบบ</div>
-      <a href="{{ url_for('reports.dashboard') }}" class="{{ 'active' if request.endpoint == 'reports.dashboard' else '' }}">ภาพรวม</a>
       <a href="{{ url_for('admin.users') }}" class="{{ 'active' if request.endpoint == 'admin.users' else '' }}">จัดการผู้ใช้</a>
       <a href="{{ url_for('admin.login_logs') }}" class="{{ 'active' if request.endpoint == 'admin.login_logs' else '' }}">ประวัติการเข้าสู่ระบบ</a>
       {% endif %}

@@ -8,43 +8,103 @@
     <div class="num">{{ counts.total }}</div>
     <div class="label">รายงานทั้งหมด</div>
   </div>
+  {% for key, label in report_type_choices %}
   <div class="stat-tile">
-    <div class="num">{{ counts.advance }}</div>
-    <div class="label">ข่าวล่วงหน้า</div>
+    <div class="num">{{ counts[key] }}</div>
+    <div class="label">{{ label }}</div>
   </div>
-  <div class="stat-tile">
-    <div class="num">{{ counts.closure }}</div>
-    <div class="label">ปิดข่าว</div>
-  </div>
-  <div class="stat-tile">
-    <div class="num">{{ counts.incident }}</div>
-    <div class="label">รายงานเหตุการณ์</div>
-  </div>
-  <div class="stat-tile">
-    <div class="num">{{ counts.general }}</div>
-    <div class="label">ข่าวทั่วไป</div>
-  </div>
+  {% endfor %}
 </div>
 
 <div class="card">
-  <h2>รายงานล่าสุด</h2>
-  {% if recent %}
-  <table>
-    <thead><tr><th>หัวข้อ</th><th>ประเภทรายงาน</th><th>บันทึกเมื่อ</th><th>ผู้บันทึก</th></tr></thead>
-    <tbody>
-      {% for item in recent %}
-      <tr>
-        <td>{{ item.title }}</td>
-        <td><span class="badge admin">{{ report_type_labels.get(item.report_type, item.report_type) }}</span></td>
-        <td>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
-        <td>{{ item.created_by.full_name if item.created_by else '-' }}</td>
-      </tr>
+  <h2>ค้นหารายงาน</h2>
+  <form method="get" class="filter-bar">
+    <input type="text" name="q" value="{{ q }}" placeholder="ค้นหา: ชื่อกิจกรรม / กลุ่ม / สถานที่ / ข้อเรียกร้อง...">
+    <select name="province">
+      <option value="">— ทุกจังหวัด —</option>
+      {% for p in provinces %}
+      <option value="{{ p }}" {{ 'selected' if province == p else '' }}>{{ p }}</option>
       {% endfor %}
-    </tbody>
-  </table>
+    </select>
+    <select name="rtype">
+      <option value="">— ทุกประเภทรายงาน —</option>
+      {% for key, label in report_type_choices %}
+      <option value="{{ key }}" {{ 'selected' if rtype == key else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn small" type="submit">ค้นหา</button>
+    {% if filtered %}
+    <a class="btn small secondary" href="{{ url_for('reports.dashboard') }}">ล้างตัวกรอง</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <h2>ผลวิเคราะห์แยกจังหวัด{{ ' (ตามตัวกรอง)' if filtered else '' }}</h2>
+  {% if analysis_rows %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>สันติบาล จว.</th>
+          {% for key, label in report_type_choices %}<th class="num-col">{{ label }}</th>{% endfor %}
+          <th class="num-col">รวม</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for prov, row in analysis_rows %}
+        <tr>
+          <td>{{ prov }}</td>
+          {% for key, label in report_type_choices %}
+          <td class="num-col">{{ row[key] if row[key] else '-' }}</td>
+          {% endfor %}
+          <td class="num-col"><strong>{{ row.total }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
   <div class="empty-note">ยังไม่มีข้อมูล</div>
   {% endif %}
-  <a class="btn small" href="{{ url_for('reports.news_report') }}">ไปที่รายงานข่าว</a>
+</div>
+
+<div class="card">
+  <h2>รายการรายงาน{{ ' (ตามตัวกรอง)' if filtered else '' }} — {{ results|length }} รายการ</h2>
+  {% if results %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>บันทึกเมื่อ</th>
+          <th>จังหวัด</th>
+          <th>ประเภทรายงาน</th>
+          <th>ชื่อกิจกรรม</th>
+          <th>ผู้บันทึก</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in results %}
+        <tr>
+          <td>{{ item.created_at | thai_time }}</td>
+          <td>{{ item.special_branch_province or '-' }}</td>
+          <td><span class="badge admin">{{ report_type_labels.get(item.report_type, item.report_type) }}</span></td>
+          <td>{{ item.title }}</td>
+          <td>{{ item.created_by.full_name if item.created_by else '-' }}</td>
+          <td class="row-actions">
+            <a class="btn small" href="{{ url_for('reports.view_report', report_id=item.id) }}">ดูรายละเอียด</a>
+            {% if current_user.is_admin %}
+            <a class="btn small secondary" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไข</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-note">ไม่พบรายงานตามเงื่อนไขที่ค้นหา</div>
+  {% endif %}
 </div>
 {% endblock %}

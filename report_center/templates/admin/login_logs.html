@@ -11,7 +11,7 @@
     <tbody>
       {% for log in pagination.items %}
       <tr>
-        <td>{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+        <td>{{ log.timestamp | thai_time('%d/%m/%Y %H:%M:%S') }}</td>
         <td>{{ log.username_attempted }}</td>
         <td>
           {% if log.success %}

@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m %}
-{% block title %}รายงานข่าว — ศูนย์บันทึกข่าว{% endblock %}
+{% set editing = edit_item is defined and edit_item %}
+{% block title %}{{ 'แก้ไขรายงานข่าว' if editing else 'รายงานข่าว' }} — ศูนย์บันทึกข่าว{% endblock %}
 {% block content %}
-<h2 class="page-title">รายงานข่าว</h2>
+<h2 class="page-title">{{ 'แก้ไขรายงานข่าว' if editing else 'รายงานข่าว' }}</h2>
 
 <div class="card">
-  <h2>บันทึกรายงานข่าวใหม่</h2>
+  <h2>{{ 'แก้ไขรายงานข่าว (สิทธิ์ผู้ดูแลระบบ)' if editing else 'บันทึกรายงานข่าวใหม่' }}</h2>
   <form method="post" id="news-report-form" class="confirm-before-submit">
     {{ form.hidden_tag() }}
     <div class="form-grid">
@@ -72,7 +73,10 @@
       {{ m.render_field(form.reporter_name, half=True) }}
       {{ m.render_field(form.reporter_phone, class_="w-short") }}
     </div>
-    <button class="btn" type="submit">บันทึก</button>
+    <button class="btn" type="submit">{{ 'บันทึกการแก้ไข' if editing else 'บันทึก' }}</button>
+    {% if editing %}
+    <a class="btn secondary" href="{{ url_for('reports.view_report', report_id=edit_item.id) }}">ยกเลิก</a>
+    {% endif %}
   </form>
 </div>
 

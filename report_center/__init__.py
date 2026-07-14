@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 import click
 from flask import Flask
@@ -21,6 +22,13 @@ def create_app(config_object=Config):
     @login_manager.user_loader
     def load_user(user_id):
         return models.User.query.get(int(user_id))
+
+    # เวลาในระบบเก็บเป็น UTC — แสดงผลเป็นเวลาไทย (UTC+7) ทุกจุดผ่าน filter นี้
+    @app.template_filter("thai_time")
+    def thai_time(dt, fmt="%d/%m/%Y %H:%M"):
+        if dt is None:
+            return "-"
+        return (dt + timedelta(hours=7)).strftime(fmt)
 
     from .auth import bp as auth_bp
     from .reports import bp as reports_bp
