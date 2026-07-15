@@ -121,19 +121,25 @@ def daily_message(config, today_items, upcoming_items, today):
             f"🔵 {i + 1}. {d.day:02d}/{d.month:02d}{time_str} {item.title} — จว.{item.special_branch_province or '-'}"
         )
 
-    item_gap = "\n\n\n"  # เว้น 2 บรรทัดระหว่างกิจกรรม
-    blocks = [f"🗓 สรุปข่าวล่วงหน้า {today.day:02d}/{today.month:02d}/{today.year + 543}"]
-    blocks.append(
-        f"▶ กิจกรรมวันนี้ — {len(today_items)} รายการ\n\n" + item_gap.join(today_lines)
+    item_gap = "\n\n"  # เว้น 1 บรรทัดระหว่างกิจกรรม
+    today_block = (
+        f"📌 กิจกรรมวันนี้ — {len(today_items)} รายการ\n\n" + item_gap.join(today_lines)
         if today_lines
-        else "▶ กิจกรรมวันนี้ — ไม่มี"
+        else "📌 กิจกรรมวันนี้ — ไม่มี"
     )
-    blocks.append(
-        f"▶ กิจกรรมล่วงหน้า 7 วันข้างหน้า — {len(upcoming_items)} รายการ\n\n" + item_gap.join(upcoming_lines)
+    upcoming_block = (
+        f"📅 กิจกรรมล่วงหน้า 7 วันข้างหน้า — {len(upcoming_items)} รายการ\n\n" + item_gap.join(upcoming_lines)
         if upcoming_lines
-        else "▶ กิจกรรมล่วงหน้า 7 วันข้างหน้า — ไม่มี"
+        else "📅 กิจกรรมล่วงหน้า 7 วันข้างหน้า — ไม่มี"
+    )
+
+    message = (
+        f"🗓 สรุปข่าวล่วงหน้า {today.day:02d}/{today.month:02d}/{today.year + 543}\n\n"
+        + today_block
+        + "\n\n\n"  # เว้น 2 บรรทัดคั่นระหว่าง 2 กลุ่ม
+        + upcoming_block
     )
     base = (config.get("REPORT_CENTER_BASE_URL") or "").rstrip("/")
     if base:
-        blocks.append(f"ดูทั้งหมด: {base}/reports/")
-    return "\n\n".join(blocks)
+        message += f"\n\nดูทั้งหมด: {base}/reports/"
+    return message
