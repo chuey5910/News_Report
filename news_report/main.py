@@ -22,6 +22,9 @@ def _today_bangkok() -> str:
 def run(report_date: str | None = None) -> None:
     report_date = report_date or _today_bangkok()
 
+    logger.info("purging reports older than %d days", storage.REPORT_RETENTION_DAYS)
+    storage.purge_old_data(report_date)
+
     logger.info("fetching articles from all feeds")
     articles = fetcher.fetch_all(FEEDS_CONFIG)
 

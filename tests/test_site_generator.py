@@ -58,3 +58,23 @@ def test_generate_site_writes_data_files_and_app_shell(tmp_path):
     assert "province-list" in app_html
     assert "filter-search" in app_html
     assert "filter-origin" in app_html
+
+
+def test_generate_site_removes_data_for_purged_dates(tmp_path):
+    reports_dir = tmp_path / "reports"
+    output_dir = tmp_path / "docs"
+    data_dir = output_dir / "data"
+    reports_dir.mkdir()
+    data_dir.mkdir(parents=True)
+
+    (reports_dir / "2026-07-14.json").write_text(
+        json.dumps({"date": "2026-07-14", "provinces": {}, "general": []}), encoding="utf-8"
+    )
+    # ไฟล์เว็บของวันที่รายงานถูก purge ไปแล้ว ต้องถูกลบตาม
+    (data_dir / "2026-07-07.json").write_text("{}", encoding="utf-8")
+
+    generate_site(reports_dir=reports_dir, output_dir=output_dir, templates_dir="templates")
+
+    assert not (data_dir / "2026-07-07.json").exists()
+    assert (data_dir / "2026-07-14.json").exists()
+    assert json.loads((data_dir / "index.json").read_text(encoding="utf-8")) == ["2026-07-14"]
