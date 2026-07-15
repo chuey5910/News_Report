@@ -1,0 +1,29 @@
+name: LINE OA Check
+
+# ยูทิลิตี้สำหรับเช็คว่า LINE_CHANNEL_ACCESS_TOKEN ที่ตั้งไว้ใน Secrets
+# เป็นของ LINE Official Account ตัวไหน (รันด้วยมือเท่านั้น ไม่มี schedule)
+on:
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask LINE API which OA this token belongs to
+        env:
+          TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::LINE_CHANNEL_ACCESS_TOKEN is not set in repository secrets"
+            exit 1
+          fi
+          curl -sS https://api.line.me/v2/bot/info \
+            -H "Authorization: Bearer $TOKEN" | python3 -c '
+          import json, sys
+          info = json.load(sys.stdin)
+          print("=== LINE OA ที่ระบบใช้ส่งแจ้งเตือน ===")
+          print("ชื่อ OA (displayName):", info.get("displayName"))
+          print("LINE ID (basicId):", info.get("basicId"))
+          print("Premium ID:", info.get("premiumId") or "-")
+          print("รูปโปรไฟล์:", info.get("pictureUrl") or "-")
+          '
