@@ -102,14 +102,15 @@ def due_message(config, item, thai_now):
 def daily_message(config, today_items, upcoming_items, today):
     """สรุปประจำเช้า: กิจกรรมวันนี้ + กิจกรรมล่วงหน้า 7 วันข้างหน้า (`flask line-daily`)
     เว้นบรรทัดว่างคั่นระหว่างแต่ละรายการ เพื่อให้อ่านในไลน์ได้ไม่สับสน"""
+    # อีโมจิเน้นหน้ากิจกรรม: 🔴 วันนี้ / 🟠 ต่อเนื่องจากวันก่อน / 🔵 กำลังจะมาถึง
     today_lines = []
     for i, item in enumerate(today_items):
         if item.event_datetime < today:  # กิจกรรมหลายวันที่เริ่มก่อนหน้าและยังไม่จบ
-            prefix = "(ต่อเนื่อง) "
+            emoji, prefix = "🟠", "(ต่อเนื่อง) "
         else:
             time_part = item.event_datetime.strftime("%H:%M")
-            prefix = f"{time_part} น. " if time_part != "00:00" else ""
-        today_lines.append(f"{i + 1}. {prefix}{item.title} — จว.{item.special_branch_province or '-'}")
+            emoji, prefix = "🔴", (f"{time_part} น. " if time_part != "00:00" else "")
+        today_lines.append(f"{emoji} {i + 1}. {prefix}{item.title} — จว.{item.special_branch_province or '-'}")
 
     upcoming_lines = []
     for i, item in enumerate(upcoming_items):
@@ -117,17 +118,18 @@ def daily_message(config, today_items, upcoming_items, today):
         time_part = d.strftime("%H:%M")
         time_str = f" {time_part} น." if time_part != "00:00" else ""
         upcoming_lines.append(
-            f"{i + 1}. {d.day:02d}/{d.month:02d}{time_str} {item.title} — จว.{item.special_branch_province or '-'}"
+            f"🔵 {i + 1}. {d.day:02d}/{d.month:02d}{time_str} {item.title} — จว.{item.special_branch_province or '-'}"
         )
 
+    item_gap = "\n\n\n"  # เว้น 2 บรรทัดระหว่างกิจกรรม
     blocks = [f"🗓 สรุปข่าวล่วงหน้า {today.day:02d}/{today.month:02d}/{today.year + 543}"]
     blocks.append(
-        f"▶ กิจกรรมวันนี้ — {len(today_items)} รายการ\n\n" + "\n\n".join(today_lines)
+        f"▶ กิจกรรมวันนี้ — {len(today_items)} รายการ\n\n" + item_gap.join(today_lines)
         if today_lines
         else "▶ กิจกรรมวันนี้ — ไม่มี"
     )
     blocks.append(
-        f"▶ กิจกรรมล่วงหน้า 7 วันข้างหน้า — {len(upcoming_items)} รายการ\n\n" + "\n\n".join(upcoming_lines)
+        f"▶ กิจกรรมล่วงหน้า 7 วันข้างหน้า — {len(upcoming_items)} รายการ\n\n" + item_gap.join(upcoming_lines)
         if upcoming_lines
         else "▶ กิจกรรมล่วงหน้า 7 วันข้างหน้า — ไม่มี"
     )
