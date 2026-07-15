@@ -4,7 +4,7 @@ from flask import Blueprint, abort, current_app, render_template, redirect, requ
 from flask_login import current_user, login_required
 from sqlalchemy import and_, func, or_
 
-from . import sheets_sync
+from . import line_notify, sheets_sync
 from .admin import admin_required
 from .extensions import db
 from .forms import CLOSURE_TREND_PLACEHOLDER, NewsReportForm
@@ -65,6 +65,27 @@ PERSON_SECTION_HEADINGS = {
     "org_ngo": "NGO รายที่",
     "org_gov": "หน่วยงานรัฐ รายที่",
 }
+
+
+def thai_today():
+    """เที่ยงคืนของ "วันนี้" ตามเวลาไทย (ระบบเก็บเวลาเป็น UTC แต่วันกิจกรรมเป็นเวลาไทย)."""
+    return (datetime.utcnow() + timedelta(hours=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def todays_advance_items(today):
+    """ข่าวล่วงหน้าที่มีกิจกรรม "วันนี้" — เริ่มวันนี้ หรือเริ่มก่อนหน้าแต่ยังไม่จบ (ต่อเนื่องหลายวัน)."""
+    tomorrow = today + timedelta(days=1)
+    return (
+        NewsReport.query.filter(
+            NewsReport.report_type == "advance",
+            or_(
+                and_(NewsReport.event_datetime >= today, NewsReport.event_datetime < tomorrow),
+                and_(NewsReport.event_datetime < today, NewsReport.event_end_datetime >= today),
+            ),
+        )
+        .order_by(NewsReport.event_datetime.asc())
+        .all()
+    )
 
 
 def _combine_date_time(date_val, time_val):
@@ -442,23 +463,10 @@ def dashboard():
     analysis_rows = sorted(analysis.items(), key=lambda kv: province_order.get(kv[0], len(province_order)))
 
     # กิจกรรมวันนี้ + กิจกรรมที่กำลังจะมาถึง (ข่าวล่วงหน้า 7 วันข้างหน้า)
-    # event_datetime ผู้ใช้กรอกเป็นเวลาไทยอยู่แล้ว จึงเทียบกับ "วันนี้" ตามเวลาไทย
-    thai_now = datetime.utcnow() + timedelta(hours=7)
-    today = thai_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today = thai_today()
     tomorrow = today + timedelta(days=1)
 
-    # วันนี้: เริ่มวันนี้ หรือเริ่มก่อนหน้าแต่ยังไม่จบ (กิจกรรมต่อเนื่องหลายวัน)
-    today_items = (
-        NewsReport.query.filter(
-            NewsReport.report_type == "advance",
-            or_(
-                and_(NewsReport.event_datetime >= today, NewsReport.event_datetime < tomorrow),
-                and_(NewsReport.event_datetime < today, NewsReport.event_end_datetime >= today),
-            ),
-        )
-        .order_by(NewsReport.event_datetime.asc())
-        .all()
-    )
+    today_items = todays_advance_items(today)
     today_events = [
         {"item": r, "ongoing": r.event_datetime < today} for r in today_items
     ]
@@ -524,6 +532,13 @@ def new_report(form_type):
             flash("บันทึกเรียบร้อย แต่ sync ขึ้น Google Sheets ไม่สำเร็จ (ดู log) — ข้อมูลถูกเก็บในระบบแล้ว", "warning")
         else:
             flash(f"บันทึก{REPORT_FORM_TITLES[form_type]}เรียบร้อยแล้ว", "success")
+
+        # แจ้งเตือน LINE ทันทีเมื่อมีข่าวล่วงหน้าใหม่ (ปิดสนิทถ้าไม่ได้ตั้ง token — ไม่กระทบการบันทึก)
+        if form_type == "advance" and line_notify.is_configured(current_app.config):
+            line_notify.push_text(
+                current_app._get_current_object(),
+                line_notify.new_advance_message(current_app.config, item),
+            )
         return redirect(url_for("reports.new_report", form_type=form_type))
 
     rows = _rows_from_request() if request.method == "POST" else {}

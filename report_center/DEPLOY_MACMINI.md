@@ -157,6 +157,37 @@ Header: X-API-Key: <REPORT_CENTER_API_KEY ที่ตั้งใน .env>
 
 ---
 
+## แจ้งเตือนผ่าน LINE OA (ทางเลือก)
+
+ระบบส่งแจ้งเตือนเข้า LINE ได้ 2 แบบ: **ทันทีเมื่อมีข่าวล่วงหน้าใหม่** และ **สรุปกิจกรรมวันนี้ทุกเช้า**
+ปิดสนิทโดยค่าเริ่มต้น — เปิดเมื่อใส่ token ใน `.env` เท่านั้น และส่งเฉพาะข้อมูลขั้นต่ำ
+(ชื่อกิจกรรม จังหวัด วันเวลา + ลิงก์) รายละเอียดลับต้องล็อกอิน+VPN เข้าระบบเอง
+
+> 💡 **แนะนำให้สร้าง LINE OA ใหม่แยกต่างหาก** สำหรับงานนี้ (ฟรี) — ไม่ยุ่งกับ OA
+> เดิมที่ระบบอื่นใช้อยู่เลย: โควตาข้อความแยกกัน, ตั้งค่า webhook ไม่ชนกัน และ
+> broadcast ได้ปลอดภัยเพราะเพื่อนของ OA มีแต่คนในทีม
+
+ขั้นตอน:
+1. สร้าง OA ที่ https://manager.line.biz → สร้างบัญชีใหม่ (ฟรี)
+2. เปิดใช้ Messaging API: LINE Developers Console (https://developers.line.biz)
+   → สร้าง/เลือก channel ของ OA → แท็บ **Messaging API** → **Issue** ตรง
+   Channel access token (long-lived) → คัดลอก token
+3. ใส่ใน `report_center/.env`:
+   ```
+   LINE_CHANNEL_ACCESS_TOKEN=<token ที่ได้>
+   REPORT_CENTER_BASE_URL=http://100.x.y.z:5001   # Tailscale IP ของ Mac mini
+   ```
+   (ไม่ตั้ง LINE_TARGET_IDS = broadcast หาทุกคนที่เป็นเพื่อน OA)
+4. ให้ทุกคนในทีมแอด OA เป็นเพื่อน (สแกน QR จากหน้า LINE Official Account Manager)
+5. รีสตาร์ทเว็บ: `launchctl kickstart -k gui/$(id -u)/com.chuey.reportcenter`
+6. สรุปทุกเช้า 7 โมง — เพิ่มใน `crontab -e`:
+   ```
+   0 7 * * * cd /Volumes/CHUEY/News_Report && .venv/bin/flask --app report_center line-daily >> $HOME/line-daily.log 2>&1
+   ```
+ทดสอบส่งทันที: `cd /Volumes/CHUEY/News_Report && .venv/bin/flask --app report_center line-daily`
+
+---
+
 ## ใช้งานบน iPhone / iPad (แบบแอป) + ทำงานนอกสถานที่
 
 ### ก) เข้าถึงจากนอกออฟฟิศอย่างปลอดภัย — ใช้ VPN (แนะนำสำหรับข้อมูลความมั่นคง)

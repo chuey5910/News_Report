@@ -139,6 +139,26 @@ def register_cli(app):
         db.session.commit()
         click.echo(f"Admin user '{username}' created/updated and approved.")
 
+    @app.cli.command("line-daily")
+    def line_daily():
+        """ส่งสรุป "กิจกรรมวันนี้" เข้า LINE OA — ตั้ง cron เรียกทุกเช้า เช่น
+        0 7 * * * cd /path/to/News_Report && .venv/bin/flask --app report_center line-daily
+        (เวลาบนเครื่องเป็นเวลาไทยอยู่แล้ว จึงใช้ 7 โมงเช้าตรงๆ ได้)
+        """
+        from . import line_notify
+        from .reports import thai_today, todays_advance_items
+
+        if not line_notify.is_configured(app.config):
+            click.echo("LINE ยังไม่ได้ตั้งค่า (LINE_CHANNEL_ACCESS_TOKEN) — ข้าม")
+            return
+        today = thai_today()
+        items = todays_advance_items(today)
+        if not items:
+            click.echo("ไม่มีกิจกรรมวันนี้ — ไม่ส่งข้อความ")
+            return
+        ok = line_notify.push_text(app, line_notify.daily_message(app.config, items, today))
+        click.echo(f"ส่งสรุป {len(items)} กิจกรรม: {'สำเร็จ' if ok else 'ไม่สำเร็จ (ดู log)'}")
+
     @app.cli.command("sync-sheets")
     def sync_sheets():
         """Backfill: push ALL existing reports into the configured Google Sheet.

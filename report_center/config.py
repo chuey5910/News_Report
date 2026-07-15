@@ -49,3 +49,11 @@ class Config:
     GOOGLE_SHEETS_CREDENTIALS_JSON = os.environ.get("GOOGLE_SHEETS_CREDENTIALS_JSON", "")
     GOOGLE_SHEETS_SPREADSHEET_ID = os.environ.get("GOOGLE_SHEETS_SPREADSHEET_ID", "")
     GOOGLE_SHEETS_WORKSHEET = os.environ.get("GOOGLE_SHEETS_WORKSHEET", "reports")
+
+    # --- แจ้งเตือนผ่าน LINE OA (optional) ---
+    # ไม่ตั้ง LINE_CHANNEL_ACCESS_TOKEN = ปิดการแจ้งเตือนโดยสมบูรณ์ (ไม่มีข้อมูลออกนอกเครื่อง)
+    # LINE_TARGET_IDS: userId/groupId คั่นด้วย , — ถ้าเว้นว่างจะ broadcast หาทุกคนที่เป็นเพื่อน OA
+    # REPORT_CENTER_BASE_URL: URL หน้าเว็บสำหรับใส่ลิงก์ในข้อความ เช่น http://100.x.y.z:5001
+    LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
+    LINE_TARGET_IDS = os.environ.get("LINE_TARGET_IDS", "")
+    REPORT_CENTER_BASE_URL = os.environ.get("REPORT_CENTER_BASE_URL", "")
