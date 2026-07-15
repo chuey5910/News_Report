@@ -66,6 +66,10 @@ class LoginForm(FlaskForm):
     password = PasswordField("รหัสผ่าน", validators=[DataRequired()])
 
 
+class DeleteForm(FlaskForm):
+    """ฟอร์มเปล่าสำหรับปุ่มลบ — มีไว้เพื่อ CSRF token เท่านั้น."""
+
+
 def _choices(values):
     return [(v, v) for v in values]
 

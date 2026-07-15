@@ -7,7 +7,7 @@ from sqlalchemy import and_, func, or_
 from . import line_notify, sheets_sync
 from .admin import admin_required
 from .extensions import db
-from .forms import CLOSURE_TREND_PLACEHOLDER, NewsReportForm
+from .forms import CLOSURE_TREND_PLACEHOLDER, DeleteForm, NewsReportForm
 from .models import (
     AFFILIATE_CATEGORIES,
     RELATED_ORG_CATEGORIES,
@@ -769,7 +769,24 @@ def view_report(report_id):
         item=item,
         rows=rows,
         copy_text=copy_text,
+        delete_form=DeleteForm(),
     )
+
+
+@bp.route("/<int:report_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def delete_report(report_id):
+    """ลบรายงาน (เฉพาะ admin) — ลบรายการลูกทั้งหมดตามไปด้วย (แกนนำ/ยานพาหนะ/บุคคล/สื่อ)."""
+    item = NewsReport.query.get_or_404(report_id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        abort(400)
+    title = item.title
+    db.session.delete(item)
+    db.session.commit()
+    flash(f"ลบรายงาน “{title}” เรียบร้อยแล้ว", "success")
+    return redirect(url_for("reports.dashboard"))
 
 
 @bp.route("/<int:report_id>/edit", methods=["GET", "POST"])

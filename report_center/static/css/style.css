@@ -719,3 +719,5 @@ td.num-col { color: var(--text); }
 @media (max-width: 900px) {
   .calendar-strip { grid-template-columns: repeat(2, 1fr); }
 }
+
+.inline-form { display: inline; }

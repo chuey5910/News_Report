@@ -21,6 +21,11 @@
       <button type="button" class="btn small" id="copy-report-btn">คัดลอกข้อมูล (Copy)</button>
       {% if current_user.is_admin %}
       <a class="btn small secondary" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไขรายงาน</a>
+      <form method="post" action="{{ url_for('reports.delete_report', report_id=item.id) }}" class="inline-form"
+            onsubmit="return confirm('ยืนยันการลบรายงานนี้?\nลบแล้วไม่สามารถกู้คืนได้');">
+        {{ delete_form.hidden_tag() }}
+        <button type="submit" class="btn small danger">ลบรายงาน</button>
+      </form>
       {% endif %}
       <a class="btn small secondary" href="{{ url_for('reports.dashboard') }}">กลับหน้าภาพรวม</a>
     </div>
