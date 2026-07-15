@@ -100,34 +100,38 @@ def due_message(config, item, thai_now):
 
 
 def daily_message(config, today_items, upcoming_items, today):
-    """สรุปประจำเช้า: กิจกรรมวันนี้ + กิจกรรมล่วงหน้า 7 วันข้างหน้า (`flask line-daily`)."""
-    lines = [f"🗓 สรุปข่าวล่วงหน้า {today.day:02d}/{today.month:02d}/{today.year + 543}"]
+    """สรุปประจำเช้า: กิจกรรมวันนี้ + กิจกรรมล่วงหน้า 7 วันข้างหน้า (`flask line-daily`)
+    เว้นบรรทัดว่างคั่นระหว่างแต่ละรายการ เพื่อให้อ่านในไลน์ได้ไม่สับสน"""
+    today_lines = []
+    for i, item in enumerate(today_items):
+        if item.event_datetime < today:  # กิจกรรมหลายวันที่เริ่มก่อนหน้าและยังไม่จบ
+            prefix = "(ต่อเนื่อง) "
+        else:
+            time_part = item.event_datetime.strftime("%H:%M")
+            prefix = f"{time_part} น. " if time_part != "00:00" else ""
+        today_lines.append(f"{i + 1}. {prefix}{item.title} — จว.{item.special_branch_province or '-'}")
 
-    lines.append(f"\n▶ กิจกรรมวันนี้ — {len(today_items)} รายการ")
-    if today_items:
-        for i, item in enumerate(today_items):
-            if item.event_datetime < today:  # กิจกรรมหลายวันที่เริ่มก่อนหน้าและยังไม่จบ
-                prefix = "(ต่อเนื่อง) "
-            else:
-                time_part = item.event_datetime.strftime("%H:%M")
-                prefix = f"{time_part} น. " if time_part != "00:00" else ""
-            lines.append(f"{i + 1}. {prefix}{item.title} — จว.{item.special_branch_province or '-'}")
-    else:
-        lines.append("ไม่มีกิจกรรมวันนี้")
+    upcoming_lines = []
+    for i, item in enumerate(upcoming_items):
+        d = item.event_datetime
+        time_part = d.strftime("%H:%M")
+        time_str = f" {time_part} น." if time_part != "00:00" else ""
+        upcoming_lines.append(
+            f"{i + 1}. {d.day:02d}/{d.month:02d}{time_str} {item.title} — จว.{item.special_branch_province or '-'}"
+        )
 
-    lines.append(f"\n▶ กิจกรรมล่วงหน้า 7 วันข้างหน้า — {len(upcoming_items)} รายการ")
-    if upcoming_items:
-        for i, item in enumerate(upcoming_items):
-            d = item.event_datetime
-            time_part = d.strftime("%H:%M")
-            time_str = f" {time_part} น." if time_part != "00:00" else ""
-            lines.append(
-                f"{i + 1}. {d.day:02d}/{d.month:02d}{time_str} {item.title} — จว.{item.special_branch_province or '-'}"
-            )
-    else:
-        lines.append("ไม่มีกิจกรรมในช่วง 7 วันข้างหน้า")
-
+    blocks = [f"🗓 สรุปข่าวล่วงหน้า {today.day:02d}/{today.month:02d}/{today.year + 543}"]
+    blocks.append(
+        f"▶ กิจกรรมวันนี้ — {len(today_items)} รายการ\n\n" + "\n\n".join(today_lines)
+        if today_lines
+        else "▶ กิจกรรมวันนี้ — ไม่มี"
+    )
+    blocks.append(
+        f"▶ กิจกรรมล่วงหน้า 7 วันข้างหน้า — {len(upcoming_items)} รายการ\n\n" + "\n\n".join(upcoming_lines)
+        if upcoming_lines
+        else "▶ กิจกรรมล่วงหน้า 7 วันข้างหน้า — ไม่มี"
+    )
     base = (config.get("REPORT_CENTER_BASE_URL") or "").rstrip("/")
     if base:
-        lines.append(f"\nดูทั้งหมด: {base}/reports/")
-    return "\n".join(lines)
+        blocks.append(f"ดูทั้งหมด: {base}/reports/")
+    return "\n\n".join(blocks)
