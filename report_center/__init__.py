@@ -92,6 +92,7 @@ def _auto_migrate():
             ("mass_members", "VARCHAR(255)"),
             ("mass_media", "VARCHAR(255)"),
             ("mass_others", "VARCHAR(255)"),
+            ("due_alert_sent_at", "DATETIME"),
         ],
         "news_report_leaders": [("position", "VARCHAR(128)"), ("role", "VARCHAR(255)")],
         "news_report_vehicles": [("owner", "VARCHAR(128)"), ("usage", "VARCHAR(255)")],
@@ -141,23 +142,70 @@ def register_cli(app):
 
     @app.cli.command("line-daily")
     def line_daily():
-        """ส่งสรุป "กิจกรรมวันนี้" เข้า LINE OA — ตั้ง cron เรียกทุกเช้า เช่น
+        """ส่งสรุป "กิจกรรมวันนี้ + ล่วงหน้า 7 วัน" เข้า LINE OA — ตั้ง cron เรียกทุกเช้า เช่น
         0 7 * * * cd /path/to/News_Report && .venv/bin/flask --app report_center line-daily
         (เวลาบนเครื่องเป็นเวลาไทยอยู่แล้ว จึงใช้ 7 โมงเช้าตรงๆ ได้)
         """
         from . import line_notify
-        from .reports import thai_today, todays_advance_items
+        from .reports import thai_today, todays_advance_items, upcoming_advance_items
 
         if not line_notify.is_configured(app.config):
             click.echo("LINE ยังไม่ได้ตั้งค่า (LINE_CHANNEL_ACCESS_TOKEN) — ข้าม")
             return
         today = thai_today()
-        items = todays_advance_items(today)
-        if not items:
-            click.echo("ไม่มีกิจกรรมวันนี้ — ไม่ส่งข้อความ")
+        today_items = todays_advance_items(today)
+        upcoming_items = upcoming_advance_items(today)
+        if not today_items and not upcoming_items:
+            click.echo("ไม่มีกิจกรรมวันนี้และ 7 วันข้างหน้า — ไม่ส่งข้อความ")
             return
-        ok = line_notify.push_text(app, line_notify.daily_message(app.config, items, today))
-        click.echo(f"ส่งสรุป {len(items)} กิจกรรม: {'สำเร็จ' if ok else 'ไม่สำเร็จ (ดู log)'}")
+        ok = line_notify.push_text(
+            app, line_notify.daily_message(app.config, today_items, upcoming_items, today)
+        )
+        click.echo(
+            f"ส่งสรุป วันนี้ {len(today_items)} + ล่วงหน้า {len(upcoming_items)} กิจกรรม: "
+            f"{'สำเร็จ' if ok else 'ไม่สำเร็จ (ดู log)'}"
+        )
+
+    @app.cli.command("line-due")
+    def line_due():
+        """แจ้งเตือน LINE เมื่อ "ถึงกำหนดเวลาทำกิจกรรม" — ตั้ง cron เรียกทุก 5 นาที เช่น
+        */5 * * * * cd /path/to/News_Report && .venv/bin/flask --app report_center line-due
+        ส่งครั้งเดียวต่อกิจกรรม (กันซ้ำด้วย due_alert_sent_at)
+        """
+        from datetime import datetime as dt, timedelta as td
+
+        from sqlalchemy import text as sql_text
+
+        from . import line_notify
+        from .models import NewsReport
+
+        if not line_notify.is_configured(app.config):
+            click.echo("LINE ยังไม่ได้ตั้งค่า (LINE_CHANNEL_ACCESS_TOKEN) — ข้าม")
+            return
+
+        thai_now = dt.utcnow() + td(hours=7)
+        window_start = thai_now - td(hours=2)  # กันไม่ให้ไปแจ้งกิจกรรมเก่าๆ หลังระบบหยุดไปนาน
+        items = (
+            NewsReport.query.filter(
+                NewsReport.report_type == "advance",
+                NewsReport.event_datetime <= thai_now,
+                NewsReport.event_datetime > window_start,
+                NewsReport.due_alert_sent_at.is_(None),
+            )
+            .order_by(NewsReport.event_datetime.asc())
+            .all()
+        )
+        sent = 0
+        for item in items:
+            if line_notify.push_text(app, line_notify.due_message(app.config, item)):
+                # อัปเดตตรงๆ ด้วย SQL เพื่อไม่ให้ไปกระตุ้น updated_at (ไม่ใช่การแก้ไขข้อมูล)
+                db.session.execute(
+                    sql_text("UPDATE news_reports SET due_alert_sent_at = :now WHERE id = :id"),
+                    {"now": dt.utcnow(), "id": item.id},
+                )
+                sent += 1
+        db.session.commit()
+        click.echo(f"แจ้งเตือนถึงเวลากิจกรรม {sent}/{len(items)} รายการ")
 
     @app.cli.command("sync-sheets")
     def sync_sheets():

@@ -88,6 +88,21 @@ def todays_advance_items(today):
     )
 
 
+def upcoming_advance_items(today):
+    """ข่าวล่วงหน้าที่จะถึงวันจริงช่วงพรุ่งนี้–7 วันข้างหน้า."""
+    tomorrow = today + timedelta(days=1)
+    horizon = today + timedelta(days=8)
+    return (
+        NewsReport.query.filter(
+            NewsReport.report_type == "advance",
+            NewsReport.event_datetime >= tomorrow,
+            NewsReport.event_datetime < horizon,
+        )
+        .order_by(NewsReport.event_datetime.asc())
+        .all()
+    )
+
+
 def _combine_date_time(date_val, time_val):
     if date_val is None:
         return None
@@ -473,16 +488,7 @@ def dashboard():
     today_label = f"{THAI_WEEKDAYS[today.weekday()]} {today.day} {THAI_MONTHS_ABBR[today.month - 1]}"
 
     # กำลังจะมาถึง: พรุ่งนี้ถึงอีก 7 วันข้างหน้า (วันนี้แยกไปการ์ดของตัวเองแล้ว)
-    horizon = today + timedelta(days=8)
-    upcoming = (
-        NewsReport.query.filter(
-            NewsReport.report_type == "advance",
-            NewsReport.event_datetime >= tomorrow,
-            NewsReport.event_datetime < horizon,
-        )
-        .order_by(NewsReport.event_datetime.asc())
-        .all()
-    )
+    upcoming = upcoming_advance_items(today)
     calendar_days = []
     for offset in range(1, 8):
         day = today + timedelta(days=offset)

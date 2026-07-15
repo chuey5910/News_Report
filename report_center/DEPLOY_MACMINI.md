@@ -180,11 +180,21 @@ Header: X-API-Key: <REPORT_CENTER_API_KEY ที่ตั้งใน .env>
    (ไม่ตั้ง LINE_TARGET_IDS = broadcast หาทุกคนที่เป็นเพื่อน OA)
 4. ให้ทุกคนในทีมแอด OA เป็นเพื่อน (สแกน QR จากหน้า LINE Official Account Manager)
 5. รีสตาร์ทเว็บ: `launchctl kickstart -k gui/$(id -u)/com.chuey.reportcenter`
-6. สรุปทุกเช้า 7 โมง — เพิ่มใน `crontab -e`:
-   ```
-   0 7 * * * cd /Volumes/CHUEY/News_Report && .venv/bin/flask --app report_center line-daily >> $HOME/line-daily.log 2>&1
-   ```
+6. ตั้งเวลาส่งอัตโนมัติ (วางทีละบรรทัดใน Terminal — เพิ่มเข้าตาราง cron ให้เอง):
+   - **สรุปทุกเช้า 7 โมง** (กิจกรรมวันนี้ + ล่วงหน้า 7 วัน):
+     ```bash
+     (crontab -l 2>/dev/null; echo '0 7 * * * cd /Volumes/CHUEY/News_Report && .venv/bin/flask --app report_center line-daily >> $HOME/line-daily.log 2>&1') | crontab -
+     ```
+   - **แจ้งเตือนเมื่อถึงกำหนดเวลาทำกิจกรรม** (ตรวจทุก 5 นาที ส่งครั้งเดียวต่อกิจกรรม):
+     ```bash
+     (crontab -l 2>/dev/null; echo '*/5 * * * * cd /Volumes/CHUEY/News_Report && .venv/bin/flask --app report_center line-due >> $HOME/line-due.log 2>&1') | crontab -
+     ```
+   ตรวจรายการที่ตั้งไว้: `crontab -l`
+
 ทดสอบส่งทันที: `cd /Volumes/CHUEY/News_Report && .venv/bin/flask --app report_center line-daily`
+
+> หมายเหตุโควตา: LINE OA แผนฟรีส่งได้จำกัดต่อเดือน (ประมาณ 300 ข้อความ โดยนับ
+> ตามจำนวนผู้รับ) — ถ้าทีมมีสมาชิกหลายคนและแจ้งเตือนถี่ อาจต้องอัปแผนหรือลดความถี่
 
 ---
 

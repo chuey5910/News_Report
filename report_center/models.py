@@ -126,6 +126,7 @@ class NewsReport(db.Model):
 
     event_datetime = db.Column(db.DateTime, nullable=True)  # เริ่มกิจกรรม (วันที่ + เวลา รวมกัน)
     event_end_datetime = db.Column(db.DateTime, nullable=True)  # สิ้นสุดกิจกรรม (วันที่ + เวลา รวมกัน)
+    due_alert_sent_at = db.Column(db.DateTime, nullable=True)  # ส่งแจ้งเตือน LINE "ถึงเวลากิจกรรม" ไปแล้วเมื่อ (กันส่งซ้ำ)
 
     permit_status = db.Column(db.String(32), nullable=False, default="ไม่มีการขออนุญาต")
     permit_location = db.Column(db.String(255), nullable=True)  # ขออนุญาตที่ไหน (ถ้ามีการขออนุญาต)
