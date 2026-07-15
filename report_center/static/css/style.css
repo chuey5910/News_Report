@@ -617,8 +617,29 @@ td.num-col { color: var(--text); }
 
 .calendar-strip {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: .55rem;
+}
+
+/* กิจกรรมวันนี้ — ชิปแบบเดียวกับปฏิทิน แต่เรียงเป็นแถวการ์ดใหญ่ขึ้น */
+.badge-today { background: var(--type-advance-bg); color: #075985; }
+
+.today-events {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .55rem;
+}
+
+.today-event { margin-bottom: 0; padding: .5rem .6rem; }
+.today-event .cal-title { -webkit-line-clamp: 2; font-size: .84rem; }
+.today-event .cal-time { font-size: .74rem; }
+
+@media (max-width: 1300px) {
+  .today-events { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .today-events { grid-template-columns: 1fr; }
 }
 
 .cal-day {

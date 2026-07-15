@@ -2,7 +2,7 @@ from datetime import datetime, time as time_cls, timedelta
 
 from flask import Blueprint, abort, current_app, render_template, redirect, request, url_for, flash
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 
 from . import sheets_sync
 from .admin import admin_required
@@ -434,28 +434,48 @@ def dashboard():
     province_order = {name: i for i, name in enumerate(SPECIAL_BRANCH_PROVINCES)}
     analysis_rows = sorted(analysis.items(), key=lambda kv: province_order.get(kv[0], len(province_order)))
 
-    # กิจกรรมที่กำลังจะมาถึง — ข่าวล่วงหน้าที่ถึงวันจริงภายใน 7 วันข้างหน้า (แจ้งเตือนเป็นปฏิทิน)
+    # กิจกรรมวันนี้ + กิจกรรมที่กำลังจะมาถึง (ข่าวล่วงหน้า 7 วันข้างหน้า)
     # event_datetime ผู้ใช้กรอกเป็นเวลาไทยอยู่แล้ว จึงเทียบกับ "วันนี้" ตามเวลาไทย
     thai_now = datetime.utcnow() + timedelta(hours=7)
     today = thai_now.replace(hour=0, minute=0, second=0, microsecond=0)
-    horizon = today + timedelta(days=8)  # วันนี้ + อีก 7 วัน
+    tomorrow = today + timedelta(days=1)
+
+    # วันนี้: เริ่มวันนี้ หรือเริ่มก่อนหน้าแต่ยังไม่จบ (กิจกรรมต่อเนื่องหลายวัน)
+    today_items = (
+        NewsReport.query.filter(
+            NewsReport.report_type == "advance",
+            or_(
+                and_(NewsReport.event_datetime >= today, NewsReport.event_datetime < tomorrow),
+                and_(NewsReport.event_datetime < today, NewsReport.event_end_datetime >= today),
+            ),
+        )
+        .order_by(NewsReport.event_datetime.asc())
+        .all()
+    )
+    today_events = [
+        {"item": r, "ongoing": r.event_datetime < today} for r in today_items
+    ]
+    today_label = f"{THAI_WEEKDAYS[today.weekday()]} {today.day} {THAI_MONTHS_ABBR[today.month - 1]}"
+
+    # กำลังจะมาถึง: พรุ่งนี้ถึงอีก 7 วันข้างหน้า (วันนี้แยกไปการ์ดของตัวเองแล้ว)
+    horizon = today + timedelta(days=8)
     upcoming = (
         NewsReport.query.filter(
             NewsReport.report_type == "advance",
-            NewsReport.event_datetime >= today,
+            NewsReport.event_datetime >= tomorrow,
             NewsReport.event_datetime < horizon,
         )
         .order_by(NewsReport.event_datetime.asc())
         .all()
     )
     calendar_days = []
-    for offset in range(8):
+    for offset in range(1, 8):
         day = today + timedelta(days=offset)
         calendar_days.append(
             {
                 "weekday": THAI_WEEKDAYS[day.weekday()],
                 "label": f"{day.day} {THAI_MONTHS_ABBR[day.month - 1]}",
-                "is_today": offset == 0,
+                "is_today": False,
                 "events": [r for r in upcoming if r.event_datetime.date() == day.date()],
             }
         )
@@ -465,6 +485,8 @@ def dashboard():
         counts=counts,
         results=results,
         analysis_rows=analysis_rows,
+        today_events=today_events,
+        today_label=today_label,
         upcoming_count=len(upcoming),
         calendar_days=calendar_days,
         report_type_choices=REPORT_TYPE_CHOICES,

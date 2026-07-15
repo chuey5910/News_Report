@@ -17,6 +17,29 @@
 </div>
 
 <div class="card">
+  <h2>กิจกรรมวันนี้ — {{ today_label }}
+    {% if today_events %}<span class="upcoming-badge badge-today">{{ today_events|length }} กิจกรรม</span>{% endif %}
+  </h2>
+  {% if today_events %}
+  <div class="today-events">
+    {% for entry in today_events %}
+    <a class="cal-event today-event" href="{{ url_for('reports.view_report', report_id=entry.item.id) }}" title="{{ entry.item.title }}">
+      {% if entry.ongoing %}
+      <span class="cal-time">ต่อเนื่องถึง {{ entry.item.event_end_datetime.strftime('%d/%m/%Y') }}</span>
+      {% elif entry.item.event_datetime.strftime('%H:%M') != '00:00' %}
+      <span class="cal-time">{{ entry.item.event_datetime.strftime('%H:%M') }} น.</span>
+      {% endif %}
+      <span class="cal-title">{{ entry.item.title }}</span>
+      <span class="cal-prov">{{ entry.item.special_branch_province or 'ไม่ระบุจังหวัด' }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-note">ไม่มีกิจกรรมจากข่าวล่วงหน้าในวันนี้</div>
+  {% endif %}
+</div>
+
+<div class="card">
   <h2>กิจกรรมที่กำลังจะมาถึง (ข่าวล่วงหน้า 7 วันข้างหน้า)
     {% if upcoming_count %}<span class="upcoming-badge">{{ upcoming_count }} กิจกรรม</span>{% endif %}
   </h2>
