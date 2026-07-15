@@ -23,12 +23,20 @@ def create_app(config_object=Config):
     def load_user(user_id):
         return models.User.query.get(int(user_id))
 
-    # เวลาในระบบเก็บเป็น UTC — แสดงผลเป็นเวลาไทย (UTC+7) ทุกจุดผ่าน filter นี้
+    # เวลาในระบบเก็บเป็น UTC — แสดงผลเป็นเวลาไทย (UTC+7) และปีเป็น พ.ศ. ทุกจุดผ่าน filter นี้
     @app.template_filter("thai_time")
     def thai_time(dt, fmt="%d/%m/%Y %H:%M"):
         if dt is None:
             return "-"
-        return (dt + timedelta(hours=7)).strftime(fmt)
+        local = dt + timedelta(hours=7)
+        return local.strftime(fmt.replace("%Y", str(local.year + 543)))
+
+    # วัน-เวลากิจกรรมเก็บเป็นเวลาไทยอยู่แล้ว (ไม่เลื่อนโซนเวลา) — แสดงปีเป็น พ.ศ.
+    @app.template_filter("be_date")
+    def be_date(dt, fmt="%d/%m/%Y"):
+        if dt is None:
+            return "-"
+        return dt.strftime(fmt.replace("%Y", str(dt.year + 543)))
 
     # เมนูซ้าย (แท็บบันทึกข่าว 3 แบบฟอร์ม) ใช้ใน base.html ทุกหน้า
     @app.context_processor

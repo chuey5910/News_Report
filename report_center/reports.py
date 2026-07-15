@@ -589,8 +589,10 @@ def _prefill_form(form, item):
 
 
 def _fmt_dt(dt):
-    """วัน-เวลากิจกรรมที่ผู้ใช้กรอกเอง (เวลาไทยอยู่แล้ว ไม่ต้องเลื่อนโซนเวลา)."""
-    return dt.strftime("%d/%m/%Y %H:%M") if dt else "-"
+    """วัน-เวลากิจกรรมที่ผู้ใช้กรอกเอง (เวลาไทยอยู่แล้ว ไม่ต้องเลื่อนโซนเวลา) — แสดงปีเป็น พ.ศ."""
+    if not dt:
+        return "-"
+    return dt.strftime(f"%d/%m/{dt.year + 543} %H:%M")
 
 
 def _person_lines(people, with_role=True):
@@ -736,7 +738,9 @@ def view_report(report_id):
     recorder = item.created_by.full_name if item.created_by else "-"
     copy_lines = ["รายงานข่าว"]
     copy_lines += [f"{label}: {value}" for label, value in rows]
-    copy_lines.append(f"บันทึกเมื่อ: {thai_created.strftime('%d/%m/%Y %H:%M')} โดย {recorder}")
+    copy_lines.append(
+        f"บันทึกเมื่อ: {thai_created.strftime(f'%d/%m/{thai_created.year + 543} %H:%M')} โดย {recorder}"
+    )
     copy_text = "\n".join(copy_lines)
 
     return render_template(

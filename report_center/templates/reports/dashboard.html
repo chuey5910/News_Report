@@ -25,7 +25,7 @@
     {% for entry in today_events %}
     <a class="cal-event today-event" href="{{ url_for('reports.view_report', report_id=entry.item.id) }}" title="{{ entry.item.title }}">
       {% if entry.ongoing %}
-      <span class="cal-time">ต่อเนื่องถึง {{ entry.item.event_end_datetime.strftime('%d/%m/%Y') }}</span>
+      <span class="cal-time">ต่อเนื่องถึง {{ entry.item.event_end_datetime | be_date }}</span>
       {% elif entry.item.event_datetime.strftime('%H:%M') != '00:00' %}
       <span class="cal-time">{{ entry.item.event_datetime.strftime('%H:%M') }} น.</span>
       {% endif %}
