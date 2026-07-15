@@ -97,6 +97,15 @@ def _auto_migrate():
         # แบบฟอร์ม "เหตุการณ์(สถานการณ์)" กับ "ข่าวทั่วไป" ถูกรวมเป็นแท็บเดียว
         # จึงรวมข้อมูลเก่าประเภท general เข้ากับ incident
         conn.execute(text("UPDATE news_reports SET report_type = 'incident' WHERE report_type = 'general'"))
+        # ซ่อมวันที่กิจกรรมที่ถูกกรอกเป็นปี พ.ศ. (เช่น 2569) ให้เป็น ค.ศ. (-543 ปี)
+        for column in ("event_datetime", "event_end_datetime"):
+            conn.execute(
+                text(
+                    f"UPDATE news_reports SET {column} = datetime({column}, '-543 years') "
+                    f"WHERE {column} IS NOT NULL "
+                    f"AND CAST(strftime('%Y', {column}) AS INTEGER) >= 2400"
+                )
+            )
 
 
 def register_cli(app):

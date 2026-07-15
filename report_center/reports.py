@@ -70,6 +70,13 @@ PERSON_SECTION_HEADINGS = {
 def _combine_date_time(date_val, time_val):
     if date_val is None:
         return None
+    # ผู้ใช้บางคนกรอกปีเป็น พ.ศ. (เช่น 2569) — แปลงเป็น ค.ศ. ให้อัตโนมัติ
+    # (ปี ค.ศ. จริงจะไม่มีทางเกิน 2400 ในการใช้งานระบบนี้)
+    if date_val.year >= 2400:
+        try:
+            date_val = date_val.replace(year=date_val.year - 543)
+        except ValueError:  # 29 ก.พ. ที่ปี ค.ศ. ปลายทางไม่ใช่ปีอธิกสุรทิน
+            date_val = date_val.replace(year=date_val.year - 543, day=28)
     return datetime.combine(date_val, time_val or time_cls.min)
 
 
