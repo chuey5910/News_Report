@@ -52,6 +52,9 @@ PERSON_FIELD_LABELS = {
     "role": "บทบาท/หน้าที่",
 }
 
+THAI_WEEKDAYS = ["จันทร์", "อังคาร", "พุธ", "พฤหัสฯ", "ศุกร์", "เสาร์", "อาทิตย์"]
+THAI_MONTHS_ABBR = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."]
+
 PERSON_SECTION_HEADINGS = {
     "aff_net": "เครือข่ายของกลุ่ม รายที่",
     "aff_coord": "ได้รับการประสานมาจาก รายที่",
@@ -431,11 +434,39 @@ def dashboard():
     province_order = {name: i for i, name in enumerate(SPECIAL_BRANCH_PROVINCES)}
     analysis_rows = sorted(analysis.items(), key=lambda kv: province_order.get(kv[0], len(province_order)))
 
+    # กิจกรรมที่กำลังจะมาถึง — ข่าวล่วงหน้าที่ถึงวันจริงภายใน 7 วันข้างหน้า (แจ้งเตือนเป็นปฏิทิน)
+    # event_datetime ผู้ใช้กรอกเป็นเวลาไทยอยู่แล้ว จึงเทียบกับ "วันนี้" ตามเวลาไทย
+    thai_now = datetime.utcnow() + timedelta(hours=7)
+    today = thai_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    horizon = today + timedelta(days=8)  # วันนี้ + อีก 7 วัน
+    upcoming = (
+        NewsReport.query.filter(
+            NewsReport.report_type == "advance",
+            NewsReport.event_datetime >= today,
+            NewsReport.event_datetime < horizon,
+        )
+        .order_by(NewsReport.event_datetime.asc())
+        .all()
+    )
+    calendar_days = []
+    for offset in range(8):
+        day = today + timedelta(days=offset)
+        calendar_days.append(
+            {
+                "weekday": THAI_WEEKDAYS[day.weekday()],
+                "label": f"{day.day} {THAI_MONTHS_ABBR[day.month - 1]}",
+                "is_today": offset == 0,
+                "events": [r for r in upcoming if r.event_datetime.date() == day.date()],
+            }
+        )
+
     return render_template(
         "reports/dashboard.html",
         counts=counts,
         results=results,
         analysis_rows=analysis_rows,
+        upcoming_count=len(upcoming),
+        calendar_days=calendar_days,
         report_type_choices=REPORT_TYPE_CHOICES,
         provinces=SPECIAL_BRANCH_PROVINCES,
         q=q,

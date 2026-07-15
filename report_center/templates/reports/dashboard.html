@@ -17,6 +17,34 @@
 </div>
 
 <div class="card">
+  <h2>กิจกรรมที่กำลังจะมาถึง (ข่าวล่วงหน้า 7 วันข้างหน้า)
+    {% if upcoming_count %}<span class="upcoming-badge">{{ upcoming_count }} กิจกรรม</span>{% endif %}
+  </h2>
+  {% if upcoming_count %}
+  <div class="calendar-strip">
+    {% for day in calendar_days %}
+    <div class="cal-day{{ ' today' if day.is_today else '' }}{{ ' has-events' if day.events else '' }}">
+      <div class="cal-day-head">
+        <span class="cal-weekday">{{ 'วันนี้' if day.is_today else day.weekday }}</span>
+        <span class="cal-date">{{ day.label }}</span>
+      </div>
+      {% for ev in day.events %}
+      <a class="cal-event" href="{{ url_for('reports.view_report', report_id=ev.id) }}" title="{{ ev.title }}">
+        {% if ev.event_datetime.strftime('%H:%M') != '00:00' %}<span class="cal-time">{{ ev.event_datetime.strftime('%H:%M') }} น.</span>{% endif %}
+        <span class="cal-title">{{ ev.title }}</span>
+        <span class="cal-prov">{{ ev.special_branch_province or 'ไม่ระบุจังหวัด' }}</span>
+      </a>
+      {% endfor %}
+      {% if not day.events %}<div class="cal-empty">—</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-note">ไม่มีข่าวล่วงหน้าที่จะถึงวันจัดกิจกรรมภายใน 7 วันข้างหน้า</div>
+  {% endif %}
+</div>
+
+<div class="card">
   <h2>ค้นหารายงาน</h2>
   <form method="get" class="filter-bar">
     <input type="text" name="q" value="{{ q }}" placeholder="ค้นหา: ชื่อกิจกรรม / กลุ่ม / สถานที่ / ชื่อ-นามสกุล / ทะเบียนรถ / ประเภทรถ...">
@@ -70,7 +98,7 @@
 </div>
 
 <div class="card">
-  <h2>รายการรายงาน{{ ' (ตามตัวกรอง)' if filtered else '' }} — {{ results|length }} รายการ</h2>
+  <h2>รายงานข่าว{{ ' (ตามตัวกรอง)' if filtered else '' }} — {{ results|length }} รายการ</h2>
   {% if results %}
   <div class="table-scroll">
     <table>
