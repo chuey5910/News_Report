@@ -57,3 +57,5 @@ class Config:
     LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN", "")
     LINE_TARGET_IDS = os.environ.get("LINE_TARGET_IDS", "")
     REPORT_CENTER_BASE_URL = os.environ.get("REPORT_CENTER_BASE_URL", "")
+    # แจ้งเตือนก่อนถึงกำหนดเวลาทำกิจกรรมล่วงหน้ากี่นาที (คำสั่ง line-due)
+    LINE_DUE_LEAD_MINUTES = int(os.environ.get("LINE_DUE_LEAD_MINUTES", "20"))

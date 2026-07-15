@@ -168,7 +168,8 @@ def register_cli(app):
 
     @app.cli.command("line-due")
     def line_due():
-        """แจ้งเตือน LINE เมื่อ "ถึงกำหนดเวลาทำกิจกรรม" — ตั้ง cron เรียกทุก 5 นาที เช่น
+        """แจ้งเตือน LINE ล่วงหน้าก่อนถึงกำหนดเวลาทำกิจกรรม (ค่าเริ่มต้น 20 นาที —
+        ปรับได้ด้วย env LINE_DUE_LEAD_MINUTES) — ตั้ง cron เรียกทุก 5 นาที เช่น
         */5 * * * * cd /path/to/News_Report && .venv/bin/flask --app report_center line-due
         ส่งครั้งเดียวต่อกิจกรรม (กันซ้ำด้วย due_alert_sent_at)
         """
@@ -184,12 +185,14 @@ def register_cli(app):
             return
 
         thai_now = dt.utcnow() + td(hours=7)
-        window_start = thai_now - td(hours=2)  # กันไม่ให้ไปแจ้งกิจกรรมเก่าๆ หลังระบบหยุดไปนาน
+        lead = td(minutes=app.config["LINE_DUE_LEAD_MINUTES"])
+        # แจ้งเมื่อ (เวลากิจกรรม - lead) มาถึงแล้ว; ย้อนหลังไม่เกิน 2 ชม.
+        # กันไม่ให้ไปไล่แจ้งกิจกรรมเก่าๆ หลังระบบหยุดไปนาน
         items = (
             NewsReport.query.filter(
                 NewsReport.report_type == "advance",
-                NewsReport.event_datetime <= thai_now,
-                NewsReport.event_datetime > window_start,
+                NewsReport.event_datetime <= thai_now + lead,
+                NewsReport.event_datetime > thai_now + lead - td(hours=2),
                 NewsReport.due_alert_sent_at.is_(None),
             )
             .order_by(NewsReport.event_datetime.asc())
@@ -197,7 +200,7 @@ def register_cli(app):
         )
         sent = 0
         for item in items:
-            if line_notify.push_text(app, line_notify.due_message(app.config, item)):
+            if line_notify.push_text(app, line_notify.due_message(app.config, item, thai_now)):
                 # อัปเดตตรงๆ ด้วย SQL เพื่อไม่ให้ไปกระตุ้น updated_at (ไม่ใช่การแก้ไขข้อมูล)
                 db.session.execute(
                     sql_text("UPDATE news_reports SET due_alert_sent_at = :now WHERE id = :id"),

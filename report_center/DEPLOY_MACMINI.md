@@ -185,7 +185,8 @@ Header: X-API-Key: <REPORT_CENTER_API_KEY ที่ตั้งใน .env>
      ```bash
      (crontab -l 2>/dev/null; echo '0 7 * * * cd /Volumes/CHUEY/News_Report && .venv/bin/flask --app report_center line-daily >> $HOME/line-daily.log 2>&1') | crontab -
      ```
-   - **แจ้งเตือนเมื่อถึงกำหนดเวลาทำกิจกรรม** (ตรวจทุก 5 นาที ส่งครั้งเดียวต่อกิจกรรม):
+   - **แจ้งเตือนก่อนถึงกำหนดเวลาทำกิจกรรม 20 นาที** (ตรวจทุก 5 นาที ส่งครั้งเดียวต่อ
+     กิจกรรม — ปรับจำนวนนาทีได้ด้วย `LINE_DUE_LEAD_MINUTES` ใน .env):
      ```bash
      (crontab -l 2>/dev/null; echo '*/5 * * * * cd /Volumes/CHUEY/News_Report && .venv/bin/flask --app report_center line-due >> $HOME/line-due.log 2>&1') | crontab -
      ```
@@ -195,6 +196,20 @@ Header: X-API-Key: <REPORT_CENTER_API_KEY ที่ตั้งใน .env>
 
 > หมายเหตุโควตา: LINE OA แผนฟรีส่งได้จำกัดต่อเดือน (ประมาณ 300 ข้อความ โดยนับ
 > ตามจำนวนผู้รับ) — ถ้าทีมมีสมาชิกหลายคนและแจ้งเตือนถี่ อาจต้องอัปแผนหรือลดความถี่
+
+### ส่งเข้า "กลุ่ม LINE" แทนการ broadcast (ประหยัดโควตา + ส่งเข้ากลุ่มที่มีอยู่แล้ว)
+ส่งเข้ากลุ่มนับโควตาแค่ 1 ข้อความต่อการส่ง ไม่คูณจำนวนสมาชิก แต่ต้องหา **groupId** ของกลุ่มก่อน:
+1. LINE Official Account Manager (manager.line.biz) → ตั้งค่า → แชท →
+   เปิดอนุญาตให้เชิญ OA เข้ากลุ่มแชท (Allow bot to join group chats)
+2. เปิด https://webhook.site จะได้ URL ชั่วคราว (คัดลอกไว้)
+3. LINE Developers Console → channel → แท็บ Messaging API → **Webhook URL** = URL จากข้อ 2
+   → กด Verify → เปิดสวิตช์ **Use webhook**
+4. ในกลุ่ม LINE ที่ต้องการ: เชิญ OA เข้ากลุ่ม แล้วพิมพ์ข้อความอะไรก็ได้ 1 ข้อความ (เช่น "test")
+5. กลับไปดูที่หน้า webhook.site จะเห็น JSON ที่มี `"source":{"type":"group","groupId":"C..."}`
+   → คัดลอกค่า groupId (ขึ้นต้นด้วยตัว C)
+6. **ปิดสวิตช์ Use webhook + ลบ Webhook URL ออก** (สำคัญ — เลิกส่งข้อมูลไป webhook.site)
+7. เพิ่มใน `report_center/.env`: `LINE_TARGET_IDS=C...ที่คัดลอกมา` แล้วรีสตาร์ทเว็บ
+จากนั้นการแจ้งเตือนทั้งหมดจะเข้ากลุ่มนั้นแทนการ broadcast
 
 ---
 

@@ -83,10 +83,15 @@ def new_advance_message(config, item):
     )
 
 
-def due_message(config, item):
-    """แจ้งเตือนเมื่อถึงกำหนดเวลาทำกิจกรรม (เรียกจากคำสั่ง `flask line-due` ผ่าน cron ทุก 5 นาที)."""
+def due_message(config, item, thai_now):
+    """แจ้งเตือนใกล้ถึงกำหนดเวลาทำกิจกรรม (เรียกจากคำสั่ง `flask line-due` ผ่าน cron ทุก 5 นาที)."""
+    minutes_left = round((item.event_datetime - thai_now).total_seconds() / 60)
+    if minutes_left >= 1:
+        header = f"⏰ อีกประมาณ {minutes_left} นาที ถึงกำหนดทำกิจกรรม"
+    else:
+        header = "⏰ ถึงกำหนดเวลาทำกิจกรรมแล้ว"
     return (
-        "⏰ ถึงกำหนดเวลาทำกิจกรรม\n"
+        f"{header}\n"
         f"กิจกรรม: {item.title}\n"
         f"สันติบาล จว.: {item.special_branch_province or '-'}\n"
         f"เวลานัดหมาย: {_fmt_be(item.event_datetime)}"
