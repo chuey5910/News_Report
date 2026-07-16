@@ -67,3 +67,23 @@ def test_fetch_feed_strips_wordpress_syndication_footer(mock_parse):
 
     assert "Chiang Rai Times" not in articles[0].summary
     assert "Severe storms tore through Hubei province" in articles[0].summary
+
+
+@patch("news_report.fetcher.feedparser.parse")
+def test_fetch_feed_prefers_full_content_over_short_description(mock_parse):
+    mock_parse.return_value = _FakeParsed(
+        [
+            {
+                "title": "T",
+                "link": "http://example.com/1",
+                "id": "guid-1",
+                "summary": "คำโปรยสั้น",
+                "content": [{"value": "<p>เนื้อข่าวเต็มจาก content:encoded ที่ยาวกว่าคำโปรยมาก</p>"}],
+            }
+        ]
+    )
+    feed = {"name": "Test Source", "url": "http://example.com/rss", "language": "th"}
+
+    articles = fetch_feed(feed)
+
+    assert "เนื้อข่าวเต็มจาก content:encoded" in articles[0].summary
