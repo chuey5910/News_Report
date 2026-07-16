@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from news_report import fetcher, notifier, site_generator, storage, summarizer, translator, trending
+from news_report import enricher, fetcher, notifier, site_generator, storage, summarizer, translator, trending
 from news_report.province_filter import split_by_province
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -13,10 +13,14 @@ PROVINCES_CONFIG = "config/provinces.yaml"
 BANGKOK_UTC_OFFSET_HOURS = 7
 
 
-def _today_bangkok() -> str:
+def _now_bangkok() -> datetime:
     from datetime import timedelta
 
-    return (datetime.now(timezone.utc) + timedelta(hours=BANGKOK_UTC_OFFSET_HOURS)).strftime("%Y-%m-%d")
+    return datetime.now(timezone.utc) + timedelta(hours=BANGKOK_UTC_OFFSET_HOURS)
+
+
+def _today_bangkok() -> str:
+    return _now_bangkok().strftime("%Y-%m-%d")
 
 
 def run(report_date: str | None = None) -> None:
@@ -37,10 +41,14 @@ def run(report_date: str | None = None) -> None:
     logger.info("filtering by target province")
     articles, general_articles = split_by_province(articles, PROVINCES_CONFIG)
 
+    logger.info("fetching full text for %d province-matched articles", len(articles))
+    articles = enricher.enrich_articles(articles)
+
     logger.info(
         "summarizing %d province-matched + %d general articles", len(articles), len(general_articles)
     )
-    articles = summarizer.summarize_articles(articles)
+    # ข่าวจังหวัดเป้าหมายเก็บเนื้อความยาว (มีหน้าอ่านละเอียดบนเว็บ) ข่าวทั่วไปเก็บสั้นตามเดิม
+    articles = summarizer.summarize_articles(articles, max_length=enricher.MAX_BODY_LENGTH)
     general_articles = summarizer.summarize_articles(general_articles)
 
     logger.info("tagging widely-reported (major) stories")
@@ -60,8 +68,11 @@ def run(report_date: str | None = None) -> None:
     site_generator.generate_site()
     logger.info("regenerated static site")
 
-    if not new_by_province:
-        logger.info("no new province-matched articles this run, skipping LINE broadcast")
+    # รอบเช้า (ก่อนเที่ยง) ส่ง LINE เสมอแม้ไม่มีข่าวใหม่ เพื่อยืนยันว่าระบบยังทำงาน —
+    # รอบบ่ายค่อยข้ามถ้าไม่มีข่าวใหม่ ตามข้อกำหนดเดิม (ไม่แจ้งซ้ำ)
+    is_morning_round = _now_bangkok().hour < 12
+    if not new_by_province and not is_morning_round:
+        logger.info("no new province-matched articles this afternoon run, skipping LINE broadcast")
         return
 
     site_base_url = os.environ.get("SITE_BASE_URL", "").rstrip("/")

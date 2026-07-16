@@ -2,7 +2,9 @@ import html
 import re
 
 _TAG_RE = re.compile(r"<[^>]+>")
-_WHITESPACE_RE = re.compile(r"\s+")
+_INLINE_WHITESPACE_RE = re.compile(r"[^\S\n]+")  # ทุก whitespace ยกเว้นขึ้นบรรทัดใหม่
+_SPACE_AROUND_NEWLINE_RE = re.compile(r" ?\n ?")
+_MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
 
 # Many WordPress feeds (via plugins like WP RSS Aggregator / content-protection plugins)
 # append a trailing "The post <title> first appeared on <site name>." notice to every
@@ -20,12 +22,19 @@ def strip_syndication_footer(text: str) -> str:
 
 
 def strip_html(text: str) -> str:
-    """Removes HTML tags and unescapes entities. Idempotent on already-clean text."""
+    """Removes HTML tags and unescapes entities. Idempotent on already-clean text.
+
+    Paragraph breaks (blank lines) are preserved — the web detail view renders
+    them with `white-space: pre-wrap`, so multi-paragraph article bodies from
+    the enricher stay readable instead of collapsing into one wall of text.
+    """
     if not text:
         return ""
     without_tags = _TAG_RE.sub(" ", text)
     unescaped = html.unescape(without_tags)
-    return _WHITESPACE_RE.sub(" ", unescaped).strip()
+    collapsed = _INLINE_WHITESPACE_RE.sub(" ", unescaped)
+    collapsed = _SPACE_AROUND_NEWLINE_RE.sub("\n", collapsed)
+    return _MULTI_NEWLINE_RE.sub("\n\n", collapsed).strip()
 
 
 def truncate(text: str, max_length: int) -> str:

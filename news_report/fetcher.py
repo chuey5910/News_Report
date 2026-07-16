@@ -16,6 +16,17 @@ def load_feeds(config_path: str | Path) -> list[dict]:
     return data.get("feeds", [])
 
 
+def _entry_body(entry: dict) -> str:
+    """Fullest text the feed offers: prefers full-article content:encoded blocks
+    (common in Thai feeds like มติชน/ข่าวสด) over the short description."""
+    candidates = [entry.get("summary") or entry.get("description") or ""]
+    for block in entry.get("content") or []:
+        value = block.get("value") if isinstance(block, dict) else getattr(block, "value", "")
+        if value:
+            candidates.append(value)
+    return max(candidates, key=len)
+
+
 def fetch_feed(feed: dict) -> list[Article]:
     parsed = feedparser.parse(feed["url"])
     if parsed.bozo and not parsed.entries:
@@ -32,7 +43,7 @@ def fetch_feed(feed: dict) -> list[Article]:
                 guid=guid,
                 title=(entry.get("title") or "").strip(),
                 link=link,
-                summary=strip_syndication_footer(entry.get("summary") or entry.get("description") or ""),
+                summary=strip_syndication_footer(_entry_body(entry)),
                 published=entry.get("published") or entry.get("updated") or "",
                 source=feed["name"],
                 language=feed.get("language", "th"),
