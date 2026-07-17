@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DB_PATH = "data/seen.db"
 DEFAULT_REPORTS_DIR = "data/reports"
+DEFAULT_BROADCAST_STATE_PATH = "data/last_broadcast.json"
 
 # ข้อกำหนด: เก็บข่าวย้อนหลังได้ 7 วัน (รวมวันนี้) — เกินกว่านั้นลบทิ้ง
 REPORT_RETENTION_DAYS = 7
@@ -52,6 +53,39 @@ def mark_seen(articles: list[Article], db_path: str | Path = DEFAULT_DB_PATH) ->
             [(a.guid, now) for a in articles],
         )
         conn.commit()
+
+
+def was_round_broadcast(
+    report_date: str,
+    round_name: str,
+    state_path: str | Path = DEFAULT_BROADCAST_STATE_PATH,
+) -> bool:
+    """True if a LINE broadcast already went out for this date+round (morning/afternoon).
+
+    Guards against duplicate notifications when the workflow gets dispatched more than
+    once for the same round (e.g. an upstream retry) — the file is committed together
+    with the reports, so a queued second run sees the first run's broadcast.
+    """
+    path = Path(state_path)
+    if not path.exists():
+        return False
+    try:
+        with open(path, encoding="utf-8") as f:
+            state = json.load(f)
+    except (OSError, ValueError):
+        return False
+    return state.get("date") == report_date and state.get("round") == round_name
+
+
+def mark_round_broadcast(
+    report_date: str,
+    round_name: str,
+    state_path: str | Path = DEFAULT_BROADCAST_STATE_PATH,
+) -> None:
+    path = Path(state_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"date": report_date, "round": round_name}, f, ensure_ascii=False)
 
 
 def purge_old_data(

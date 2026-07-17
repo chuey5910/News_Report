@@ -95,3 +95,28 @@ def test_purge_old_data_prunes_stale_seen_guids(tmp_path):
     with sqlite3.connect(db_path) as conn:
         remaining = {row[0] for row in conn.execute("SELECT guid FROM seen_articles")}
     assert remaining == {"recent"}
+
+
+def test_broadcast_round_guard_roundtrip(tmp_path):
+    from news_report.storage import mark_round_broadcast, was_round_broadcast
+
+    state = tmp_path / "last_broadcast.json"
+
+    # ยังไม่เคยส่ง — ไม่ติด guard
+    assert was_round_broadcast("2026-07-17", "morning", state_path=state) is False
+
+    mark_round_broadcast("2026-07-17", "morning", state_path=state)
+
+    # รอบเดิมส่งแล้ว — ติด guard / รอบอื่น-วันอื่นไม่ติด
+    assert was_round_broadcast("2026-07-17", "morning", state_path=state) is True
+    assert was_round_broadcast("2026-07-17", "afternoon", state_path=state) is False
+    assert was_round_broadcast("2026-07-18", "morning", state_path=state) is False
+
+
+def test_broadcast_round_guard_ignores_corrupt_state_file(tmp_path):
+    from news_report.storage import was_round_broadcast
+
+    state = tmp_path / "last_broadcast.json"
+    state.write_text("ไม่ใช่ json", encoding="utf-8")
+
+    assert was_round_broadcast("2026-07-17", "morning", state_path=state) is False
