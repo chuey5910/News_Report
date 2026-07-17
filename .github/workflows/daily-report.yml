@@ -7,6 +7,12 @@ name: Daily News Report
 on:
   workflow_dispatch: {}
 
+# กันการรันพร้อมกัน: ถ้าถูก dispatch ซ้ำ (เช่น ฝั่งคนสั่ง retry) รอบที่สองจะต่อคิว
+# รอรอบแรกจบก่อน ทำให้เห็น seen.db ล่าสุดและไม่รายงานข่าวชุดเดียวกันซ้ำ
+concurrency:
+  group: daily-report
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -14,7 +20,12 @@ jobs:
   run-report:
     runs-on: ubuntu-latest
     steps:
+      # ref: main เพื่อให้ได้ปลายทางล่าสุด ณ ตอน "ได้รันจริง" — สำคัญกับรอบที่ต่อคิวจาก
+      # concurrency group: ถ้าใช้ค่า default (SHA ณ ตอนถูกสั่ง) รอบที่สองจะเห็น seen.db
+      # และสถานะแจ้งเตือนเก่าก่อนรอบแรก push แล้วรายงาน/แจ้งเตือนซ้ำ
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: actions/setup-python@v5
         with:
@@ -38,5 +49,6 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Daily news report $(date -u +%F)"
+            git pull --rebase origin main
             git push
           fi

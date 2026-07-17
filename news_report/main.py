@@ -71,8 +71,14 @@ def run(report_date: str | None = None) -> None:
     # รอบเช้า (ก่อนเที่ยง) ส่ง LINE เสมอแม้ไม่มีข่าวใหม่ เพื่อยืนยันว่าระบบยังทำงาน —
     # รอบบ่ายค่อยข้ามถ้าไม่มีข่าวใหม่ ตามข้อกำหนดเดิม (ไม่แจ้งซ้ำ)
     is_morning_round = _now_bangkok().hour < 12
+    round_name = "morning" if is_morning_round else "afternoon"
     if not new_by_province and not is_morning_round:
         logger.info("no new province-matched articles this afternoon run, skipping LINE broadcast")
+        return
+
+    # กันแจ้งเตือนซ้ำเมื่อ workflow ถูกสั่งรันมากกว่า 1 ครั้งในรอบเดียวกัน
+    if storage.was_round_broadcast(report_date, round_name):
+        logger.info("LINE broadcast for %s %s round already sent, skipping", report_date, round_name)
         return
 
     site_base_url = os.environ.get("SITE_BASE_URL", "").rstrip("/")
@@ -83,6 +89,9 @@ def run(report_date: str | None = None) -> None:
         notifier.broadcast_message(message)
     except Exception:
         logger.exception("failed to send LINE broadcast (site + report were still generated)")
+    else:
+        # บันทึกเฉพาะเมื่อส่งสำเร็จ — ถ้าส่งพลาด รอบ/การรันถัดไปยังส่งใหม่ได้
+        storage.mark_round_broadcast(report_date, round_name)
 
 
 if __name__ == "__main__":
