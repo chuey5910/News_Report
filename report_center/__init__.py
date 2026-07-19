@@ -155,9 +155,7 @@ def register_cli(app):
         today = thai_today()
         today_items = todays_advance_items(today)
         upcoming_items = upcoming_advance_items(today)
-        if not today_items and not upcoming_items:
-            click.echo("ไม่มีกิจกรรมวันนี้และ 7 วันข้างหน้า — ไม่ส่งข้อความ")
-            return
+        # ส่งทุกเช้าเสมอ แม้ไม่มีกิจกรรม — เพื่อยืนยันว่าระบบแจ้งเตือนยังทำงานอยู่
         ok = line_notify.push_text(
             app, line_notify.daily_message(app.config, today_items, upcoming_items, today)
         )
