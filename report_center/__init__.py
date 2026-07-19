@@ -164,6 +164,35 @@ def register_cli(app):
             f"{'สำเร็จ' if ok else 'ไม่สำเร็จ (ดู log)'}"
         )
 
+    @app.cli.command("line-status")
+    def line_status():
+        """ตรวจสถานะการแจ้งเตือน LINE: โหมดส่ง (broadcast/เข้ากลุ่ม) + โควตาข้อความเดือนนี้."""
+        from . import line_notify
+
+        if not line_notify.is_configured(app.config):
+            click.echo("LINE ยังไม่ได้ตั้งค่า (LINE_CHANNEL_ACCESS_TOKEN)")
+            return
+
+        targets = [t.strip() for t in (app.config.get("LINE_TARGET_IDS") or "").split(",") if t.strip()]
+        if targets:
+            kinds = ["กลุ่ม" if t.startswith("C") else "รายบุคคล" for t in targets]
+            click.echo(f"โหมดส่ง: push เข้าเป้าหมาย {len(targets)} รายการ ({', '.join(kinds)}) — นับโควตา 1 ข้อความ/เป้าหมาย/ครั้ง")
+        else:
+            click.echo("โหมดส่ง: BROADCAST หาทุกคนที่เป็นเพื่อน OA — นับโควตาคูณจำนวนเพื่อนทุกครั้ง ⚠️")
+
+        try:
+            status = line_notify.get_status(app.config)
+        except Exception as exc:
+            click.echo(f"เรียกดูโควตาจาก LINE ไม่สำเร็จ: {exc}")
+            return
+        if status["limit"] is None:
+            click.echo(f"โควตา: ไม่จำกัด | ใช้ไปเดือนนี้ {status['used']} ข้อความ")
+        else:
+            remaining = status["limit"] - status["used"]
+            click.echo(f"โควตาเดือนนี้: ใช้ไป {status['used']} / {status['limit']} ข้อความ (เหลือ {remaining})")
+            if remaining <= 0:
+                click.echo("⚠️ โควตาหมดแล้ว — LINE จะปฏิเสธทุกข้อความ (429) จนกว่าจะรีเซ็ตวันที่ 1 ของเดือนหน้า หรืออัปเกรดแพ็กเกจ")
+
     @app.cli.command("line-due")
     def line_due():
         """แจ้งเตือน LINE ล่วงหน้าก่อนถึงกำหนดเวลาทำกิจกรรม (ค่าเริ่มต้น 20 นาที —

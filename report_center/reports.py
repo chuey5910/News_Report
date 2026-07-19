@@ -4,7 +4,7 @@ from flask import Blueprint, abort, current_app, render_template, redirect, requ
 from flask_login import current_user, login_required
 from sqlalchemy import and_, func, or_
 
-from . import line_notify, sheets_sync
+from . import sheets_sync
 from .admin import admin_required
 from .extensions import db
 from .forms import CLOSURE_TREND_PLACEHOLDER, DeleteForm, NewsReportForm
@@ -538,13 +538,6 @@ def new_report(form_type):
             flash("บันทึกเรียบร้อย แต่ sync ขึ้น Google Sheets ไม่สำเร็จ (ดู log) — ข้อมูลถูกเก็บในระบบแล้ว", "warning")
         else:
             flash(f"บันทึก{REPORT_FORM_TITLES[form_type]}เรียบร้อยแล้ว", "success")
-
-        # แจ้งเตือน LINE ทันทีเมื่อมีข่าวล่วงหน้าใหม่ (ปิดสนิทถ้าไม่ได้ตั้ง token — ไม่กระทบการบันทึก)
-        if form_type == "advance" and line_notify.is_configured(current_app.config):
-            line_notify.push_text(
-                current_app._get_current_object(),
-                line_notify.new_advance_message(current_app.config, item),
-            )
         return redirect(url_for("reports.new_report", form_type=form_type))
 
     rows = _rows_from_request() if request.method == "POST" else {}

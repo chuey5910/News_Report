@@ -72,15 +72,19 @@ def _detail_link(config, report_id):
     return f"\nดูรายละเอียด: {base}/reports/{report_id}" if base else ""
 
 
-def new_advance_message(config, item):
-    """ข้อความแจ้งเตือนทันทีเมื่อมีการบันทึกข่าวล่วงหน้าใหม่."""
-    return (
-        "📢 ข่าวล่วงหน้าใหม่\n"
-        f"กิจกรรม: {item.title}\n"
-        f"สันติบาล จว.: {item.special_branch_province or '-'}\n"
-        f"วันนัดหมาย: {_fmt_be(item.event_datetime)}"
-        + _detail_link(config, item.id)
-    )
+def get_status(config):
+    """ดึงสถานะโควตาข้อความจาก LINE API — คืน dict {"limit", "used"} หรือ raise เมื่อเรียกไม่ได้."""
+    token = config["LINE_CHANNEL_ACCESS_TOKEN"].strip()
+
+    def _get(url):
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    quota = _get(f"{_API_BASE}/v2/bot/message/quota")
+    usage = _get(f"{_API_BASE}/v2/bot/message/quota/consumption")
+    limit = quota.get("value") if quota.get("type") == "limited" else None  # None = ไม่จำกัด
+    return {"limit": limit, "used": usage.get("totalUsage", 0)}
 
 
 def due_message(config, item, thai_now):
