@@ -130,9 +130,12 @@
   }
 
   @media (max-width: 720px) {
-    .layout { flex-direction: column; }
+    /* align-items ต้องเป็น stretch: ในโหมด column แกนขวางคือแนวนอน ถ้าปล่อย flex-start
+       (ค่าที่ตั้งไว้สำหรับจอกว้าง) คอลัมน์จะกว้างตามเนื้อหาแล้วล้นขอบจอมือถือ */
+    .layout { flex-direction: column; align-items: stretch; }
     .sidebar { width: 100%; flex-basis: auto; position: static; height: auto; border-right: none; border-bottom: 1px solid #e4e4e7; }
-    .content { padding: 1rem; }
+    .content { padding: 1rem; width: 100%; max-width: 100%; }
+    body { overflow-x: clip; }
   }
 </style>
 </head>
