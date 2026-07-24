@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>สมัครสมาชิก — ศูนย์บันทึกข่าว</title>
+{% include "_head_meta.html" %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+{% import "_macros.html" as m %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h1>สมัครสมาชิก</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    <form method="post">
+      {{ form.hidden_tag() }}
+      {{ m.render_field(form.username) }}
+      {{ m.render_field(form.full_name) }}
+      {{ m.render_field(form.password) }}
+      {{ m.render_field(form.confirm_password) }}
+      <button class="btn" type="submit">สมัครสมาชิก</button>
+    </form>
+    <div class="switch">มีบัญชีอยู่แล้ว? <a href="{{ url_for('auth.login') }}">เข้าสู่ระบบ</a></div>
+  </div>
+</div>
+</body>
+</html>

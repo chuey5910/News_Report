@@ -2,3 +2,12 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# report_center (Flask app) local state
+report_center/instance/*.db
+report_center/.env
+
+# Google service-account credentials — never commit
+*service-account*.json
+*service_account*.json
+report_center/**/credentials*.json
