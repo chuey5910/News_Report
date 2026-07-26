@@ -85,12 +85,22 @@ def run(report_date: str | None = None) -> None:
     site_url = f"{site_base_url}/?date={report_date}" if site_base_url else None
 
     message = notifier.build_broadcast_payload(report_date, new_by_province, site_url)
+    sent = False
     try:
         notifier.broadcast_message(message)
+        sent = True
     except Exception:
         logger.exception("failed to send LINE broadcast (site + report were still generated)")
-    else:
-        # บันทึกเฉพาะเมื่อส่งสำเร็จ — ถ้าส่งพลาด รอบ/การรันถัดไปยังส่งใหม่ได้
+
+    # ส่งเข้ากลุ่ม LINE ผ่าน CHUEY-Server (ฟีเจอร์เสริม) — แยก try เพื่อให้พังอิสระจาก broadcast
+    try:
+        notifier.notify_groups_via_chuey_server(message)
+        sent = True
+    except Exception:
+        logger.exception("failed to push to LINE groups via CHUEY-Server (broadcast unaffected)")
+
+    # บันทึกว่ารอบนี้แจ้งไปแล้ว ถ้าช่องทางใดช่องทางหนึ่งสำเร็จ — กันแจ้งซ้ำเมื่อถูกสั่งรันซ้ำ
+    if sent:
         storage.mark_round_broadcast(report_date, round_name)
 
 

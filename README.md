@@ -110,3 +110,11 @@ python -m news_report.main
   ให้พิจารณาเปลี่ยนไปใช้ DeepL หรือ Google Cloud Translation API แทน
 - LINE Notify ถูกยกเลิกไปแล้วตั้งแต่ 31 มี.ค. 2025 ระบบนี้ใช้ **LINE Messaging API**
   (Broadcast Message) ของ LINE OA แทน
+
+## ส่งข่าวเข้ากลุ่ม LINE (ผ่าน CHUEY-Server)
+Broadcast ส่งถึง "เพื่อน" ของ OA รายคนเท่านั้น ส่งเข้ากลุ่มแชทไม่ได้ (LINE ต้องใช้ Push API
+แบบระบุ `groupId` ซึ่งต้องมี webhook คอยดัก) จึงมีบริการเสริมแยกไว้ที่ [`server/`](server/) สำหรับ
+รันบน **CHUEY-Server** — ทำหน้าที่รับ webhook เก็บ `groupId` อัตโนมัติเมื่อ OA เข้ากลุ่ม แล้ว
+push ข่าวเข้าทุกกลุ่มที่ลงทะเบียนไว้ในรอบข่าวปกติ วิธีติดตั้ง/ตั้งค่าทั้งหมดอยู่ใน
+[`server/README.md`](server/README.md) — ถ้าไม่ได้ตั้งค่า `CHUEY_SERVER_NOTIFY_URL`/
+`CHUEY_SERVER_TOKEN` ระบบจะข้ามการส่งกลุ่มไปเงียบๆ (Broadcast + เว็บยังทำงานปกติ)

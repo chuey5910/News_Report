@@ -1,0 +1,20 @@
+[Unit]
+Description=CHUEY LINE group relay (News_Report)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# แก้ path/ผู้ใช้ให้ตรงกับ CHUEY-Server ของคุณ
+WorkingDirectory=/opt/chuey-line-relay
+ExecStart=/usr/bin/python3 /opt/chuey-line-relay/chuey_line_server.py
+Restart=on-failure
+RestartSec=5
+# ตั้งค่าลับผ่านไฟล์ /etc/chuey-line-relay.env (chmod 600) แทนการฝังในยูนิต
+EnvironmentFile=/etc/chuey-line-relay.env
+# hardening เบื้องต้น
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

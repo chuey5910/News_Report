@@ -71,3 +71,30 @@ def broadcast_message(message: dict, channel_access_token: str | None = None) ->
     if response.status_code != 200:
         raise RuntimeError(f"LINE broadcast failed: {response.status_code} {response.text}")
     logger.info("LINE broadcast sent (type=%s)", message.get("type"))
+
+
+def notify_groups_via_chuey_server(message: dict) -> None:
+    """ส่ง message เดียวกันไปให้ CHUEY-Server push เข้ากลุ่ม LINE ที่ลงทะเบียนไว้
+
+    ทำงานก็ต่อเมื่อมี env CHUEY_SERVER_NOTIFY_URL + CHUEY_SERVER_TOKEN — ถ้าไม่ได้ตั้ง
+    ก็ข้ามไปเงียบๆ (การส่งเข้ากลุ่มเป็นฟีเจอร์เสริม ไม่กระทบ Broadcast/เว็บ) เรียกฟังก์ชันนี้
+    แยกจาก broadcast_message เพื่อให้ฝั่งใดฝั่งหนึ่งพังไม่ลากอีกฝั่งล้ม
+    """
+    notify_url = os.environ.get("CHUEY_SERVER_NOTIFY_URL", "").strip()
+    notify_token = os.environ.get("CHUEY_SERVER_TOKEN", "").strip()
+    if not notify_url or not notify_token:
+        logger.info("CHUEY-Server not configured, skipping group push")
+        return
+
+    response = requests.post(
+        notify_url,
+        headers={
+            "Authorization": f"Bearer {notify_token}",
+            "Content-Type": "application/json",
+        },
+        json={"messages": [message]},
+        timeout=20,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(f"CHUEY-Server notify failed: {response.status_code} {response.text}")
+    logger.info("CHUEY-Server group push requested (%s)", response.text[:200])

@@ -38,6 +38,9 @@ jobs:
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
+          # ส่งข่าวเข้ากลุ่ม LINE ผ่าน CHUEY-Server (ถ้าไม่ตั้ง 2 ค่านี้ ระบบข้ามการส่งกลุ่มเงียบๆ)
+          CHUEY_SERVER_NOTIFY_URL: ${{ vars.CHUEY_SERVER_NOTIFY_URL }}
+          CHUEY_SERVER_TOKEN: ${{ secrets.CHUEY_SERVER_TOKEN }}
         run: python -m news_report.main
 
       - name: Commit and push results
