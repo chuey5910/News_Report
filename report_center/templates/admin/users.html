@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}จัดการผู้ใช้ — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">จัดการผู้ใช้</h2>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>ชื่อผู้ใช้</th><th>ชื่อ-นามสกุล</th><th>สิทธิ์</th><th>สถานะ</th><th>สมัครเมื่อ</th><th>การจัดการ</th></tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ u.full_name }}</td>
+        <td><span class="badge {{ u.role }}">{{ 'ผู้ดูแลระบบ' if u.is_admin else 'ผู้ใช้งาน' }}</span></td>
+        <td>
+          {% if u.is_approved %}
+          <span class="badge approved">อนุมัติแล้ว</span>
+          {% else %}
+          <span class="badge pending">รออนุมัติ</span>
+          {% endif %}
+        </td>
+        <td>{{ u.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td>
+          {% if not u.is_approved %}
+          <form method="post" action="{{ url_for('admin.approve_user', user_id=u.id) }}" style="display:inline">
+            <button class="btn small" type="submit">อนุมัติ</button>
+          </form>
+          {% else %}
+          <form method="post" action="{{ url_for('admin.revoke_user', user_id=u.id) }}" style="display:inline">
+            <button class="btn small danger" type="submit">ระงับ</button>
+          </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('admin.set_role', user_id=u.id) }}" style="display:inline">
+            <input type="hidden" name="role" value="{{ 'user' if u.is_admin else 'admin' }}">
+            <button class="btn small secondary" type="submit">
+              {{ 'ลดสิทธิ์เป็นผู้ใช้งาน' if u.is_admin else 'ตั้งเป็นผู้ดูแลระบบ' }}
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

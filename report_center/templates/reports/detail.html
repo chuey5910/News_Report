@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}รายละเอียดรายงานข่าว — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">รายละเอียดรายงานข่าว</h2>
+
+<div class="card">
+  <div class="detail-head">
+    <div class="detail-head-info">
+      <span class="badge type-{{ item.report_type }}">{{ report_type_labels.get(item.report_type, item.report_type) }}</span>
+      {% if item.special_branch_province %}<span class="badge user">สันติบาล จว.{{ item.special_branch_province }}</span>{% endif %}
+      <div class="detail-meta">
+        บันทึกเมื่อ {{ item.created_at | thai_time('%d/%m/%Y %H:%M') }}
+        โดย {{ item.created_by.full_name if item.created_by else '-' }}
+        {% if item.updated_at and (item.updated_at - item.created_at).total_seconds() > 60 %}
+        · แก้ไขล่าสุด {{ item.updated_at | thai_time('%d/%m/%Y %H:%M') }}
+        {% endif %}
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button type="button" class="btn small secondary" onclick="history.back()">← ย้อนกลับ</button>
+      <button type="button" class="btn small" id="copy-report-btn">คัดลอกข้อมูล (Copy)</button>
+      {% if current_user.is_admin %}
+      <a class="btn small secondary" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไขรายงาน</a>
+      <form method="post" action="{{ url_for('reports.delete_report', report_id=item.id) }}" class="inline-form"
+            onsubmit="return confirm('ยืนยันการลบรายงานนี้?\nลบแล้วไม่สามารถกู้คืนได้');">
+        {{ delete_form.hidden_tag() }}
+        <button type="submit" class="btn small danger">ลบรายงาน</button>
+      </form>
+      {% endif %}
+      <a class="btn small secondary" href="{{ url_for('reports.dashboard') }}">กลับหน้าภาพรวม</a>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    {% for label, value in rows %}
+    <div class="detail-item{{ ' wide' if '\n' in value or value|length > 60 else '' }}">
+      <div class="detail-label">{{ label }}</div>
+      <div class="detail-value">{{ value }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<textarea id="copy-report-source" hidden readonly>{{ copy_text }}</textarea>
+<script src="{{ url_for('static', filename='js/copy-report.js') }}"></script>
+{% endblock %}
