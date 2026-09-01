@@ -50,6 +50,13 @@ export FLASK_APP=report_center
 flask create-admin admin "ผู้ดูแลระบบ"
 ```
 
+### จัดการบัญชีเมื่อลืมรหัสผ่าน
+```bash
+.venv/bin/flask --app report_center list-users            # ดูว่ามีบัญชีอะไรบ้าง (เผื่อลืมชื่อผู้ใช้)
+.venv/bin/flask --app report_center reset-password admin  # ตั้งรหัสใหม่ (พิมพ์รหัส 2 ครั้ง ไม่โชว์บนจอ)
+```
+`reset-password` เปลี่ยนแค่รหัสผ่าน ไม่แตะสิทธิ์ — ใช้รีเซ็ตให้พนักงานได้ปลอดภัย
+
 ## 5. หา IP ของ Mac mini ในเครือข่าย (ให้เครื่องอื่นเข้าถึง)
 ```bash
 ipconfig getifaddr en0    # สาย LAN; ถ้าใช้ Wi-Fi ลอง en1

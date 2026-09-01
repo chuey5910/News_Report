@@ -140,6 +140,37 @@ def register_cli(app):
         db.session.commit()
         click.echo(f"Admin user '{username}' created/updated and approved.")
 
+    @app.cli.command("list-users")
+    def list_users():
+        """แสดงรายชื่อบัญชีทั้งหมด (ไว้ดูว่าชื่อผู้ใช้คืออะไร เวลาจำไม่ได้)."""
+        from .models import User
+
+        users = User.query.order_by(User.id).all()
+        if not users:
+            click.echo("ยังไม่มีบัญชีในระบบ")
+            return
+        click.echo(f"{'ชื่อผู้ใช้':<20} {'ชื่อ-สกุล':<28} {'สิทธิ์':<8} สถานะ")
+        for u in users:
+            status = "อนุมัติแล้ว" if u.is_approved else "รออนุมัติ"
+            click.echo(f"{u.username:<20} {(u.full_name or '-'):<28} {u.role:<8} {status}")
+
+    @app.cli.command("reset-password")
+    @click.argument("username")
+    @click.password_option()
+    def reset_password(username, password):
+        """ตั้งรหัสผ่านใหม่ให้บัญชีที่มีอยู่ โดยไม่เปลี่ยนสิทธิ์ เช่น:
+        flask --app report_center reset-password somchai
+        """
+        from .models import User
+
+        user = User.query.filter_by(username=username).first()
+        if user is None:
+            click.echo(f"ไม่พบบัญชีชื่อ '{username}' — ดูรายชื่อทั้งหมดด้วย: flask --app report_center list-users")
+            raise SystemExit(1)
+        user.set_password(password)
+        db.session.commit()
+        click.echo(f"ตั้งรหัสผ่านใหม่ให้ '{username}' เรียบร้อย (สิทธิ์ยังเป็น {user.role} เหมือนเดิม)")
+
     @app.cli.command("line-daily")
     def line_daily():
         """ส่งสรุป "กิจกรรมวันนี้ + ล่วงหน้า 7 วัน" เข้า LINE OA — ตั้ง cron เรียกทุกเช้า เช่น
