@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}ศูนย์บันทึกข่าว{% endblock %}</title>
+{% include "_head_meta.html" %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h1>ศูนย์บันทึกข่าว</h1>
+    <nav>
+      <div class="section-label">บันทึกข่าว</div>
+      {% for tab_key, tab_label in report_form_tabs %}
+      <a href="{{ url_for('reports.new_report', form_type=tab_key) }}"
+         class="{{ 'active' if request.endpoint == 'reports.new_report' and request.view_args.get('form_type') == tab_key else '' }}">{{ tab_label }}</a>
+      {% endfor %}
+      <a href="{{ url_for('reports.dashboard') }}" class="{{ 'active' if request.endpoint in ('reports.dashboard', 'reports.view_report') else '' }}">ภาพรวม</a>
+      {% if current_user.is_authenticated and current_user.is_admin %}
+      <div class="section-label">ผู้ดูแลระบบ</div>
+      <a href="{{ url_for('admin.users') }}" class="{{ 'active' if request.endpoint == 'admin.users' else '' }}">จัดการผู้ใช้</a>
+      <a href="{{ url_for('admin.login_logs') }}" class="{{ 'active' if request.endpoint == 'admin.login_logs' else '' }}">ประวัติการเข้าสู่ระบบ</a>
+      {% endif %}
+    </nav>
+    {% if current_user.is_authenticated %}
+    <div class="user-box">
+      <div class="name">{{ current_user.full_name }}</div>
+      <div class="role">{{ 'ผู้ดูแลระบบ' if current_user.is_admin else 'ผู้ใช้งาน' }}</div>
+      <a href="{{ url_for('auth.logout') }}">ออกจากระบบ</a>
+    </div>
+    {% endif %}
+  </aside>
+  <main class="main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<div id="confirm-modal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>ตรวจสอบความถูกต้องของข้อมูลก่อนบันทึก</h2>
+    <div id="confirm-modal-body" class="confirm-body"></div>
+    <div class="modal-actions">
+      <button type="button" id="confirm-modal-cancel" class="btn secondary">แก้ไขข้อมูล</button>
+      <button type="button" id="confirm-modal-submit" class="btn">ยืนยันบันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/autosize.js') }}"></script>
+<script src="{{ url_for('static', filename='js/confirm-submit.js') }}"></script>
+</body>
+</html>
