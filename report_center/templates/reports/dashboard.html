@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}ภาพรวม — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">ภาพรวม</h2>
+
+<div class="stat-row">
+  <div class="stat-tile">
+    <div class="num">{{ counts.total }}</div>
+    <div class="label">รายงานทั้งหมด</div>
+  </div>
+  {% for key, label in report_type_choices %}
+  <div class="stat-tile tile-{{ key }}">
+    <div class="num">{{ counts[key] }}</div>
+    <div class="label">{{ label }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>กิจกรรมวันนี้ — {{ today_label }}
+    {% if today_events %}<span class="upcoming-badge badge-today">{{ today_events|length }} กิจกรรม</span>{% endif %}
+  </h2>
+  {% if today_events %}
+  <div class="today-events">
+    {% for entry in today_events %}
+    <a class="cal-event today-event" href="{{ url_for('reports.view_report', report_id=entry.item.id) }}" title="{{ entry.item.title }}">
+      {% if entry.ongoing %}
+      <span class="cal-time">ต่อเนื่องถึง {{ entry.item.event_end_datetime | be_date }}</span>
+      {% elif entry.item.event_datetime.strftime('%H:%M') != '00:00' %}
+      <span class="cal-time">{{ entry.item.event_datetime.strftime('%H:%M') }} น.</span>
+      {% endif %}
+      <span class="cal-title">{{ entry.item.title }}</span>
+      <span class="cal-prov">{{ entry.item.special_branch_province or 'ไม่ระบุจังหวัด' }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-note">ไม่มีกิจกรรมจากข่าวล่วงหน้าในวันนี้</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>กิจกรรมที่กำลังจะมาถึง (ข่าวล่วงหน้า 7 วันข้างหน้า)
+    {% if upcoming_count %}<span class="upcoming-badge">{{ upcoming_count }} กิจกรรม</span>{% endif %}
+  </h2>
+  {% if upcoming_count %}
+  <div class="calendar-strip">
+    {% for day in calendar_days %}
+    <div class="cal-day{{ ' today' if day.is_today else '' }}{{ ' has-events' if day.events else '' }}">
+      <div class="cal-day-head">
+        <span class="cal-weekday">{{ 'วันนี้' if day.is_today else day.weekday }}</span>
+        <span class="cal-date">{{ day.label }}</span>
+      </div>
+      {% for ev in day.events %}
+      <a class="cal-event" href="{{ url_for('reports.view_report', report_id=ev.id) }}" title="{{ ev.title }}">
+        {% if ev.event_datetime.strftime('%H:%M') != '00:00' %}<span class="cal-time">{{ ev.event_datetime.strftime('%H:%M') }} น.</span>{% endif %}
+        <span class="cal-title">{{ ev.title }}</span>
+        <span class="cal-prov">{{ ev.special_branch_province or 'ไม่ระบุจังหวัด' }}</span>
+      </a>
+      {% endfor %}
+      {% if not day.events %}<div class="cal-empty">—</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-note">ไม่มีข่าวล่วงหน้าที่จะถึงวันจัดกิจกรรมภายใน 7 วันข้างหน้า</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>ค้นหารายงาน</h2>
+  <form method="get" class="filter-bar">
+    <input type="text" name="q" value="{{ q }}" placeholder="ค้นหา: ชื่อกิจกรรม / กลุ่ม / สถานที่ / ชื่อ-นามสกุล / ทะเบียนรถ / ประเภทรถ...">
+    <select name="province">
+      <option value="">— ทุกจังหวัด —</option>
+      {% for p in provinces %}
+      <option value="{{ p }}" {{ 'selected' if province == p else '' }}>{{ p }}</option>
+      {% endfor %}
+    </select>
+    <select name="rtype">
+      <option value="">— ทุกประเภทรายงาน —</option>
+      {% for key, label in report_type_choices %}
+      <option value="{{ key }}" {{ 'selected' if rtype == key else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn small" type="submit">ค้นหา</button>
+    {% if filtered %}
+    <a class="btn small secondary" href="{{ url_for('reports.dashboard') }}">ล้างตัวกรอง</a>
+    {% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <h2>ผลวิเคราะห์แยกจังหวัด{{ ' (ตามตัวกรอง)' if filtered else '' }}</h2>
+  {% if analysis_rows %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>สันติบาล จว.</th>
+          {% for key, label in report_type_choices %}<th class="num-col">{{ label }}</th>{% endfor %}
+          <th class="num-col">รวม</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for prov, row in analysis_rows %}
+        <tr>
+          <td>{{ prov }}</td>
+          {% for key, label in report_type_choices %}
+          <td class="num-col">{{ row[key] if row[key] else '-' }}</td>
+          {% endfor %}
+          <td class="num-col"><strong>{{ row.total }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-note">ยังไม่มีข้อมูล</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>รายงานข่าว{{ ' (ตามตัวกรอง)' if filtered else '' }} — {{ results|length }} รายการ</h2>
+  {% if results %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>บันทึกเมื่อ</th>
+          <th>จังหวัด</th>
+          <th>ประเภทรายงาน</th>
+          <th>ชื่อกิจกรรม</th>
+          <th>ผู้บันทึก</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in results %}
+        <tr>
+          <td>{{ item.created_at | thai_time }}</td>
+          <td>{{ item.special_branch_province or '-' }}</td>
+          <td><span class="badge type-{{ item.report_type }}">{{ report_type_labels.get(item.report_type, item.report_type) }}</span></td>
+          <td>{{ item.title }}</td>
+          <td>{{ item.created_by.full_name if item.created_by else '-' }}</td>
+          <td class="row-actions">
+            <a class="btn small" href="{{ url_for('reports.view_report', report_id=item.id) }}">ดูรายละเอียด</a>
+            {% if current_user.is_admin %}
+            <a class="btn small secondary" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไข</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-note">ไม่พบรายงานตามเงื่อนไขที่ค้นหา</div>
+  {% endif %}
+</div>
+{% endblock %}

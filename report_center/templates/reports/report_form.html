@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% set editing = edit_item is defined and edit_item %}
+{% block title %}{{ ('แก้ไข' + form_title) if editing else form_title }} — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">{{ ('แก้ไข' + form_title) if editing else form_title }}</h2>
+
+<div class="card">
+  <h2>{{ ('แก้ไขรายงาน (สิทธิ์ผู้ดูแลระบบ)' if editing else 'บันทึกรายงานใหม่') }}</h2>
+  <form method="post" id="news-report-form" class="confirm-before-submit">
+    {{ form.hidden_tag() }}
+    <div class="form-grid">
+      {{ m.render_radio_group(form.special_branch_province) }}
+
+      {{ m.render_field(form.title, half=True) }}
+      {{ m.render_checkbox_group(form.activity_types) }}
+      {{ m.render_checkbox_group(form.problem_group_types) }}
+
+      <div class="form-field half datetime-pair">
+        <label>วันที่และเวลานัดหมายทำกิจกรรม</label>
+        <div class="datetime-row">
+          {{ form.event_date(data_label="วันที่นัดหมายทำกิจกรรม", class_="w-date") }}
+          {{ form.event_time(data_label="เวลานัดหมาย", class_="w-time") }}
+        </div>
+      </div>
+      <div class="form-field half datetime-pair">
+        <label>วันที่และเวลาสิ้นสุดกิจกรรม</label>
+        <div class="datetime-row">
+          {{ form.event_end_date(data_label="วันที่สิ้นสุดกิจกรรม", class_="w-date") }}
+          {{ form.event_end_time(data_label="เวลาสิ้นสุด", class_="w-time") }}
+        </div>
+      </div>
+      {{ m.render_field(form.permit_status, class_="w-select-sm") }}
+
+      <div id="permit-detail-wrapper" class="flow" hidden>
+        {{ m.render_field(form.permit_location) }}
+        {{ m.render_field(form.permit_duration_days, class_="w-num") }}
+      </div>
+
+      {{ m.render_field(form.overnight_equipment_status, class_="w-select-sm") }}
+      <div id="equipment-detail-wrapper" class="sub-section" hidden>
+        {{ m.render_field(form.overnight_equipment_detail, half=True) }}
+      </div>
+
+      {{ m.render_field(form.group_name) }}
+
+      <div class="form-field">
+        {{ form.leader_count.label }}
+        {{ form.leader_count(data_label=form.leader_count.label.text, class_="w-num") }}
+      </div>
+      <div id="leader-fields-container" class="dynamic-fields-flow"></div>
+
+      {% if form_type == 'closure' %}
+      <div class="form-field">
+        {{ form.participant_count.label }}
+        {{ form.participant_count(data_label=form.participant_count.label.text, class_="w-num") }}
+      </div>
+      <div id="participant-fields-container" class="dynamic-fields-flow"></div>
+      {% endif %}
+
+      {{ m.render_field(form.location) }}
+
+      {{ m.render_field(form.mass_count, class_="w-short") }}
+      {% if form_type == 'closure' %}
+      <div class="flow">
+        {{ m.render_field(form.mass_members) }}
+        {{ m.render_field(form.mass_media, class_="w-short") }}
+        {{ m.render_field(form.mass_others, class_="w-short") }}
+      </div>
+      {% endif %}
+
+      {{ m.render_field(form.activity_format, half=True) }}
+      {{ m.render_field(form.demands, full=True) }}
+
+      {% if form_type in ('closure', 'incident') %}
+      {{ m.render_field(form.activity_detail, full=True) }}
+      {% endif %}
+
+      {% if form_type == 'closure' %}
+      <div class="form-field">
+        {{ form.supporter_count.label }}
+        {{ form.supporter_count(data_label=form.supporter_count.label.text, class_="w-num") }}
+      </div>
+      <div id="supporter-fields-container" class="dynamic-fields-flow"></div>
+      {% else %}
+      {{ m.render_field(form.supporters, half=True) }}
+      {% endif %}
+
+      {{ m.render_field(form.affiliations, half=True) }}
+
+      {% if form_type == 'advance' %}
+      <div class="form-field">
+        {{ form.aff_net_count.label }}
+        {{ form.aff_net_count(data_label=form.aff_net_count.label.text, class_="w-num") }}
+      </div>
+      <div id="aff-net-fields-container" class="dynamic-fields-flow"></div>
+      <div class="form-field">
+        {{ form.aff_coord_count.label }}
+        {{ form.aff_coord_count(data_label=form.aff_coord_count.label.text, class_="w-num") }}
+      </div>
+      <div id="aff-coord-fields-container" class="dynamic-fields-flow"></div>
+      <div class="form-field">
+        {{ form.aff_joint_count.label }}
+        {{ form.aff_joint_count(data_label=form.aff_joint_count.label.text, class_="w-num") }}
+      </div>
+      <div id="aff-joint-fields-container" class="dynamic-fields-flow"></div>
+      {% endif %}
+
+      {% if form_type == 'closure' %}
+      <div class="form-field full section-heading">
+        <label>กลุ่มการเมือง องค์กร หรือบุคคลอื่นๆ ที่มาเกี่ยวข้อง (ถ้ามี)</label>
+      </div>
+      <div class="form-field">
+        {{ form.org_party_count.label }}
+        {{ form.org_party_count(data_label=form.org_party_count.label.text, class_="w-num") }}
+      </div>
+      <div id="org-party-fields-container" class="dynamic-fields-flow"></div>
+      <div class="form-field">
+        {{ form.org_ngo_count.label }}
+        {{ form.org_ngo_count(data_label=form.org_ngo_count.label.text, class_="w-num") }}
+      </div>
+      <div id="org-ngo-fields-container" class="dynamic-fields-flow"></div>
+      <div class="form-field">
+        {{ form.org_gov_count.label }}
+        {{ form.org_gov_count(data_label=form.org_gov_count.label.text, class_="w-num") }}
+      </div>
+      <div id="org-gov-fields-container" class="dynamic-fields-flow"></div>
+
+      <div class="form-field">
+        {{ form.media_count.label }}
+        {{ form.media_count(data_label=form.media_count.label.text, class_="w-num") }}
+      </div>
+      <div id="media-fields-container" class="dynamic-fields-flow"></div>
+      {% endif %}
+
+      <div class="form-field half">
+        <label>ยานพาหนะ</label>
+        <div class="datetime-row">
+          {{ form.vehicle_status(data_label="ยานพาหนะ", class_="w-select-sm") }}
+          <span id="vehicle-count-wrap" class="inline-count" hidden>
+            <span class="inline-count-label">จำนวน (คัน)</span>
+            {{ form.vehicle_count(data_label="จำนวนยานพาหนะ (คัน)", class_="w-num") }}
+          </span>
+        </div>
+      </div>
+      <div id="vehicle-section-wrapper" class="sub-section" hidden>
+        <div id="vehicle-fields-container" class="dynamic-fields"></div>
+      </div>
+
+      {{ m.render_field(form.other_info, half=True) }}
+
+      <div class="form-field half">
+        <label>{{ trend_label }}</label>
+        {% if trend_placeholder %}
+        {{ form.trend_assessment(data_label=trend_label, placeholder=trend_placeholder, class_="ta-tall") }}
+        {% else %}
+        {{ form.trend_assessment(data_label=trend_label) }}
+        {% endif %}
+      </div>
+      {{ m.render_field(form.considerations, half=True) }}
+
+      {{ m.render_field(form.reporter_name, half=True) }}
+      {{ m.render_field(form.reporter_phone, class_="w-short") }}
+    </div>
+    <button class="btn" type="submit">{{ 'บันทึกการแก้ไข' if editing else 'บันทึก' }}</button>
+    {% if editing %}
+    <a class="btn secondary" href="{{ url_for('reports.view_report', report_id=edit_item.id) }}">ยกเลิก</a>
+    {% endif %}
+  </form>
+</div>
+
+<script id="activity-form-data" type="application/json">{{ form_config | tojson }}</script>
+<script src="{{ url_for('static', filename='js/activity-form.js') }}"></script>
+{% endblock %}
