@@ -1,0 +1,14 @@
+.git/
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+
+# สภาพแวดล้อมและความลับ — ต้อง mount เข้ามาตอนรัน ไม่ฝังในอิมเมจ
+data/
+secrets/
+report_center/.env
+report_center/instance/
+*service-account*.json
+*service_account*.json
