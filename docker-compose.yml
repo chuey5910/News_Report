@@ -11,9 +11,9 @@ services:
     ports:
       - "5001:5001"
     volumes:
-      - ./data:/data                                        # ไฟล์ฐานข้อมูล SQLite (อยู่บน NAS)
-      - ./report_center/.env:/app/report_center/.env:ro     # ค่าตั้งทั้งหมด
-      - ./secrets:/app/secrets:ro                           # service-account.json ของ Google Sheets
+      - ${DATA_DIR:-../data}:/data                                   # ฐานข้อมูล SQLite + ไฟล์สำรอง
+      - ${SECRETS_DIR:-../secrets}/.env:/app/report_center/.env:ro   # ค่าตั้งทั้งหมด (มี token)
+      - ${SECRETS_DIR:-../secrets}:/app/secrets:ro                   # service-account.json ของ Google Sheets
     healthcheck:
       test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:5001/auth/login"]
       interval: 1m
@@ -28,8 +28,8 @@ services:
     restart: unless-stopped
     entrypoint: ["/app/docker/scheduler-entrypoint.sh"]
     volumes:
-      - ./data:/data
-      - ./report_center/.env:/app/report_center/.env:ro
-      - ./secrets:/app/secrets:ro
+      - ${DATA_DIR:-../data}:/data
+      - ${SECRETS_DIR:-../secrets}/.env:/app/report_center/.env:ro
+      - ${SECRETS_DIR:-../secrets}:/app/secrets:ro
     depends_on:
       - web

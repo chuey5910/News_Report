@@ -16,26 +16,33 @@
 
 เปิด **Terminal/SSH** ของ NAS (UGOS → ตั้งค่า → Terminal & SNMP → เปิด SSH) แล้ว:
 
-```bash
-# ตรวจว่าชื่อ volume คืออะไร (มักเป็น /volume1 หรือ /volume2)
-ls /volume*
+โครงโฟลเดอร์ — **หนึ่งแอปหนึ่งโฟลเดอร์** ไม่ปนกับแอปอื่นบน NAS:
 
-# สร้างที่เก็บระบบ (แก้ /volume1 ตามที่เห็นจากคำสั่งข้างบน)
-mkdir -p /volume1/docker
-cd /volume1/docker
-git clone https://github.com/chuey5910/News_Report.git news_report
-cd news_report
-git checkout claude/news-reporting-app-mvo1r6
-
-# โฟลเดอร์เก็บฐานข้อมูลและไฟล์ความลับ
-mkdir -p data secrets
 ```
+/volume1/docker/news_report/
+├── app/        โค้ดระบบ (git) — ลบหรือโคลนใหม่ได้ ไม่กระทบข้อมูล
+├── data/       ฐานข้อมูล + ไฟล์สำรอง
+└── secrets/    .env (มี token) + service-account.json
+```
+
+```bash
+ls /volume*        # ดูชื่อ volume จริง (มักเป็น /volume1)
+sudo mkdir -p /volume1/docker/news_report
+sudo chown -R $(whoami) /volume1/docker/news_report
+cd /volume1/docker/news_report
+mkdir -p data secrets
+git clone https://github.com/chuey5910/News_Report.git app
+cd app && git checkout claude/news-reporting-app-mvo1r6
+```
+
+ทุกคำสั่ง `docker compose` ต่อจากนี้พิมพ์ในโฟลเดอร์ `app/` — ตัว compose จะไปอ่าน
+`../data` และ `../secrets` ให้เอง (เปลี่ยนที่เก็บได้ด้วยตัวแปร `DATA_DIR` / `SECRETS_DIR`)
 
 ## 2. ตั้งค่าในไฟล์ `.env`
 
 ```bash
-cp report_center/.env.example report_center/.env
-nano report_center/.env
+cp report_center/.env.example ../secrets/.env
+nano ../secrets/.env
 ```
 
 ค่าที่**ต้อง**ใส่ (ลอกค่าเดิมจาก Mac mini ได้เลย ดูวิธีในหัวข้อ 3):
@@ -78,7 +85,7 @@ cat report_center/.env      # เปิดดูเพื่อลอกค่�
 ## 4. เปิดระบบ
 
 ```bash
-cd /volume1/docker/news_report
+cd /volume1/docker/news_report/app
 docker compose up -d --build      # ครั้งแรกใช้เวลา 2-5 นาที (ติดตั้ง dependency)
 docker compose ps                 # ทั้ง 2 ตัวต้องขึ้น Up / healthy
 ```
@@ -141,7 +148,7 @@ crontab -r        # ลบงานแจ้งเตือน (กันส่�
 ## คำสั่งที่ใช้บ่อย
 
 ```bash
-cd /volume1/docker/news_report
+cd /volume1/docker/news_report/app
 
 docker compose ps                          # สถานะ
 docker compose logs -f web                 # log หน้าเว็บ
@@ -154,12 +161,12 @@ docker compose up -d                       # เปิดทั้งระบ�
 git pull && docker compose up -d --build
 
 # สำรองฐานข้อมูล (ทำก่อนอัปเดตใหญ่ทุกครั้ง)
-cp data/report_center.db data/report_center.db.$(date +%Y%m%d)
+cp ../data/report_center.db ../data/backup-$(date +%Y%m%d).db
 ```
 
 ## หมายเหตุ
 
-- **ฐานข้อมูลอยู่ที่ `data/report_center.db`** บน NAS — ควรตั้งงานสำรองของ UGOS ให้ copy
+- **ฐานข้อมูลอยู่ที่ `/volume1/docker/news_report/data/report_center.db`** — ควรตั้งงานสำรองของ UGOS ให้ copy
   โฟลเดอร์ `data/` ขึ้นคลาวด์หรือดิสก์อื่นเป็นระยะ (RAID 1 กันดิสก์เสีย แต่ไม่กันลบผิด/ไฟไหม้)
 - เวลาในคอนเทนเนอร์ตั้งเป็น `Asia/Bangkok` แล้ว จึงส่งสรุป 07:00 ตามเวลาไทยถูกต้อง
 - คอนเทนเนอร์ทั้งสองเขียนไฟล์ฐานข้อมูลเดียวกัน โค้ดเปิดโหมด WAL และรอคิวสูงสุด 30 วินาที
