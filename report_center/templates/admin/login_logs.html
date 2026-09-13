@@ -22,7 +22,7 @@
         </td>
         <td>{{ log.reason or '-' }}</td>
         <td>{{ log.ip_address or '-' }}</td>
-        <td style="max-width:260px; overflow-wrap:anywhere;">{{ log.user_agent or '-' }}</td>
+        <td class="log-ua" title="{{ log.user_agent or '-' }}">{{ log.user_agent or '-' }}</td>
       </tr>
       {% endfor %}
     </tbody>
