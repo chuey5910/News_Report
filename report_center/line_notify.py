@@ -14,6 +14,7 @@
 import json
 import logging
 import os
+import urllib.error
 import urllib.request
 
 logger = logging.getLogger(__name__)
@@ -58,8 +59,13 @@ def push_text(app, text):
                 _post(API_PUSH, token, {"to": target, "messages": [message]}) for target in targets
             )
         return _post(API_BROADCAST, token, {"messages": [message]})
+    except urllib.error.HTTPError as exc:
+        # สรุปเป็นบรรทัดเดียว ไม่พิมพ์ traceback ยาวลง log (429 = โควตาเดือนนี้หมด/ส่งถี่เกินไป)
+        hint = " — โควตาข้อความเดือนนี้หมด หรือส่งถี่เกินไป (รีเซ็ตต้นเดือนถัดไป)" if exc.code == 429 else ""
+        logger.error("ส่ง LINE ไม่สำเร็จ: HTTP %s %s%s", exc.code, exc.reason, hint)
+        return False
     except Exception as exc:  # ห้ามให้ปัญหา LINE กระทบการบันทึกข้อมูล
-        logger.exception("LINE notify failed: %s", exc)
+        logger.error("ส่ง LINE ไม่สำเร็จ: %s", exc)
         return False
 
 
