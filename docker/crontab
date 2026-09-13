@@ -1,0 +1,8 @@
+# ตารางแจ้งเตือน LINE (เวลาไทย — คอนเทนเนอร์ตั้ง TZ=Asia/Bangkok ไว้แล้ว)
+# flask จะอ่านค่าตั้งจาก /app/report_center/.env ให้เองผ่าน python-dotenv
+# ผลลัพธ์ส่งออก stdout ของ cron (PID 1) เพื่อให้ดูได้ด้วย: docker logs news-report-scheduler
+
+# ตรวจกิจกรรมที่ใกล้ถึงเวลา — ทุก 5 นาที
+*/5 * * * * cd /app && /usr/local/bin/flask --app report_center line-due > /proc/1/fd/1 2>&1
+# สรุปข่าวล่วงหน้าประจำเช้า 07:00
+0 7 * * * cd /app && /usr/local/bin/flask --app report_center line-daily > /proc/1/fd/1 2>&1

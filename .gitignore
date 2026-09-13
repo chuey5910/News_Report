@@ -11,3 +11,7 @@ report_center/.env
 *service-account*.json
 *service_account*.json
 report_center/**/credentials*.json
+
+# Docker deployment state (NAS) — ฐานข้อมูลและไฟล์ความลับที่ mount เข้าคอนเทนเนอร์
+data/
+secrets/

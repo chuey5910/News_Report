@@ -3,9 +3,28 @@ from datetime import timedelta
 
 import click
 from flask import Flask
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 from .config import Config  # importing this also loads .env (see config._load_dotenv)
 from .extensions import db, login_manager
+
+
+@event.listens_for(Engine, "connect")
+def _sqlite_concurrency_pragmas(dbapi_connection, _record):
+    """SQLite: เปิด WAL + รอคิวสูงสุด 30 วินาทีแทนที่จะ error ทันทีเมื่อไฟล์ถูกล็อก
+
+    จำเป็นตอนรันบน NAS ที่หน้าเว็บกับตัวแจ้งเตือนอยู่แยกคอนเทนเนอร์ แต่เขียนไฟล์
+    ฐานข้อมูลเดียวกัน — ถ้าไม่ตั้ง การบันทึกที่ชนกันพอดีจะล้มด้วย 'database is locked'
+    """
+    if not type(dbapi_connection).__module__.startswith("sqlite3"):
+        return
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+    finally:
+        cursor.close()
 
 
 def create_app(config_object=Config):
