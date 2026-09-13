@@ -159,6 +159,57 @@ def register_cli(app):
         db.session.commit()
         click.echo(f"Admin user '{username}' created/updated and approved.")
 
+    @app.cli.command("backup-db")
+    @click.option("--keep-days", default=30, show_default=True, help="เก็บไฟล์สำรองย้อนหลังกี่วัน")
+    def backup_db(keep_days):
+        """สำรองไฟล์ฐานข้อมูลไว้ในโฟลเดอร์ backup/ แล้วลบไฟล์ที่เก่ากว่ากำหนด
+
+        ใช้คำสั่งสำรองของ SQLite เอง จึงคัดลอกได้แม้ระบบกำลังใช้งานอยู่ ไฟล์ที่ได้ไม่เสียหาย
+        (คัดลอกไฟล์ตรงๆ ระหว่างมีคนบันทึกข่าว อาจได้ไฟล์ที่เปิดไม่ขึ้น)
+        """
+        import sqlite3
+        from datetime import datetime as dt, timedelta as td
+
+        uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        if not uri.startswith("sqlite"):
+            click.echo(f"ฐานข้อมูลไม่ใช่ SQLite ({uri.split(':')[0]}) — ข้ามการสำรอง")
+            return
+        src = uri.split("sqlite:///")[-1]
+        if not os.path.isabs(src):
+            src = os.path.join(app.root_path, src)
+        if not os.path.exists(src):
+            click.echo(f"ไม่พบไฟล์ฐานข้อมูล: {src}")
+            raise SystemExit(1)
+
+        backup_dir = os.path.join(os.path.dirname(src), "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        stamp = (dt.utcnow() + td(hours=7)).strftime("%Y%m%d-%H%M")  # ตั้งชื่อตามเวลาไทย
+        dest = os.path.join(backup_dir, f"report_center-{stamp}.db")
+
+        source = sqlite3.connect(src)
+        try:
+            target = sqlite3.connect(dest)
+            try:
+                source.backup(target)
+            finally:
+                target.close()
+        finally:
+            source.close()
+        size_mb = os.path.getsize(dest) / (1024 * 1024)
+        click.echo(f"สำรองแล้ว: {dest} ({size_mb:.1f} MB)")
+
+        cutoff = dt.utcnow().timestamp() - keep_days * 86400
+        removed = 0
+        for name in os.listdir(backup_dir):
+            if not (name.startswith("report_center-") and name.endswith(".db")):
+                continue
+            path = os.path.join(backup_dir, name)
+            if os.path.getmtime(path) < cutoff:
+                os.remove(path)
+                removed += 1
+        kept = len([n for n in os.listdir(backup_dir) if n.endswith(".db")])
+        click.echo(f"ลบไฟล์เก่ากว่า {keep_days} วัน {removed} ไฟล์ — คงเหลือทั้งหมด {kept} ไฟล์")
+
     @app.cli.command("list-users")
     def list_users():
         """แสดงรายชื่อบัญชีทั้งหมด (ไว้ดูว่าชื่อผู้ใช้คืออะไร เวลาจำไม่ได้)."""

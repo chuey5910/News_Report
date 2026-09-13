@@ -6,3 +6,5 @@
 */5 * * * * cd /app && /usr/local/bin/flask --app report_center line-due > /proc/1/fd/1 2>&1
 # สรุปข่าวล่วงหน้าประจำเช้า 07:00
 0 7 * * * cd /app && /usr/local/bin/flask --app report_center line-daily > /proc/1/fd/1 2>&1
+# สำรองฐานข้อมูลทุกคืน 02:30 เก็บย้อนหลัง 30 วัน (ไฟล์อยู่ใน data/backup/)
+30 2 * * * cd /app && /usr/local/bin/flask --app report_center backup-db > /proc/1/fd/1 2>&1
