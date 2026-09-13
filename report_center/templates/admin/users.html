@@ -21,7 +21,7 @@
           <span class="badge pending">รออนุมัติ</span>
           {% endif %}
         </td>
-        <td>{{ u.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        <td>{{ u.created_at | thai_time }}</td>
         <td>
           {% if not u.is_approved %}
           <form method="post" action="{{ url_for('admin.approve_user', user_id=u.id) }}" style="display:inline">
