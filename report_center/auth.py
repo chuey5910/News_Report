@@ -10,15 +10,20 @@ from .models import LoginLog, User
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
-def _recent_failed_count(username, ip):
-    """Count failed login attempts for this username OR this IP within the lockout window.
-    Used to throttle brute-force attempts (counting from the last successful login resets it)."""
+def _recent_failed_count(username):
+    """นับจำนวนครั้งที่กรอกรหัสผิดติดกันของ "ชื่อผู้ใช้นี้" ในช่วงเวลาที่กำหนด
+
+    นับแยกตามชื่อผู้ใช้เท่านั้น ไม่นับรวม IP — เพราะผู้ใช้ทุกคนเข้าผ่าน Tailscale
+    ออกมาที่ IP เดียวกัน ถ้านับรวม IP คนหนึ่งกรอกผิดจะทำให้ทุกคนถูกล็อกไปด้วย
+    (การเข้าสู่ระบบสำเร็จ 1 ครั้งจะล้างสถิติที่นับไว้)
+    """
     window_start = datetime.utcnow() - timedelta(minutes=current_app.config["LOGIN_LOCKOUT_MINUTES"])
-    q = LoginLog.query.filter(LoginLog.timestamp >= window_start)
-    q = q.filter(
-        db.or_(LoginLog.username_attempted == username, LoginLog.ip_address == ip)
+    attempts = (
+        LoginLog.query.filter(LoginLog.timestamp >= window_start)
+        .filter(LoginLog.username_attempted == username)
+        .order_by(LoginLog.timestamp.desc())
+        .all()
     )
-    attempts = q.order_by(LoginLog.timestamp.desc()).all()
     failed = 0
     for a in attempts:
         if a.success:
@@ -27,8 +32,8 @@ def _recent_failed_count(username, ip):
     return failed
 
 
-def _is_locked_out(username, ip):
-    return _recent_failed_count(username, ip) >= current_app.config["LOGIN_MAX_FAILED_ATTEMPTS"]
+def _is_locked_out(username):
+    return _recent_failed_count(username) >= current_app.config["LOGIN_MAX_FAILED_ATTEMPTS"]
 
 
 def _default_landing_url(user):
@@ -88,9 +93,8 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         username = form.username.data.strip()
-        ip = _client_ip()
 
-        if _is_locked_out(username, ip):
+        if _is_locked_out(username):
             _record_login(None, username, False, "locked_out")
             flash(
                 f"พยายามเข้าสู่ระบบผิดหลายครั้งเกินไป — ถูกล็อกชั่วคราว "
