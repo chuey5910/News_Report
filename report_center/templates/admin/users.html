@@ -38,6 +38,13 @@
               {{ 'ลดสิทธิ์เป็นผู้ใช้งาน' if u.is_admin else 'ตั้งเป็นผู้ดูแลระบบ' }}
             </button>
           </form>
+          <form method="post" action="{{ url_for('admin.reset_user_password', user_id=u.id) }}"
+                style="display:inline-flex; gap:4px; margin-top:4px"
+                onsubmit="return confirm('ตั้งรหัสผ่านใหม่ให้ {{ u.username }} ใช่หรือไม่? รหัสเดิมจะใช้ไม่ได้ทันที')">
+            <input type="password" name="new_password" required minlength="8"
+                   placeholder="รหัสใหม่ (8 ตัวขึ้นไป)" style="width:170px">
+            <button class="btn small secondary" type="submit">ตั้งรหัสใหม่</button>
+          </form>
         </td>
       </tr>
       {% endfor %}

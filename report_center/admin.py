@@ -69,6 +69,26 @@ def set_role(user_id):
     return redirect(url_for("admin.users"))
 
 
+@bp.route("/users/<int:user_id>/reset-password", methods=["POST"])
+@login_required
+@admin_required
+def reset_user_password(user_id):
+    """ตั้งรหัสผ่านใหม่ให้ผู้ใช้ที่ลืมรหัส — ระบบไม่มีอีเมล จึงต้องให้ admin ตั้งให้แล้วแจ้งเจ้าตัว"""
+    user = User.query.get_or_404(user_id)
+    new_password = request.form.get("new_password") or ""
+    if len(new_password) < 8:
+        flash("รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัวอักษร", "danger")
+        return redirect(url_for("admin.users"))
+    user.set_password(new_password)
+    db.session.commit()
+    flash(
+        f"ตั้งรหัสผ่านใหม่ให้ {user.username} ({user.full_name}) แล้ว — "
+        "แจ้งรหัสนี้ให้เจ้าตัวแล้วบอกให้เข้าไปเปลี่ยนเป็นรหัสของตัวเองที่เมนู 'เปลี่ยนรหัสผ่าน'",
+        "success",
+    )
+    return redirect(url_for("admin.users"))
+
+
 @bp.route("/login-logs")
 @login_required
 @admin_required

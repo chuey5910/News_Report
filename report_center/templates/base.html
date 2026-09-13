@@ -28,6 +28,7 @@
     <div class="user-box">
       <div class="name">{{ current_user.full_name }}</div>
       <div class="role">{{ 'ผู้ดูแลระบบ' if current_user.is_admin else 'ผู้ใช้งาน' }}</div>
+      <a href="{{ url_for('auth.change_password') }}">เปลี่ยนรหัสผ่าน</a>
       <a href="{{ url_for('auth.logout') }}">ออกจากระบบ</a>
     </div>
     {% endif %}

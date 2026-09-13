@@ -66,6 +66,18 @@ class LoginForm(FlaskForm):
     password = PasswordField("รหัสผ่าน", validators=[DataRequired()])
 
 
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField("รหัสผ่านปัจจุบัน", validators=[DataRequired(message="กรุณากรอกรหัสผ่านปัจจุบัน")])
+    new_password = PasswordField(
+        "รหัสผ่านใหม่",
+        validators=[DataRequired(), Length(min=8, message="รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร")],
+    )
+    confirm_password = PasswordField(
+        "ยืนยันรหัสผ่านใหม่",
+        validators=[DataRequired(), EqualTo("new_password", message="รหัสผ่านใหม่ไม่ตรงกัน")],
+    )
+
+
 class DeleteForm(FlaskForm):
     """ฟอร์มเปล่าสำหรับปุ่มลบ — มีไว้เพื่อ CSRF token เท่านั้น."""
 

@@ -4,7 +4,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, login_required, login_user, logout_user
 
 from .extensions import db
-from .forms import LoginForm, RegisterForm
+from .forms import ChangePasswordForm, LoginForm, RegisterForm
 from .models import LoginLog, User
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -124,3 +124,20 @@ def logout():
     logout_user()
     flash("ออกจากระบบเรียบร้อยแล้ว", "info")
     return redirect(url_for("auth.login"))
+
+
+@bp.route("/change-password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    """ผู้ใช้เปลี่ยนรหัสผ่านของตัวเอง — ใช้หลัง admin ตั้งรหัสชั่วคราวให้ หรือเมื่ออยากเปลี่ยนเอง"""
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        if not current_user.check_password(form.current_password.data):
+            _record_login(current_user.id, current_user.username, False, "เปลี่ยนรหัสผ่าน: รหัสปัจจุบันไม่ถูกต้อง")
+            flash("รหัสผ่านปัจจุบันไม่ถูกต้อง", "danger")
+            return render_template("auth/change_password.html", form=form)
+        current_user.set_password(form.new_password.data)
+        db.session.commit()
+        flash("เปลี่ยนรหัสผ่านเรียบร้อยแล้ว ครั้งต่อไปให้เข้าระบบด้วยรหัสใหม่", "success")
+        return redirect(_default_landing_url(current_user))
+    return render_template("auth/change_password.html", form=form)
