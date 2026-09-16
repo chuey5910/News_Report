@@ -326,21 +326,35 @@ def register_cli(app):
             .order_by(NewsReport.event_datetime.asc())
             .all()
         )
-        sent = 0
-        for item in items:
-            # กันส่งซ้ำแบบเด็ดขาด: ปักธงลงฐานข้อมูล "ก่อน" ส่ง — ต่อให้ขั้นตอนส่งมีปัญหา
-            # กิจกรรมหนึ่งจะถูกพยายามส่งแค่ครั้งเดียวตลอดไป (ยอมพลาด 1 ข้อความ ดีกว่าสแปมทั้งวัน)
-            # ใช้ SQL ตรงๆ เพื่อไม่ให้ไปกระตุ้น updated_at (ไม่ใช่การแก้ไขข้อมูล)
+        def _mark_done(report_id):
+            """ปักธงว่าจัดการรายการนี้แล้ว จะไม่ถูกหยิบมาส่งอีก
+            (ใช้ SQL ตรงๆ เพื่อไม่ให้ไปกระตุ้น updated_at — ไม่ใช่การแก้ไขข้อมูลรายงาน)"""
             db.session.execute(
                 sql_text("UPDATE news_reports SET due_alert_sent_at = :now WHERE id = :id"),
-                {"now": dt.utcnow(), "id": item.id},
+                {"now": dt.utcnow(), "id": report_id},
             )
             db.session.commit()
-            if line_notify.push_text(app, line_notify.due_message(app.config, item, thai_now)):
+
+        sent = retry_later = 0
+        for item in items:
+            status = line_notify.push_text_status(
+                app, line_notify.due_message(app.config, item, thai_now)
+            )
+            if status == line_notify.FAILED_TRANSIENT:
+                # เน็ตดับ/LINE ขัดข้องชั่วคราว — ยังไม่ปักธง ให้รอบถัดไป (ทุก 5 นาที) ลองใหม่
+                # ไม่สแปม เพราะเลิกลองเองเมื่อเลยกรอบเวลา 2 ชม. ที่คัดรายการไว้ข้างบน
+                retry_later += 1
+                click.echo(f"ส่งแจ้งเตือนของรายงาน id={item.id} ไม่ออก (เน็ตมีปัญหา) — จะลองใหม่อีก 5 นาที")
+                continue
+            _mark_done(item.id)
+            if status == line_notify.SENT:
                 sent += 1
             else:
                 click.echo(f"ส่งแจ้งเตือนของรายงาน id={item.id} ไม่สำเร็จ (จะไม่ลองซ้ำ — ดู log)")
-        click.echo(f"แจ้งเตือนถึงเวลากิจกรรม {sent}/{len(items)} รายการ")
+        msg = f"แจ้งเตือนถึงเวลากิจกรรม {sent}/{len(items)} รายการ"
+        if retry_later:
+            msg += f" (ค้างรอลองใหม่ {retry_later} รายการ)"
+        click.echo(msg)
 
     @app.cli.command("sync-sheets")
     def sync_sheets():

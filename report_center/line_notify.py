@@ -43,30 +43,48 @@ def _post(url, token, payload):
         return 200 <= resp.status < 300
 
 
-def push_text(app, text):
-    """ส่งข้อความเข้า LINE — คืน True เมื่อส่งสำเร็จ ไม่มีทาง raise."""
+SENT = "sent"  # ส่งถึง LINE แล้ว
+FAILED_PERMANENT = "failed_permanent"  # ส่งไม่ได้ และลองซ้ำก็ไม่ช่วย (โควตาหมด/token ผิด)
+FAILED_TRANSIENT = "failed_transient"  # ส่งไม่ได้เพราะเน็ตมีปัญหาชั่วคราว — ลองใหม่ภายหลังได้
+
+
+def push_text_status(app, text):
+    """ส่งข้อความเข้า LINE — คืนสถานะ SENT / FAILED_PERMANENT / FAILED_TRANSIENT ไม่มีทาง raise
+
+    แยกสถานะเพื่อให้ผู้เรียกตัดสินใจได้ว่าควรลองส่งซ้ำไหม เช่นช่วงเน็ตดับหรือเปลี่ยนผู้ให้บริการ
+    ถือเป็นชั่วคราว (ลองใหม่ได้) แต่โควตาหมดหรือ token ผิดถือเป็นถาวร (ลองซ้ำก็เสียเวลาเปล่า)
+    """
     config = app.config
     if not is_configured(config):
         logger.info("LINE notify skipped: LINE_CHANNEL_ACCESS_TOKEN not set")
-        return False
+        return FAILED_PERMANENT
 
     token = config["LINE_CHANNEL_ACCESS_TOKEN"].strip()
     targets = [t.strip() for t in (config.get("LINE_TARGET_IDS") or "").split(",") if t.strip()]
     message = {"type": "text", "text": text}
     try:
         if targets:
-            return all(
+            ok = all(
                 _post(API_PUSH, token, {"to": target, "messages": [message]}) for target in targets
             )
-        return _post(API_BROADCAST, token, {"messages": [message]})
+        else:
+            ok = _post(API_BROADCAST, token, {"messages": [message]})
+        return SENT if ok else FAILED_PERMANENT
     except urllib.error.HTTPError as exc:
         # สรุปเป็นบรรทัดเดียว ไม่พิมพ์ traceback ยาวลง log (429 = โควตาเดือนนี้หมด/ส่งถี่เกินไป)
         hint = " — โควตาข้อความเดือนนี้หมด หรือส่งถี่เกินไป (รีเซ็ตต้นเดือนถัดไป)" if exc.code == 429 else ""
         logger.error("ส่ง LINE ไม่สำเร็จ: HTTP %s %s%s", exc.code, exc.reason, hint)
-        return False
+        # ฝั่ง LINE ขัดข้องเอง (5xx) ลองใหม่ได้ ส่วน 4xx เป็นเรื่องค่าตั้ง/โควตา ลองซ้ำไม่ช่วย
+        return FAILED_TRANSIENT if exc.code >= 500 else FAILED_PERMANENT
     except Exception as exc:  # ห้ามให้ปัญหา LINE กระทบการบันทึกข้อมูล
-        logger.error("ส่ง LINE ไม่สำเร็จ: %s", exc)
-        return False
+        # ต่อเน็ตไม่ได้/หมดเวลารอ — เก็บไว้ลองใหม่รอบถัดไป
+        logger.error("ส่ง LINE ไม่สำเร็จ (เน็ตมีปัญหา จะลองใหม่): %s", exc)
+        return FAILED_TRANSIENT
+
+
+def push_text(app, text):
+    """ส่งข้อความเข้า LINE — คืน True เมื่อส่งสำเร็จ ไม่มีทาง raise."""
+    return push_text_status(app, text) == SENT
 
 
 def _fmt_be(dt):
