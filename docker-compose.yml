@@ -1,0 +1,35 @@
+# ระบบรายงานข่าว — รัน 2 คอนเทนเนอร์
+#   web       : หน้าเว็บ (gunicorn พอร์ต 5001)
+#   scheduler : แจ้งเตือน LINE ตามเวลา (แทน crontab ของเครื่อง)
+# ทั้งสองใช้อิมเมจเดียวกัน และอ่านค่าตั้งจาก report_center/.env ไฟล์เดียว
+services:
+  web:
+    build: .
+    image: news-report:latest
+    container_name: news-report-web
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    volumes:
+      - ${DATA_DIR:-../data}:/data                                   # ฐานข้อมูล SQLite + ไฟล์สำรอง
+      - ${SECRETS_DIR:-../secrets}/.env:/app/report_center/.env:ro   # ค่าตั้งทั้งหมด (มี token)
+      - ${SECRETS_DIR:-../secrets}:/app/secrets:ro                   # service-account.json ของ Google Sheets
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:5001/auth/login"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  scheduler:
+    build: .
+    image: news-report:latest
+    container_name: news-report-scheduler
+    restart: unless-stopped
+    entrypoint: ["/app/docker/scheduler-entrypoint.sh"]
+    volumes:
+      - ${DATA_DIR:-../data}:/data
+      - ${SECRETS_DIR:-../secrets}/.env:/app/report_center/.env:ro
+      - ${SECRETS_DIR:-../secrets}:/app/secrets:ro
+    depends_on:
+      - web
