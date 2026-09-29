@@ -157,8 +157,8 @@ docker compose restart web                 # รีสตาร์ทเว็�
 docker compose down                        # ปิดทั้งระบบ
 docker compose up -d                       # เปิดทั้งระบบ
 
-# อัปเดตโค้ดเวอร์ชันใหม่
-git pull && docker compose up -d --build
+# อัปเดตโค้ดเวอร์ชันใหม่ (ดึงจาก GitHub เอง ไม่ต้องมี git บน NAS ไม่ต้องผ่านเครื่องอื่น)
+sh docker/update-from-github.sh
 
 # สำรองฐานข้อมูล (ทำก่อนอัปเดตใหญ่ทุกครั้ง)
 cp ../data/report_center.db ../data/backup-$(date +%Y%m%d).db
