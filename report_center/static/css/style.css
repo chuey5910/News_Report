@@ -21,6 +21,30 @@
   --type-closure-bg: #d1fae5;
   --type-incident: #b45309;
   --type-incident-bg: #fef3c7;
+
+  /* พื้น/ตัวหนังสือที่เคยกำหนดเป็นสีตายตัว — ทำเป็นโทเคนเพื่อให้ธีมมืดเปลี่ยนตามได้ */
+  --surface-soft: #f8f9ff;        /* กล่องย่อยในการ์ด */
+  --surface-warn: #fffdf4;        /* ช่องปฏิทินวันที่มีกิจกรรม */
+  --warn-border: #fcd34d;
+  --chip-bg: #ffffff;             /* ชิปเล็ก เช่น ชื่อจังหวัด */
+  --chip-border: #bae6fd;
+  --accent-text: #0c4a6e;         /* ตัวหนังสือบนพื้นชิปสีฟ้า */
+  --accent-text-strong: #075985;
+  --incident-text: #92400e;
+  --text-faint: #9ca3af;          /* ข้อความ "ไม่มีข้อมูล" */
+  --group-accent: #a5b4fc;
+  --label-text: #3f4763;          /* ป้ายชื่อช่องในฟอร์ม */
+  --row-hover: #f5f6ff;           /* แถวตารางตอนชี้เมาส์ */
+
+  /* ป้ายสถานะ/ประเภท (พื้น + ตัวหนังสือ) */
+  --badge-advance-text: #075985;
+  --badge-closure-text: #065f46;
+  --badge-incident-text: #92400e;
+  --badge-ok-bg: #d1fae5;      --badge-ok-text: #065f46;
+  --badge-warn-bg: #fef3c7;    --badge-warn-text: #92400e;
+  --badge-info-bg: #e0e7ff;    --badge-info-text: #3730a3;
+  --badge-mute-bg: #f1f5f9;    --badge-mute-text: #334155;
+  --badge-bad-bg: #ffe4e6;     --badge-bad-text: #9f1239;
 }
 
 * { box-sizing: border-box; }
@@ -201,7 +225,7 @@ body {
   font-size: .82rem;
   font-weight: 600;
   margin-bottom: .25rem;
-  color: #3f4763;
+  color: var(--label-text);
 }
 
 .form-field.section-heading label {
@@ -309,7 +333,7 @@ th {
 th:first-child { border-radius: 8px 0 0 8px; }
 th:last-child { border-radius: 0 8px 8px 0; }
 
-tr:hover td { background: #f5f6ff; }
+tr:hover td { background: var(--row-hover); }
 
 /* ---------- ป้าย (badge) ---------- */
 
@@ -321,16 +345,16 @@ tr:hover td { background: #f5f6ff; }
   font-weight: 600;
 }
 
-.badge.type-advance { background: var(--type-advance-bg); color: #075985; }
-.badge.type-closure { background: var(--type-closure-bg); color: #065f46; }
-.badge.type-incident, .badge.type-general { background: var(--type-incident-bg); color: #92400e; }
+.badge.type-advance { background: var(--type-advance-bg); color: var(--badge-advance-text); }
+.badge.type-closure { background: var(--type-closure-bg); color: var(--badge-closure-text); }
+.badge.type-incident, .badge.type-general { background: var(--type-incident-bg); color: var(--badge-incident-text); }
 
-.badge.approved { background: #d1fae5; color: #065f46; }
-.badge.pending { background: #fef3c7; color: #92400e; }
-.badge.admin { background: #e0e7ff; color: #3730a3; }
-.badge.user { background: #f1f5f9; color: #334155; }
-.badge.success { background: #d1fae5; color: #065f46; }
-.badge.fail { background: #ffe4e6; color: #9f1239; }
+.badge.approved { background: var(--badge-ok-bg); color: var(--badge-ok-text); }
+.badge.pending { background: var(--badge-warn-bg); color: var(--badge-warn-text); }
+.badge.admin { background: var(--badge-info-bg); color: var(--badge-info-text); }
+.badge.user { background: var(--badge-mute-bg); color: var(--badge-mute-text); }
+.badge.success { background: var(--badge-ok-bg); color: var(--badge-ok-text); }
+.badge.fail { background: var(--badge-bad-bg); color: var(--badge-bad-text); }
 
 /* ---------- ข้อความแจ้งเตือน ---------- */
 
@@ -429,10 +453,10 @@ tr:hover td { background: #f5f6ff; }
 .field-group, .vehicle-group {
   grid-column: 1 / -1;
   border: 1px solid var(--border);
-  border-left: 4px solid #a5b4fc;
+  border-left: 4px solid var(--group-accent);
   border-radius: 10px;
   padding: .9rem 1rem;
-  background: #f8f9ff;
+  background: var(--surface-soft);
 }
 
 .field-group-heading, .vehicle-group-heading {
@@ -491,7 +515,7 @@ tr:hover td { background: #f5f6ff; }
 .modal-overlay.open { display: flex; }
 
 .modal-box {
-  background: #fff;
+  background: var(--panel);
   border-radius: 14px;
   padding: 1.75rem;
   width: 100%;
@@ -523,7 +547,7 @@ tr:hover td { background: #f5f6ff; }
 
 .confirm-label { color: var(--muted); font-weight: 600; }
 .confirm-value { white-space: pre-wrap; word-break: break-word; }
-.confirm-value.empty { color: #9ca3af; font-style: italic; }
+.confirm-value.empty { color: var(--text-faint); font-style: italic; }
 
 .modal-actions {
   display: flex;
@@ -579,7 +603,7 @@ td.num-col { color: var(--text); }
 }
 
 .detail-item {
-  background: #f8f9ff;
+  background: var(--surface-soft);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: .6rem .75rem;
@@ -633,7 +657,7 @@ td.num-col { color: var(--text); }
 
 .upcoming-badge {
   background: var(--type-incident-bg);
-  color: #92400e;
+  color: var(--incident-text);
   border-radius: 999px;
   padding: .15rem .6rem;
   font-size: .74rem;
@@ -648,7 +672,7 @@ td.num-col { color: var(--text); }
 }
 
 /* กิจกรรมวันนี้ — ชิปแบบเดียวกับปฏิทิน แต่เรียงเป็นแถวการ์ดใหญ่ขึ้น */
-.badge-today { background: var(--type-advance-bg); color: #075985; }
+.badge-today { background: var(--type-advance-bg); color: var(--accent-text-strong); }
 
 .today-events {
   display: grid;
@@ -671,7 +695,7 @@ td.num-col { color: var(--text); }
 .cal-day {
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fafbff;
+  background: var(--surface-soft);
   padding: .5rem .55rem;
   min-height: 92px;
 }
@@ -682,7 +706,7 @@ td.num-col { color: var(--text); }
   box-shadow: 0 0 0 2px rgba(79, 70, 229, .12);
 }
 
-.cal-day.has-events { background: #fffdf4; border-color: #fcd34d; }
+.cal-day.has-events { background: var(--surface-warn); border-color: var(--warn-border); }
 .cal-day.today.has-events { border-color: var(--primary); }
 
 .cal-day-head {
@@ -712,7 +736,7 @@ td.num-col { color: var(--text); }
 
 .cal-event:hover { filter: brightness(.96); }
 
-.cal-time { display: block; font-size: .68rem; font-weight: 700; color: #075985; }
+.cal-time { display: block; font-size: .68rem; font-weight: 700; color: var(--accent-text-strong); }
 
 .cal-title {
   display: -webkit-box;
@@ -721,22 +745,22 @@ td.num-col { color: var(--text); }
   overflow: hidden;
   font-size: .76rem;
   line-height: 1.3;
-  color: #0c4a6e;
+  color: var(--accent-text);
 }
 
 .cal-prov {
   display: inline-block;
   margin-top: .25rem;
-  background: #fff;
-  border: 1px solid #bae6fd;
-  color: #075985;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  color: var(--accent-text-strong);
   border-radius: 999px;
   padding: .05rem .45rem;
   font-size: .68rem;
   font-weight: 600;
 }
 
-.cal-empty { color: #c3c9de; font-size: .8rem; text-align: center; padding-top: .8rem; }
+.cal-empty { color: var(--text-faint); font-size: .8rem; text-align: center; padding-top: .8rem; }
 
 @media (max-width: 1300px) {
   .calendar-strip { grid-template-columns: repeat(4, 1fr); }
@@ -774,9 +798,35 @@ td.num-col { color: var(--text); }
   --sidebar-bg-2: #0a0f1f;
   --sidebar-text: #c7d2fe;
 
+  /* สีประจำประเภทรายงาน — ธีมมืดใช้เฉดสว่างขึ้น ให้อ่านบนพื้นเข้มได้ */
+  --type-advance: #38bdf8;
   --type-advance-bg: #0c3a52;
+  --type-closure: #34d399;
   --type-closure-bg: #0c3f31;
+  --type-incident: #fbbf24;
   --type-incident-bg: #4a3111;
+
+  --surface-soft: #18203a;
+  --surface-warn: #2a2515;
+  --warn-border: #8a6d1f;
+  --chip-bg: #223055;
+  --chip-border: #3a5f7d;
+  --accent-text: #cfe9fb;
+  --accent-text-strong: #9fdcfa;
+  --incident-text: #fcd34d;
+  --text-faint: #6b7794;
+  --group-accent: #4c56a8;
+  --label-text: #b9c2dd;
+  --row-hover: #1d2540;
+
+  --badge-advance-text: #bae6fd;
+  --badge-closure-text: #a7f3d0;
+  --badge-incident-text: #fde68a;
+  --badge-ok-bg: #0c3f31;      --badge-ok-text: #a7f3d0;
+  --badge-warn-bg: #4a3111;    --badge-warn-text: #fde68a;
+  --badge-info-bg: #262f5c;    --badge-info-text: #c7d2fe;
+  --badge-mute-bg: #232c47;    --badge-mute-text: #cbd5e1;
+  --badge-bad-bg: #4c1622;     --badge-bad-text: #fecdd3;
 }
 
 :root[data-theme="dark"] body {
