@@ -10,6 +10,12 @@ APP_DIR="${APP_DIR:-/volume1/docker/news_report/app}"
 REPO="${REPO:-chuey5910/News_Report}"
 URL="https://codeload.github.com/$REPO/tar.gz/refs/heads/$BRANCH"
 
+# docker บน NAS ส่วนใหญ่ต้องใช้ sudo — ตรวจให้เองว่าต้องเติมไหม
+DOCKER="docker"
+if ! docker info >/dev/null 2>&1; then
+    DOCKER="sudo docker"
+fi
+
 if [ ! -f "$APP_DIR/docker-compose.yml" ]; then
     echo "ไม่พบระบบที่ $APP_DIR — ตรวจ path หรือกำหนด APP_DIR ให้ถูกต้อง" >&2
     exit 1
@@ -23,9 +29,9 @@ curl -fsSL "$URL" | tar xz --strip-components=1 -C "$APP_DIR" --wildcards \
 
 echo "2/3 สร้างและรีสตาร์ทคอนเทนเนอร์"
 cd "$APP_DIR"
-docker compose up -d --build
+$DOCKER compose up -d --build
 
 echo "3/3 ตรวจผล"
-docker compose ps
+$DOCKER compose ps
 curl -s -m 10 -o /dev/null -w 'เว็บตอบรหัส %{http_code} (302 = ปกติ)\n' http://127.0.0.1:5001/
 echo "อัปเดตเสร็จแล้ว"
