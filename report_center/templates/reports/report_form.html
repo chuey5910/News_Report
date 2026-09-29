@@ -2,6 +2,10 @@
 {% import "_macros.html" as m %}
 {% set editing = edit_item is defined and edit_item %}
 {% block title %}{{ ('แก้ไข' + form_title) if editing else form_title }} — ศูนย์บันทึกข่าว{% endblock %}
+{% block head_styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">
+{% endblock %}
+
 {% block content %}
 <h2 class="page-title">{{ ('แก้ไข' + form_title) if editing else form_title }}</h2>
 
@@ -59,6 +63,22 @@
       {% endif %}
 
       {{ m.render_field(form.location) }}
+
+      {{ m.render_radio_group(form.situation_level) }}
+
+      <div class="form-field full">
+        <label>ปักหมุดตำแหน่งบนแผนที่ <span class="label-hint">(ไม่บังคับ — เว้นไว้จะปักที่ตัวเมืองของจังหวัดให้)</span></label>
+        <div id="pick-map" class="pick-map"
+             data-lat-input="latitude" data-lng-input="longitude"
+             data-province-select="special_branch_province"
+             data-province-coords='{{ province_coords | tojson }}'></div>
+        <div class="pick-map-bar">
+          <span id="pick-map-status" class="pick-map-status"></span>
+          <button type="button" id="pick-map-clear" class="btn small secondary">ล้างหมุด</button>
+        </div>
+        {{ form.latitude() }}
+        {{ form.longitude() }}
+      </div>
 
       {{ m.render_field(form.mass_count, class_="w-short") }}
       {% if form_type == 'closure' %}
@@ -171,4 +191,9 @@
 
 <script id="activity-form-data" type="application/json">{{ form_config | tojson }}</script>
 <script src="{{ url_for('static', filename='js/activity-form.js') }}"></script>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pick-map.js') }}"></script>
 {% endblock %}

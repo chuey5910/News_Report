@@ -756,3 +756,285 @@ td.num-col { color: var(--text); }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ============================================================
+   ธีมมืด — สลับอัตโนมัติตามพระอาทิตย์ขึ้น-ตก (ตั้งค่าที่ <html data-theme>)
+   ============================================================ */
+
+:root[data-theme="dark"] {
+  --bg: #0b1020;
+  --panel: #151b31;
+  --border: #26304d;
+  --text: #e5e9f5;
+  --muted: #94a3c4;
+  --primary: #818cf8;
+  --primary-dark: #a5b4fc;
+  --primary-soft: #1d2540;
+  --sidebar-bg-1: #131a30;
+  --sidebar-bg-2: #0a0f1f;
+  --sidebar-text: #c7d2fe;
+
+  --type-advance-bg: #0c3a52;
+  --type-closure-bg: #0c3f31;
+  --type-incident-bg: #4a3111;
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(1200px 400px at 85% -10%, rgba(99, 102, 241, .18), transparent 60%),
+    radial-gradient(900px 380px at -10% 0%, rgba(14, 165, 233, .12), transparent 55%),
+    var(--bg);
+}
+
+:root[data-theme="dark"] input[type=text], :root[data-theme="dark"] input[type=password],
+:root[data-theme="dark"] input[type=date], :root[data-theme="dark"] input[type=time],
+:root[data-theme="dark"] input[type=datetime-local], :root[data-theme="dark"] input[type=number],
+:root[data-theme="dark"] select, :root[data-theme="dark"] textarea {
+  background: #0e1428;
+  border-color: #2c3757;
+  color: var(--text);
+}
+
+:root[data-theme="dark"] ::placeholder { color: #64748b; }
+:root[data-theme="dark"] .card { box-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
+:root[data-theme="dark"] th { background: var(--primary-soft); }
+
+/* ============================================================
+   เมนูซ้ายพับเข้า-ออก
+   ============================================================ */
+
+.sidebar-toggle {
+  position: fixed;
+  top: calc(.7rem + env(safe-area-inset-top));
+  left: .7rem;
+  z-index: 1100;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(199, 210, 254, .28);
+  border-radius: 11px;
+  background: rgba(15, 20, 40, .82);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  padding: 0;
+}
+
+.sidebar-toggle .bar {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: #c7d2fe;
+  transition: transform .18s, opacity .18s;
+}
+
+:root:not(.sidebar-collapsed) .sidebar-toggle .bar:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+:root:not(.sidebar-collapsed) .sidebar-toggle .bar:nth-child(2) { opacity: 0; }
+:root:not(.sidebar-collapsed) .sidebar-toggle .bar:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+.sidebar { transition: margin-left .22s ease, transform .22s ease; }
+.sidebar h1 { padding-left: 3.6rem; }   /* เว้นที่ให้ปุ่มแฮมเบอร์เกอร์ */
+
+:root.sidebar-collapsed .sidebar { margin-left: -265px; }
+
+.sidebar .nav-dashboard {
+  font-weight: 700;
+  color: #fff;
+  background: rgba(56, 189, 248, .14);
+  margin-bottom: .35rem;
+}
+
+.sidebar-backdrop { display: none; }
+
+@media (max-width: 900px) {
+  /* จอเล็ก: เมนูเลื่อนทับเนื้อหา ไม่ดันหน้าลง */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(84vw, 300px);
+    z-index: 1050;
+    overflow-y: auto;
+    box-shadow: 8px 0 28px rgba(0, 0, 0, .35);
+  }
+  :root.sidebar-collapsed .sidebar { margin-left: 0; transform: translateX(-102%); }
+  .main { padding-top: calc(3.6rem + env(safe-area-inset-top)); }
+
+  :root:not(.sidebar-collapsed) .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    background: rgba(2, 6, 23, .5);
+  }
+}
+
+/* ============================================================
+   แผนที่สถานการณ์
+   ============================================================ */
+
+.map-card {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 1.4rem;
+  box-shadow: 0 6px 22px rgba(30, 27, 75, .12);
+}
+
+.situation-map {
+  height: clamp(340px, 58vh, 640px);
+  width: 100%;
+  background: #0b1020;
+}
+
+.map-filters {
+  position: absolute;
+  top: .6rem;
+  left: .6rem;
+  right: 4.2rem;          /* เว้นที่ปุ่มเลือกชั้นแผนที่มุมขวา */
+  z-index: 500;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  padding: .55rem;
+  border-radius: 11px;
+  background: rgba(10, 15, 31, .86);
+  backdrop-filter: blur(8px);
+}
+
+.map-filters input[type="text"] { flex: 1 1 230px; min-width: 150px; }
+.map-filters select { flex: 0 1 auto; width: auto; min-width: 130px; }
+.map-filters input[type="text"], .map-filters select {
+  background: rgba(255, 255, 255, .95);
+  border-color: transparent;
+  font-size: .82rem;
+  padding: .38rem .55rem;
+}
+
+.map-legend {
+  position: absolute;
+  bottom: .6rem;
+  left: .6rem;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  padding: .45rem .7rem;
+  border-radius: 999px;
+  background: rgba(10, 15, 31, .86);
+  backdrop-filter: blur(8px);
+  color: #e5e9f5;
+  font-size: .78rem;
+}
+
+.map-legend .legend-title { color: #94a3c4; font-weight: 700; }
+.map-legend .legend-item { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+.map-legend .legend-item i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+
+.map-count {
+  position: absolute;
+  bottom: .6rem;
+  right: .6rem;
+  z-index: 500;
+  padding: .4rem .7rem;
+  border-radius: 999px;
+  background: rgba(10, 15, 31, .86);
+  color: #e5e9f5;
+  font-size: .76rem;
+}
+
+/* หมุดจังหวัด (วงกลมมีเลขจำนวนรายงาน) */
+.province-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  font-size: .9rem;
+  border: 3px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .45);
+}
+
+/* กล่องรายละเอียดเมื่อคลิกหมุด */
+.pin-popup { font-family: inherit; max-height: 300px; overflow-y: auto; }
+.pin-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .4rem; }
+.pin-head strong { font-size: .98rem; }
+.pin-level { color: #fff; font-size: .7rem; font-weight: 700; padding: .12rem .5rem; border-radius: 999px; }
+.pin-note { color: var(--muted); font-size: .72rem; margin: .2rem 0 .45rem; }
+
+.pin-report {
+  display: block;
+  padding: .45rem 0;
+  border-top: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.pin-report:hover { background: var(--primary-soft); }
+.pin-type { font-size: .68rem; font-weight: 700; padding: .1rem .42rem; border-radius: 5px; }
+.pin-type.type-advance { background: var(--type-advance-bg); color: var(--type-advance); }
+.pin-type.type-closure { background: var(--type-closure-bg); color: var(--type-closure); }
+.pin-type.type-incident { background: var(--type-incident-bg); color: var(--type-incident); }
+.pin-title { display: block; font-weight: 600; font-size: .86rem; margin-top: .18rem; }
+.pin-when, .pin-place { display: block; color: var(--muted); font-size: .74rem; }
+
+@media (max-width: 900px) {
+  .map-filters { right: .6rem; top: auto; bottom: 3rem; }
+  .map-legend { bottom: .6rem; font-size: .7rem; gap: .45rem; padding: .35rem .55rem; }
+  .map-count { display: none; }
+  .situation-map { height: clamp(300px, 52vh, 460px); }
+}
+
+/* ช่องปักหมุดในฟอร์มบันทึกข่าว */
+.pick-map {
+  height: 260px;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #0b1020;
+}
+
+.pick-map-bar {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-top: .4rem;
+  flex-wrap: wrap;
+}
+
+.pick-map-status { font-size: .78rem; color: var(--muted); }
+.label-hint { font-weight: 400; color: var(--muted); font-size: .76rem; }
+
+/* --- แก้การซ้อนทับของปุ่ม/แถบต่างๆ บนแผนที่ --- */
+
+/* เมนูพับแล้ว ต้องเว้นที่ให้ปุ่มแฮมเบอร์เกอร์ ไม่ให้ทับหัวข้อหน้า */
+:root.sidebar-collapsed .main { padding-left: 4.2rem; }
+
+/* แถบตัวกรองเริ่มถัดจากปุ่มซูมของแผนที่ */
+.map-filters { left: 3.6rem; }
+
+@media (max-width: 900px) {
+  /* จอเล็กใช้นิ้วซูมได้ ไม่ต้องมีปุ่ม +/- มาเบียดพื้นที่ */
+  .leaflet-control-zoom { display: none !important; }
+  .map-filters { left: .6rem; }
+  :root.sidebar-collapsed .main { padding-left: 1rem; }
+}
+
+/* กล่องรายละเอียดเมื่อคลิกหมุด — ให้เข้ากับธีมมืด (ค่าเริ่มต้นของ Leaflet เป็นสีขาวตายตัว) */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .35);
+}
+
+.leaflet-popup-content-wrapper { border: 1px solid var(--border); }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted); }
+.leaflet-popup-content { margin: .7rem .85rem; }

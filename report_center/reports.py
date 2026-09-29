@@ -10,10 +10,14 @@ from .extensions import db
 from .forms import CLOSURE_TREND_PLACEHOLDER, DeleteForm, NewsReportForm
 from .models import (
     AFFILIATE_CATEGORIES,
+    PROVINCE_COORDS,
     RELATED_ORG_CATEGORIES,
     REPORT_FORM_TABS,
     REPORT_TYPE_CHOICES,
     REPORT_TYPE_LABELS,
+    SITUATION_COLORS,
+    SITUATION_DEFAULT,
+    SITUATION_LEVELS,
     SPECIAL_BRANCH_PROVINCES,
     NewsReport,
     NewsReportLeader,
@@ -103,6 +107,15 @@ def upcoming_advance_items(today):
     )
 
 
+def _as_coord(value):
+    """แปลงพิกัดจากช่องซ่อนในฟอร์ม (ข้อความ) เป็นตัวเลข — ค่าว่างหรือพิกัดนอกโลกถือว่าไม่ระบุ."""
+    try:
+        num = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return num if -90 <= num <= 180 else None
+
+
 def _combine_date_time(date_val, time_val):
     if date_val is None:
         return None
@@ -131,6 +144,9 @@ def _fields_from_form(form):
         "permit_location": form.permit_location.data if permit_granted else None,
         "permit_duration_days": form.permit_duration_days.data if permit_granted else None,
         "location": form.location.data,
+        "latitude": _as_coord(form.latitude.data),
+        "longitude": _as_coord(form.longitude.data),
+        "situation_level": form.situation_level.data or SITUATION_DEFAULT,
         "group_name": form.group_name.data,
         "mass_count": form.mass_count.data,
         "mass_members": form.mass_members.data,
@@ -405,11 +421,74 @@ def _render_report_form(form, form_type, rows, edit_item=None):
         form_config=_form_config(form_type, rows),
         trend_label="แนวโน้มในอนาคต" if form_type == "closure" else "แนวโน้มสถานการณ์",
         trend_placeholder=CLOSURE_TREND_PLACEHOLDER if form_type == "closure" else "",
+        province_coords=PROVINCE_COORDS,
         edit_item=edit_item,
     )
 
 
 # ---------- หน้าเว็บ ----------
+
+def _map_points(reports):
+    """สร้างข้อมูลหมุดสำหรับแผนที่ — รายงานที่จิ้มพิกัดไว้ปักตรงจุด ที่เหลือรวมเป็นหมุดของจังหวัด
+
+    หมุดจังหวัดใช้สีของ "ระดับสถานการณ์ที่รุนแรงที่สุด" ในจังหวัดนั้น เพื่อให้เห็นจุดร้อนได้ทันที
+    """
+    severity_rank = {level: i for i, level in enumerate(SITUATION_LEVELS)}
+
+    def entry(item):
+        return {
+            "id": item.id,
+            "title": item.title,
+            "type": REPORT_TYPE_LABELS.get(item.report_type, item.report_type),
+            "type_key": item.report_type,
+            "level": item.situation_level or SITUATION_DEFAULT,
+            "province": item.special_branch_province or "ไม่ระบุ",
+            "location": item.location,
+            "when": (item.event_datetime.strftime("%d/%m/") + str(item.event_datetime.year + 543)
+                     + item.event_datetime.strftime(" %H:%M") if item.event_datetime else None),
+            "url": url_for("reports.view_report", report_id=item.id),
+        }
+
+    points = []
+    by_province = {}
+    for item in reports:
+        if item.latitude is not None and item.longitude is not None:
+            points.append(
+                {
+                    "lat": item.latitude,
+                    "lng": item.longitude,
+                    "exact": True,
+                    "level": item.situation_level or SITUATION_DEFAULT,
+                    "color": SITUATION_COLORS.get(item.situation_level or SITUATION_DEFAULT),
+                    "label": item.special_branch_province or item.location,
+                    "reports": [entry(item)],
+                }
+            )
+            continue
+        coords = PROVINCE_COORDS.get(item.special_branch_province or "")
+        if coords:
+            by_province.setdefault(item.special_branch_province, []).append(item)
+
+    for province_name, items in by_province.items():
+        lat, lng = PROVINCE_COORDS[province_name]
+        worst = max(
+            (i.situation_level or SITUATION_DEFAULT for i in items),
+            key=lambda lvl: severity_rank.get(lvl, 0),
+        )
+        points.append(
+            {
+                "lat": lat,
+                "lng": lng,
+                "exact": False,
+                "level": worst,
+                "color": SITUATION_COLORS.get(worst),
+                "label": province_name,
+                "reports": [entry(i) for i in sorted(
+                    items, key=lambda x: x.event_datetime or x.created_at, reverse=True)],
+            }
+        )
+    return points
+
 
 @bp.route("/")
 @login_required
@@ -418,6 +497,7 @@ def dashboard():
     q = (request.args.get("q") or "").strip()
     province = (request.args.get("province") or "").strip()
     rtype = (request.args.get("rtype") or "").strip()
+    level = (request.args.get("level") or "").strip()
 
     query = NewsReport.query
     if q:
@@ -450,8 +530,17 @@ def dashboard():
         query = query.filter(NewsReport.special_branch_province == province)
     if rtype in REPORT_TYPE_LABELS:
         query = query.filter(NewsReport.report_type == rtype)
+    if level in SITUATION_LEVELS:
+        if level == SITUATION_DEFAULT:  # รายงานเก่าที่ยังไม่มีค่า ถือเป็น "ปกติ"
+            query = query.filter(
+                or_(NewsReport.situation_level == level, NewsReport.situation_level.is_(None))
+            )
+        else:
+            query = query.filter(NewsReport.situation_level == level)
 
     results = query.order_by(NewsReport.created_at.desc()).limit(200).all()
+    # หมุดบนแผนที่ใช้ผลที่กรองแล้วทั้งหมด (ไม่ตัดที่ 200 เหมือนตารางด้านล่าง)
+    map_points = _map_points(query.order_by(NewsReport.created_at.desc()).limit(2000).all())
 
     # สรุปภาพรวมทั้งระบบ (ไม่ขึ้นกับตัวกรอง)
     counts = {"total": NewsReport.query.count()}
@@ -515,7 +604,12 @@ def dashboard():
         q=q,
         province=province,
         rtype=rtype,
-        filtered=bool(q or province or rtype),
+        level=level,
+        situation_levels=SITUATION_LEVELS,
+        situation_colors=SITUATION_COLORS,
+        map_points=map_points,
+        map_report_count=sum(len(pt["reports"]) for pt in map_points),
+        filtered=bool(q or province or rtype or level),
     )
 
 
@@ -571,6 +665,9 @@ def _prefill_form(form, item):
     form.permit_location.data = item.permit_location
     form.permit_duration_days.data = item.permit_duration_days
     form.location.data = item.location
+    form.latitude.data = item.latitude
+    form.longitude.data = item.longitude
+    form.situation_level.data = item.situation_level or SITUATION_DEFAULT
     form.group_name.data = item.group_name
     form.leader_count.data = len(item.leaders)
     form.participant_count.data = len(item.people_of("participant"))

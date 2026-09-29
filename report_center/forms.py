@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms import (
     DateField,
+    HiddenField,
     IntegerField,
     PasswordField,
     RadioField,
@@ -17,6 +18,8 @@ from .models import (
     ACTIVITY_TYPES,
     PERMIT_STATUSES,
     PROBLEM_GROUP_TYPES,
+    SITUATION_DEFAULT,
+    SITUATION_LEVELS,
     SPECIAL_BRANCH_PROVINCES,
     YES_NO,
 )
@@ -113,6 +116,15 @@ class NewsReportForm(FlaskForm):
     )
 
     location = StringField("สถานที่นัดหมาย", validators=[DataRequired(), Length(max=255)])
+
+    # ระดับสถานการณ์ = สีหมุดบนแผนที่ (เขียว/เหลือง/แดง)
+    situation_level = RadioField(
+        "ระดับสถานการณ์", choices=_choices(SITUATION_LEVELS), default=SITUATION_DEFAULT,
+        validators=[Optional()],
+    )
+    # พิกัดจากการจิ้มแผนที่ — ผู้ใช้ไม่ได้พิมพ์เอง จาวาสคริปต์เติมค่าให้
+    latitude = HiddenField(validators=[Optional()])
+    longitude = HiddenField(validators=[Optional()])
     group_name = StringField("ชื่อกลุ่ม", validators=[Optional(), Length(max=255)])
 
     leader_count = SelectField("แกนนำ (คน)", choices=LEADER_COUNT_CHOICES, coerce=int, default=0)

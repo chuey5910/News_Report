@@ -60,9 +60,15 @@ def create_app(config_object=Config):
     # เมนูซ้าย (แท็บบันทึกข่าว 3 แบบฟอร์ม) ใช้ใน base.html ทุกหน้า
     @app.context_processor
     def inject_form_tabs():
+        from .suntime import theme_for_now
+
+        theme, minutes_to_switch = theme_for_now()
         return {
             "report_form_tabs": models.REPORT_FORM_TABS,
             "report_type_labels": models.REPORT_TYPE_LABELS,
+            # ธีมสว่าง/มืดตามพระอาทิตย์ขึ้น-ตก คำนวณฝั่งเซิร์ฟเวอร์ หน้าจึงไม่กระพริบตอนเปิด
+            "auto_theme": theme,
+            "theme_switch_minutes": minutes_to_switch,
         }
 
     from .auth import bp as auth_bp
@@ -112,6 +118,9 @@ def _auto_migrate():
             ("mass_media", "VARCHAR(255)"),
             ("mass_others", "VARCHAR(255)"),
             ("due_alert_sent_at", "DATETIME"),
+            ("latitude", "FLOAT"),
+            ("longitude", "FLOAT"),
+            ("situation_level", "VARCHAR(16)"),
         ],
         "news_report_leaders": [("position", "VARCHAR(128)"), ("role", "VARCHAR(255)")],
         "news_report_vehicles": [("owner", "VARCHAR(128)"), ("usage", "VARCHAR(255)")],

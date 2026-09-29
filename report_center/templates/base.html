@@ -1,23 +1,29 @@
 <!doctype html>
-<html lang="th">
+<html lang="th" data-theme="{{ auto_theme }}" data-theme-switch-minutes="{{ theme_switch_minutes }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}ศูนย์บันทึกข่าว{% endblock %}</title>
 {% include "_head_meta.html" %}
+{% block head_styles %}{% endblock %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 <div class="layout">
-  <aside class="sidebar">
+  <button type="button" id="sidebar-toggle" class="sidebar-toggle" aria-label="ซ่อน/แสดงเมนู" aria-expanded="true">
+    <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+  </button>
+  <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+  <aside class="sidebar" id="sidebar">
     <h1>ศูนย์บันทึกข่าว</h1>
     <nav>
+      <a href="{{ url_for('reports.dashboard') }}"
+         class="nav-dashboard {{ 'active' if request.endpoint in ('reports.dashboard', 'reports.view_report') else '' }}">แผนที่สถานการณ์</a>
       <div class="section-label">บันทึกข่าว</div>
       {% for tab_key, tab_label in report_form_tabs %}
       <a href="{{ url_for('reports.new_report', form_type=tab_key) }}"
          class="{{ 'active' if request.endpoint == 'reports.new_report' and request.view_args.get('form_type') == tab_key else '' }}">{{ tab_label }}</a>
       {% endfor %}
-      <a href="{{ url_for('reports.dashboard') }}" class="{{ 'active' if request.endpoint in ('reports.dashboard', 'reports.view_report') else '' }}">ภาพรวม</a>
       {% if current_user.is_authenticated and current_user.is_admin %}
       <div class="section-label">ผู้ดูแลระบบ</div>
       <a href="{{ url_for('admin.users') }}" class="{{ 'active' if request.endpoint == 'admin.users' else '' }}">จัดการผู้ใช้</a>
@@ -56,7 +62,9 @@
   </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/layout.js') }}"></script>
 <script src="{{ url_for('static', filename='js/autosize.js') }}"></script>
 <script src="{{ url_for('static', filename='js/confirm-submit.js') }}"></script>
+{% block page_scripts %}{% endblock %}
 </body>
 </html>
