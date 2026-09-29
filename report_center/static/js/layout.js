@@ -1,4 +1,4 @@
-/* เมนูซ้ายพับเข้า-ออก + สลับธีมสว่าง/มืดตามเวลาพระอาทิตย์
+/* เมนูซ้ายพับเข้า-ออก
    จอใหญ่: จำสถานะพับไว้ใน localStorage  |  จอเล็ก: เมนูเลื่อนทับเนื้อหา ปิดได้ด้วยการแตะพื้นหลัง */
 (function () {
   var root = document.documentElement;
@@ -51,12 +51,4 @@
     });
   });
 
-  // ธีมถูกกำหนดมาจากเซิร์ฟเวอร์แล้ว ส่วนนี้แค่สลับให้เองถ้าเปิดหน้าค้างข้ามพระอาทิตย์ขึ้น/ตก
-  var minutes = parseInt(root.getAttribute("data-theme-switch-minutes") || "0", 10);
-  if (minutes > 0) {
-    setTimeout(function () {
-      root.setAttribute("data-theme", root.getAttribute("data-theme") === "dark" ? "light" : "dark");
-      window.dispatchEvent(new Event("themechange"));
-    }, minutes * 60 * 1000);
-  }
 })();

@@ -37,7 +37,8 @@ def _is_locked_out(username):
 
 
 def _default_landing_url(user):
-    return url_for("reports.dashboard") if user.is_admin else url_for("reports.new_report", form_type="advance")
+    # admin เข้ามาเห็นแผนที่สถานการณ์ก่อน ผู้ใช้ทั่วไปเข้าหน้าบันทึกข่าวล่วงหน้า
+    return url_for("reports.situation_map") if user.is_admin else url_for("reports.new_report", form_type="advance")
 
 
 def _client_ip():

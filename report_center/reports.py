@@ -107,13 +107,16 @@ def upcoming_advance_items(today):
     )
 
 
-def _as_coord(value):
-    """แปลงพิกัดจากช่องซ่อนในฟอร์ม (ข้อความ) เป็นตัวเลข — ค่าว่างหรือพิกัดนอกโลกถือว่าไม่ระบุ."""
+def _as_coord(value, limit):
+    """แปลงพิกัดที่กรอกมา (ข้อความ) เป็นตัวเลข — ค่าว่างหรือเกินช่วงที่เป็นไปได้ถือว่าไม่ระบุ
+
+    limit = 90 สำหรับละติจูด, 180 สำหรับลองติจูด
+    """
     try:
         num = float(str(value).strip())
     except (TypeError, ValueError):
         return None
-    return num if -90 <= num <= 180 else None
+    return num if -limit <= num <= limit else None
 
 
 def _combine_date_time(date_val, time_val):
@@ -144,8 +147,8 @@ def _fields_from_form(form):
         "permit_location": form.permit_location.data if permit_granted else None,
         "permit_duration_days": form.permit_duration_days.data if permit_granted else None,
         "location": form.location.data,
-        "latitude": _as_coord(form.latitude.data),
-        "longitude": _as_coord(form.longitude.data),
+        "latitude": _as_coord(form.latitude.data, 90),
+        "longitude": _as_coord(form.longitude.data, 180),
         "situation_level": form.situation_level.data or SITUATION_DEFAULT,
         "group_name": form.group_name.data,
         "mass_count": form.mass_count.data,
@@ -421,7 +424,6 @@ def _render_report_form(form, form_type, rows, edit_item=None):
         form_config=_form_config(form_type, rows),
         trend_label="แนวโน้มในอนาคต" if form_type == "closure" else "แนวโน้มสถานการณ์",
         trend_placeholder=CLOSURE_TREND_PLACEHOLDER if form_type == "closure" else "",
-        province_coords=PROVINCE_COORDS,
         edit_item=edit_item,
     )
 
@@ -436,17 +438,14 @@ def _map_points(reports):
     severity_rank = {level: i for i, level in enumerate(SITUATION_LEVELS)}
 
     def entry(item):
+        # ส่งเฉพาะฟิลด์ที่กล่องรายละเอียดใช้จริง — ข้อมูลชุดนี้ฝังไปในหน้า ยิ่งเล็กยิ่งโหลดเร็ว
         return {
-            "id": item.id,
-            "title": item.title,
-            "type": REPORT_TYPE_LABELS.get(item.report_type, item.report_type),
-            "type_key": item.report_type,
-            "level": item.situation_level or SITUATION_DEFAULT,
-            "province": item.special_branch_province or "ไม่ระบุ",
-            "location": item.location,
-            "when": (item.event_datetime.strftime("%d/%m/") + str(item.event_datetime.year + 543)
-                     + item.event_datetime.strftime(" %H:%M") if item.event_datetime else None),
-            "url": url_for("reports.view_report", report_id=item.id),
+            "t": item.title,
+            "k": item.report_type,
+            "w": (item.event_datetime.strftime("%d/%m/") + str(item.event_datetime.year + 543)
+                  + item.event_datetime.strftime(" %H:%M") if item.event_datetime else None),
+            "p": item.location,
+            "u": url_for("reports.view_report", report_id=item.id),
         }
 
     points = []
@@ -461,6 +460,7 @@ def _map_points(reports):
                     "level": item.situation_level or SITUATION_DEFAULT,
                     "color": SITUATION_COLORS.get(item.situation_level or SITUATION_DEFAULT),
                     "label": item.special_branch_province or item.location,
+                    "total": 1,
                     "reports": [entry(item)],
                 }
             )
@@ -483,22 +483,17 @@ def _map_points(reports):
                 "level": worst,
                 "color": SITUATION_COLORS.get(worst),
                 "label": province_name,
+                # จำกัดไว้ 12 รายการต่อหมุด (เท่าที่กล่องแสดง) เพื่อให้หน้าเบา
+                "total": len(items),
                 "reports": [entry(i) for i in sorted(
-                    items, key=lambda x: x.event_datetime or x.created_at, reverse=True)],
+                    items, key=lambda x: x.event_datetime or x.created_at, reverse=True)[:12]],
             }
         )
     return points
 
 
-@bp.route("/")
-@login_required
-def dashboard():
-    """ภาพรวม — ทุกคนที่ล็อกอินแล้วเข้าดูได้ ค้นหา/กรอง และดูผลวิเคราะห์รายจังหวัด."""
-    q = (request.args.get("q") or "").strip()
-    province = (request.args.get("province") or "").strip()
-    rtype = (request.args.get("rtype") or "").strip()
-    level = (request.args.get("level") or "").strip()
-
+def _filtered_query(q, province, rtype, level):
+    """สร้าง query ตามตัวกรองที่เลือก — ใช้ร่วมกันทั้งหน้าแผนที่และหน้าภาพรวม."""
     query = NewsReport.query
     if q:
         like = f"%{q}%"
@@ -537,10 +532,47 @@ def dashboard():
             )
         else:
             query = query.filter(NewsReport.situation_level == level)
+    return query
 
-    results = query.order_by(NewsReport.created_at.desc()).limit(200).all()
-    # หมุดบนแผนที่ใช้ผลที่กรองแล้วทั้งหมด (ไม่ตัดที่ 200 เหมือนตารางด้านล่าง)
+
+@bp.route("/map")
+@login_required
+def situation_map():
+    """แผนที่สถานการณ์ — หน้าเต็มจอ ไม่มีอย่างอื่นมาเบียดพื้นที่แผนที่."""
+    q = (request.args.get("q") or "").strip()
+    province = (request.args.get("province") or "").strip()
+    rtype = (request.args.get("rtype") or "").strip()
+    level = (request.args.get("level") or "").strip()
+
+    query = _filtered_query(q, province, rtype, level)
     map_points = _map_points(query.order_by(NewsReport.created_at.desc()).limit(2000).all())
+    return render_template(
+        "reports/situation_map.html",
+        map_points=map_points,
+        map_report_count=sum(pt["total"] for pt in map_points),
+        report_type_choices=REPORT_TYPE_CHOICES,
+        provinces=SPECIAL_BRANCH_PROVINCES,
+        situation_levels=SITUATION_LEVELS,
+        situation_colors=SITUATION_COLORS,
+        q=q,
+        province=province,
+        rtype=rtype,
+        level=level,
+        filtered=bool(q or province or rtype or level),
+    )
+
+
+@bp.route("/")
+@login_required
+def dashboard():
+    """ภาพรวม — ตัวเลขสรุป กิจกรรมวันนี้/ล่วงหน้า ค้นหา และผลวิเคราะห์รายจังหวัด."""
+    q = (request.args.get("q") or "").strip()
+    province = (request.args.get("province") or "").strip()
+    rtype = (request.args.get("rtype") or "").strip()
+    level = (request.args.get("level") or "").strip()
+
+    query = _filtered_query(q, province, rtype, level)
+    results = query.order_by(NewsReport.created_at.desc()).limit(100).all()
 
     # สรุปภาพรวมทั้งระบบ (ไม่ขึ้นกับตัวกรอง)
     counts = {"total": NewsReport.query.count()}
@@ -606,9 +638,6 @@ def dashboard():
         rtype=rtype,
         level=level,
         situation_levels=SITUATION_LEVELS,
-        situation_colors=SITUATION_COLORS,
-        map_points=map_points,
-        map_report_count=sum(len(pt["reports"]) for pt in map_points),
         filtered=bool(q or province or rtype or level),
     )
 

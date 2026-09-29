@@ -2,7 +2,7 @@ import os
 from datetime import timedelta
 
 import click
-from flask import Flask
+from flask import Flask, request
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
@@ -33,6 +33,26 @@ def create_app(config_object=Config):
 
     os.makedirs(os.path.join(app.root_path, "instance"), exist_ok=True)
 
+    # ให้เบราว์เซอร์เก็บไฟล์หน้าตา (css/js/รูป) ไว้ 30 วัน จะไม่ต้องถามเซิร์ฟเวอร์ซ้ำทุกหน้า
+    # และต่อท้าย URL ด้วยเวลาแก้ไขไฟล์ เพื่อให้ได้ของใหม่ทันทีเมื่ออัปเดตระบบ
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 60 * 60 * 24 * 30
+
+    @app.after_request
+    def no_store_for_pages(response):
+        # ไฟล์หน้าตาแคชได้ยาว แต่ "หน้าเว็บ" ต้องไม่แคช ไม่งั้นผู้ใช้อาจเห็นรายงานเก่า
+        if request.endpoint != "static":
+            response.headers.setdefault("Cache-Control", "no-store")
+        return response
+
+    @app.url_defaults
+    def add_static_version(endpoint, values):
+        if endpoint != "static" or "filename" not in values:
+            return
+        try:
+            values["v"] = int(os.stat(os.path.join(app.static_folder, values["filename"])).st_mtime)
+        except OSError:
+            pass
+
     db.init_app(app)
     login_manager.init_app(app)
 
@@ -60,15 +80,9 @@ def create_app(config_object=Config):
     # เมนูซ้าย (แท็บบันทึกข่าว 3 แบบฟอร์ม) ใช้ใน base.html ทุกหน้า
     @app.context_processor
     def inject_form_tabs():
-        from .suntime import theme_for_now
-
-        theme, minutes_to_switch = theme_for_now()
         return {
             "report_form_tabs": models.REPORT_FORM_TABS,
             "report_type_labels": models.REPORT_TYPE_LABELS,
-            # ธีมสว่าง/มืดตามพระอาทิตย์ขึ้น-ตก คำนวณฝั่งเซิร์ฟเวอร์ หน้าจึงไม่กระพริบตอนเปิด
-            "auto_theme": theme,
-            "theme_switch_minutes": minutes_to_switch,
         }
 
     from .auth import bp as auth_bp

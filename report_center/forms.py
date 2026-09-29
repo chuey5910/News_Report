@@ -1,7 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import (
     DateField,
-    HiddenField,
     IntegerField,
     PasswordField,
     RadioField,
@@ -122,9 +121,15 @@ class NewsReportForm(FlaskForm):
         "ระดับสถานการณ์", choices=_choices(SITUATION_LEVELS), default=SITUATION_DEFAULT,
         validators=[Optional()],
     )
-    # พิกัดจากการจิ้มแผนที่ — ผู้ใช้ไม่ได้พิมพ์เอง จาวาสคริปต์เติมค่าให้
-    latitude = HiddenField(validators=[Optional()])
-    longitude = HiddenField(validators=[Optional()])
+    # พิกัด — วางจาก Google Maps ได้เลย (วางทั้ง "18.78, 98.98" ในช่องละติจูด ระบบแยกให้เอง)
+    latitude = StringField(
+        "ละติจูด", validators=[Optional(), Length(max=32)],
+        render_kw={"placeholder": "เช่น 18.78830", "inputmode": "decimal"},
+    )
+    longitude = StringField(
+        "ลองติจูด", validators=[Optional(), Length(max=32)],
+        render_kw={"placeholder": "เช่น 98.98530", "inputmode": "decimal"},
+    )
     group_name = StringField("ชื่อกลุ่ม", validators=[Optional(), Length(max=255)])
 
     leader_count = SelectField("แกนนำ (คน)", choices=LEADER_COUNT_CHOICES, coerce=int, default=0)

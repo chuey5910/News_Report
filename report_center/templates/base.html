@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="th" data-theme="{{ auto_theme }}" data-theme-switch-minutes="{{ theme_switch_minutes }}">
+<html lang="th">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,7 +8,7 @@
 {% block head_styles %}{% endblock %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 <div class="layout">
   <button type="button" id="sidebar-toggle" class="sidebar-toggle" aria-label="ซ่อน/แสดงเมนู" aria-expanded="true">
     <span class="bar"></span><span class="bar"></span><span class="bar"></span>
@@ -17,8 +17,10 @@
   <aside class="sidebar" id="sidebar">
     <h1>ศูนย์บันทึกข่าว</h1>
     <nav>
+      <a href="{{ url_for('reports.situation_map') }}"
+         class="nav-dashboard {{ 'active' if request.endpoint == 'reports.situation_map' else '' }}">แผนที่สถานการณ์</a>
       <a href="{{ url_for('reports.dashboard') }}"
-         class="nav-dashboard {{ 'active' if request.endpoint in ('reports.dashboard', 'reports.view_report') else '' }}">แผนที่สถานการณ์</a>
+         class="{{ 'active' if request.endpoint in ('reports.dashboard', 'reports.view_report') else '' }}">ภาพรวม</a>
       <div class="section-label">บันทึกข่าว</div>
       {% for tab_key, tab_label in report_form_tabs %}
       <a href="{{ url_for('reports.new_report', form_type=tab_key) }}"
@@ -62,9 +64,9 @@
   </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/layout.js') }}"></script>
-<script src="{{ url_for('static', filename='js/autosize.js') }}"></script>
-<script src="{{ url_for('static', filename='js/confirm-submit.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/layout.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/autosize.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/confirm-submit.js') }}"></script>
 {% block page_scripts %}{% endblock %}
 </body>
 </html>

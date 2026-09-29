@@ -6,31 +6,49 @@
   if (!el || typeof L === "undefined") return;
 
   var points = [];
+  var typeLabels = {};
   try {
     points = JSON.parse(el.dataset.points || "[]");
+    typeLabels = JSON.parse(el.dataset.typeLabels || "{}");
   } catch (e) {
     points = [];
   }
 
-  var map = L.map(el, { zoomControl: true, scrollWheelZoom: true });
+  // ขอบเขตประเทศไทย — เลื่อน/ซูมออกนอกนี้ไม่ได้ จึงไม่มีการโหลดภาพแผนที่ส่วนอื่นของโลก
+  var THAILAND = L.latLngBounds([5.0, 96.5], [21.0, 106.5]);
+  var map = L.map(el, {
+    zoomControl: true,
+    scrollWheelZoom: true,
+    minZoom: 6,
+    maxZoom: 17,
+    maxBounds: THAILAND,
+    maxBoundsViscosity: 1,
+  });
   var satellite = L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    { maxZoom: 18, attribution: el.dataset.tilesAttribution || "" }
+    { maxZoom: 17, minZoom: 6, bounds: THAILAND, updateWhenIdle: true, keepBuffer: 1,
+      attribution: el.dataset.tilesAttribution || "" }
   );
   var streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
+    maxZoom: 17,
+    minZoom: 6,
+    bounds: THAILAND,
+    updateWhenIdle: true,
+    keepBuffer: 1,
     attribution: "&copy; OpenStreetMap",
   });
   // ชื่อถนน/สถานที่วางทับภาพดาวเทียม เพื่อให้อ่านตำแหน่งได้ (แบบ Hybrid)
   var labels = L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-    { maxZoom: 18 }
+    { maxZoom: 17, minZoom: 6, bounds: THAILAND, updateWhenIdle: true, keepBuffer: 1 }
   );
-  var hybrid = L.layerGroup([satellite, labels]).addTo(map);
+  satellite.addTo(map);
   L.control
-    .layers({ "ภาพดาวเทียม + ชื่อสถานที่": hybrid, "ภาพดาวเทียมล้วน": satellite, "แผนที่ถนน": streets }, null, {
-      position: "topright",
-    })
+    .layers(
+      { "ภาพดาวเทียม": satellite, "แผนที่ถนน": streets },
+      { "ชื่อถนน/สถานที่": labels },   // ชั้นเสริม เปิดเมื่อต้องการ (โหลดภาพเพิ่มอีกเท่าตัว)
+      { position: "topright" }
+    )
     .addTo(map);
 
   function escapeHtml(text) {
@@ -51,21 +69,21 @@
       head += '<div class="pin-note">หมุดระดับจังหวัด — ไม่ใช่จุดเกิดเหตุจริง</div>';
     }
     var rows = point.reports
-      .slice(0, 12)
       .map(function (r) {
         return (
-          '<a class="pin-report" href="' + escapeHtml(r.url) + '">' +
-          '<span class="pin-type type-' + escapeHtml(r.type_key) + '">' + escapeHtml(r.type) + "</span>" +
-          '<span class="pin-title">' + escapeHtml(r.title) + "</span>" +
-          (r.when ? '<span class="pin-when">' + escapeHtml(r.when) + " น.</span>" : "") +
-          '<span class="pin-place">' + escapeHtml(r.location) + "</span>" +
+          '<a class="pin-report" href="' + escapeHtml(r.u) + '">' +
+          '<span class="pin-type type-' + escapeHtml(r.k) + '">' + escapeHtml(typeLabels[r.k] || r.k) + "</span>" +
+          '<span class="pin-title">' + escapeHtml(r.t) + "</span>" +
+          (r.w ? '<span class="pin-when">' + escapeHtml(r.w) + " น.</span>" : "") +
+          '<span class="pin-place">' + escapeHtml(r.p) + "</span>" +
           "</a>"
         );
       })
       .join("");
+    var shown = point.reports.length;
     var more =
-      point.reports.length > 12
-        ? '<div class="pin-note">และอีก ' + (point.reports.length - 12) + " รายการ</div>"
+      point.total > shown
+        ? '<div class="pin-note">และอีก ' + (point.total - shown) + " รายการ</div>"
         : "";
     return '<div class="pin-popup">' + head + rows + more + "</div>";
   }
@@ -83,7 +101,7 @@
         fillOpacity: 0.95,
       });
     } else {
-      var count = point.reports.length;
+      var count = point.total;
       var size = count >= 50 ? 52 : count >= 20 ? 46 : count >= 5 ? 40 : 34;
       marker = L.marker([point.lat, point.lng], {
         icon: L.divIcon({

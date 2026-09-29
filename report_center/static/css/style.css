@@ -49,18 +49,15 @@
 
 * { box-sizing: border-box; }
 
-/* เปิดจากไอคอนบนโฮมสกรีน (โหมดแอป) — ล็อกไม่ให้หน้าเลื่อนซ้ายขวาหรือดีดขึ้นลง
-   ตารางที่กว้างเกินจอจะเลื่อนอยู่ในกรอบการ์ดของตัวเอง ไม่ลากทั้งหน้าไปด้วย */
+/* ไม่ใช้ overflow-x/overscroll ล็อกหน้า เพราะทำให้ Safari/Chrome บนมือถือเลื่อนขึ้นลงไม่ได้
+   กันหน้าล้นแนวนอนด้วยการให้ตารางที่กว้างเกินจอเลื่อนในกรอบการ์ดของตัวเองแทน */
 html {
   max-width: 100%;
-  overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   max-width: 100%;
-  overflow-x: hidden;
-  overscroll-behavior: none;
   margin: 0;
   font-family: "Sarabun", "Segoe UI", Tahoma, sans-serif;
   background:
@@ -782,74 +779,6 @@ td.num-col { color: var(--text); }
 }
 
 /* ============================================================
-   ธีมมืด — สลับอัตโนมัติตามพระอาทิตย์ขึ้น-ตก (ตั้งค่าที่ <html data-theme>)
-   ============================================================ */
-
-:root[data-theme="dark"] {
-  --bg: #0b1020;
-  --panel: #151b31;
-  --border: #26304d;
-  --text: #e5e9f5;
-  --muted: #94a3c4;
-  --primary: #818cf8;
-  --primary-dark: #a5b4fc;
-  --primary-soft: #1d2540;
-  --sidebar-bg-1: #131a30;
-  --sidebar-bg-2: #0a0f1f;
-  --sidebar-text: #c7d2fe;
-
-  /* สีประจำประเภทรายงาน — ธีมมืดใช้เฉดสว่างขึ้น ให้อ่านบนพื้นเข้มได้ */
-  --type-advance: #38bdf8;
-  --type-advance-bg: #0c3a52;
-  --type-closure: #34d399;
-  --type-closure-bg: #0c3f31;
-  --type-incident: #fbbf24;
-  --type-incident-bg: #4a3111;
-
-  --surface-soft: #18203a;
-  --surface-warn: #2a2515;
-  --warn-border: #8a6d1f;
-  --chip-bg: #223055;
-  --chip-border: #3a5f7d;
-  --accent-text: #cfe9fb;
-  --accent-text-strong: #9fdcfa;
-  --incident-text: #fcd34d;
-  --text-faint: #6b7794;
-  --group-accent: #4c56a8;
-  --label-text: #b9c2dd;
-  --row-hover: #1d2540;
-
-  --badge-advance-text: #bae6fd;
-  --badge-closure-text: #a7f3d0;
-  --badge-incident-text: #fde68a;
-  --badge-ok-bg: #0c3f31;      --badge-ok-text: #a7f3d0;
-  --badge-warn-bg: #4a3111;    --badge-warn-text: #fde68a;
-  --badge-info-bg: #262f5c;    --badge-info-text: #c7d2fe;
-  --badge-mute-bg: #232c47;    --badge-mute-text: #cbd5e1;
-  --badge-bad-bg: #4c1622;     --badge-bad-text: #fecdd3;
-}
-
-:root[data-theme="dark"] body {
-  background:
-    radial-gradient(1200px 400px at 85% -10%, rgba(99, 102, 241, .18), transparent 60%),
-    radial-gradient(900px 380px at -10% 0%, rgba(14, 165, 233, .12), transparent 55%),
-    var(--bg);
-}
-
-:root[data-theme="dark"] input[type=text], :root[data-theme="dark"] input[type=password],
-:root[data-theme="dark"] input[type=date], :root[data-theme="dark"] input[type=time],
-:root[data-theme="dark"] input[type=datetime-local], :root[data-theme="dark"] input[type=number],
-:root[data-theme="dark"] select, :root[data-theme="dark"] textarea {
-  background: #0e1428;
-  border-color: #2c3757;
-  color: var(--text);
-}
-
-:root[data-theme="dark"] ::placeholder { color: #64748b; }
-:root[data-theme="dark"] .card { box-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
-:root[data-theme="dark"] th { background: var(--primary-soft); }
-
-/* ============================================================
    เมนูซ้ายพับเข้า-ออก
    ============================================================ */
 
@@ -941,6 +870,28 @@ td.num-col { color: var(--text); }
   height: clamp(340px, 58vh, 640px);
   width: 100%;
   background: #0b1020;
+}
+
+/* หน้าแผนที่โดยเฉพาะ — ให้แผนที่กินพื้นที่ที่เหลือทั้งหมด ไม่ต้องเลื่อนหน้าหาอะไร */
+body.map-page .main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: 1rem;
+}
+
+body.map-page .map-card-full { flex: 1; display: flex; }
+body.map-page .map-card-full .situation-map { height: auto; flex: 1; min-height: 320px; }
+
+@media (min-width: 901px) {
+  body.map-page { height: 100vh; overflow: hidden; }     /* จอใหญ่: แผนที่พอดีจอ */
+  body.map-page .layout { height: 100vh; }
+  body.map-page .main { overflow: hidden; }
+}
+
+@media (max-width: 900px) {
+  /* จอเล็ก: ให้แผนที่สูงพอใช้งาน และยังเลื่อนหน้าได้ปกติ */
+  body.map-page .map-card-full .situation-map { min-height: 70vh; }
 }
 
 .map-filters {
@@ -1042,24 +993,10 @@ td.num-col { color: var(--text); }
   .situation-map { height: clamp(300px, 52vh, 460px); }
 }
 
-/* ช่องปักหมุดในฟอร์มบันทึกข่าว */
-.pick-map {
-  height: 260px;
-  width: 100%;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #0b1020;
-}
+/* ช่องกรอกพิกัดในฟอร์มบันทึกข่าว */
+.coord-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.coord-field .label-hint { display: block; margin-top: .3rem; line-height: 1.45; }
 
-.pick-map-bar {
-  display: flex;
-  align-items: center;
-  gap: .6rem;
-  margin-top: .4rem;
-  flex-wrap: wrap;
-}
-
-.pick-map-status { font-size: .78rem; color: var(--muted); }
 .label-hint { font-weight: 400; color: var(--muted); font-size: .76rem; }
 
 /* --- แก้การซ้อนทับของปุ่ม/แถบต่างๆ บนแผนที่ --- */

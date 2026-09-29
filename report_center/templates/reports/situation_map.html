@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}แผนที่สถานการณ์ — ศูนย์บันทึกข่าว{% endblock %}
+{% block head_styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">
+{% endblock %}
+
+{% block body_class %}map-page{% endblock %}
+
+{% block content %}
+<div class="map-card map-card-full">
+  <div id="situation-map" class="situation-map"
+       data-points='{{ map_points | tojson }}'
+       data-type-labels='{{ report_type_labels | tojson }}'
+       data-tiles-attribution="Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics"></div>
+
+  <form method="get" class="map-filters" id="map-filters">
+    <input type="text" name="q" value="{{ q }}" placeholder="ค้นหาในแผนที่: กิจกรรม / กลุ่ม / สถานที่ / ชื่อ / ทะเบียนรถ">
+    <select name="province">
+      <option value="">— ทุกจังหวัด —</option>
+      {% for p in provinces %}
+      <option value="{{ p }}" {{ 'selected' if province == p else '' }}>{{ p }}</option>
+      {% endfor %}
+    </select>
+    <select name="rtype">
+      <option value="">— ทุกประเภทรายงาน —</option>
+      {% for key, label in report_type_choices %}
+      <option value="{{ key }}" {{ 'selected' if rtype == key else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="level">
+      <option value="">— ทุกระดับสถานการณ์ —</option>
+      {% for lvl in situation_levels %}
+      <option value="{{ lvl }}" {{ 'selected' if level == lvl else '' }}>{{ lvl }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn small" type="submit">กรอง</button>
+    {% if filtered %}
+    <a class="btn small secondary" href="{{ url_for('reports.situation_map') }}">ล้าง</a>
+    {% endif %}
+  </form>
+
+  <div class="map-legend">
+    <span class="legend-title">ระดับสถานการณ์</span>
+    {% for lvl in situation_levels %}
+    <span class="legend-item"><i style="background: {{ situation_colors[lvl] }}"></i>{{ lvl }}</span>
+    {% endfor %}
+  </div>
+
+  <div class="map-count">{{ map_report_count }} รายงาน · {{ map_points | length }} จุด</div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script defer src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/situation-map.js') }}"></script>
+{% endblock %}
