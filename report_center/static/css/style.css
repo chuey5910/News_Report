@@ -595,6 +595,22 @@ tr:hover td { background: var(--row-hover); }
 .confirm-value { white-space: pre-wrap; word-break: break-word; }
 .confirm-value.empty { color: var(--text-faint); font-style: italic; }
 
+/* ช่องติ๊กที่ต้องตัดสินใจในหน้าต่างยืนยัน (ส่งการ์ดเข้าไลน์) */
+.confirm-row.confirm-ask {
+  display: block;
+  margin-top: .8rem;
+  padding: .75rem .9rem;
+  border: 1px dashed #93a7cc;
+  border-bottom: 1px dashed #93a7cc;
+  border-radius: 10px;
+  background: #f6f8fc;
+}
+.confirm-row.confirm-ask.on { border-color: #16305c; background: #eaf0fb; }
+.confirm-ask-label { display: flex; align-items: center; gap: .55rem; font-weight: 700; cursor: pointer; }
+.confirm-ask-label input { width: 20px; height: 20px; flex: 0 0 auto; }
+.confirm-ask-hint { color: var(--muted); font-size: .8rem; margin-top: .35rem; }
+.confirm-only { display: none; }
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

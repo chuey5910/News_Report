@@ -33,6 +33,37 @@
     return { row: row, valueEl: valueEl };
   }
 
+  /** ช่องติ๊กที่ให้ "ตัดสินใจในหน้าต่างยืนยัน" (เช่น ส่งการ์ดเข้าไลน์)
+      ตัว input จริงถูกซ่อนไว้ในฟอร์ม ที่นี่สร้างช่องติ๊กจริงผูกค่ากันไว้ */
+  function appendAskRow(field) {
+    var row = document.createElement("div");
+    row.className = "confirm-row confirm-ask";
+
+    var label = document.createElement("label");
+    label.className = "confirm-ask-label";
+    var box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = field.checked;
+    var text = document.createElement("span");
+    text.textContent = field.dataset.askInConfirm;
+    label.appendChild(box);
+    label.appendChild(text);
+    row.appendChild(label);
+
+    if (field.dataset.askHint) {
+      var hint = document.createElement("div");
+      hint.className = "confirm-ask-hint";
+      hint.textContent = field.dataset.askHint;
+      row.appendChild(hint);
+    }
+    box.addEventListener("change", function () {
+      field.checked = box.checked;
+      row.classList.toggle("on", box.checked);
+    });
+    row.classList.toggle("on", box.checked);
+    body.appendChild(row);
+  }
+
   function openModalFor(form) {
     body.innerHTML = "";
     var checkboxGroups = {}; // name -> { valueEl, values: [] }
@@ -64,6 +95,8 @@
       var value = fieldValueText(el).trim();
       body.appendChild(makeRow(label, value).row);
     });
+
+    form.querySelectorAll("[data-ask-in-confirm]").forEach(appendAskRow);
 
     activeForm = form;
     modal.classList.add("open");
