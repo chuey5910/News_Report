@@ -158,8 +158,8 @@ body {
 
 .main {
   flex: 1;
+  min-width: 0;          /* ให้ยืดเต็มพื้นที่ที่เหลือ ไม่เหลือที่ว่างด้านขวา */
   padding: 1.75rem 2rem;
-  max-width: 1500px;
 }
 
 .page-title {
@@ -680,6 +680,11 @@ td.num-col { color: var(--text); }
 .today-event { margin-bottom: 0; padding: .5rem .6rem; }
 .today-event .cal-title { -webkit-line-clamp: 2; font-size: .84rem; }
 .today-event .cal-time { font-size: .74rem; }
+
+@media (min-width: 1800px) {
+  /* จอกว้างมาก — เพิ่มจำนวนช่องต่อแถว ใช้พื้นที่ให้เกิดประโยชน์แทนที่จะยืดการ์ดให้กว้างเปล่าๆ */
+  .today-events { grid-template-columns: repeat(6, 1fr); }
+}
 
 @media (max-width: 1300px) {
   .today-events { grid-template-columns: repeat(2, 1fr); }
