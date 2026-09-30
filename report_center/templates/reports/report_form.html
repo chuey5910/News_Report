@@ -178,7 +178,9 @@
 
       <div class="form-field full line-card-opt">
         <label class="checkbox-option">
-          {{ form.send_line_card(data_label=form.send_line_card.label.text) }}
+          {{ form.send_line_card(data_group_label="ส่งการ์ดเข้ากลุ่มไลน์",
+                                 data_option_label="ส่ง — สร้างการ์ดจากรายงานนี้เข้ากลุ่มไลน์ทันที",
+                                 data_unchecked_label="ไม่ส่ง (บันทึกเก็บไว้ในระบบเท่านั้น)") }}
           <span>📨 {{ form.send_line_card.label.text }}</span>
         </label>
         <div class="label-hint">

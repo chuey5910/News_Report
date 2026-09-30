@@ -47,6 +47,8 @@
         if (!group) {
           var built = makeRow(el.dataset.groupLabel || el.name, "");
           built.valueEl.classList.add("empty");
+          // ช่องติ๊กเดี่ยวแบบ "ทำ/ไม่ทำ" บอกข้อความตอนไม่ติ๊กได้ ("(ไม่ได้กรอก)" อ่านไม่รู้เรื่อง)
+          if (el.dataset.uncheckedLabel) built.valueEl.textContent = el.dataset.uncheckedLabel;
           body.appendChild(built.row);
           group = checkboxGroups[el.name] = { valueEl: built.valueEl, values: [] };
         }
