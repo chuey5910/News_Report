@@ -21,12 +21,6 @@
       <option value="{{ p }}" {{ 'selected' if province == p else '' }}>{{ p }}</option>
       {% endfor %}
     </select>
-    <select name="rtype">
-      <option value="">— ทุกประเภทรายงาน —</option>
-      {% for key, label in report_type_choices %}
-      <option value="{{ key }}" {{ 'selected' if rtype == key else '' }}>{{ label }}</option>
-      {% endfor %}
-    </select>
     <select name="level">
       <option value="">— ทุกระดับสถานการณ์ —</option>
       {% for lvl in situation_levels %}
@@ -46,7 +40,7 @@
     {% endfor %}
   </div>
 
-  <div class="map-count">{{ map_report_count }} รายงาน · {{ map_points | length }} จุด</div>
+  <div class="map-count">ข่าวล่วงหน้าที่ยังไม่ผ่าน {{ map_report_count }} รายการ · {{ map_points | length }} จุด</div>
 </div>
 {% endblock %}
 

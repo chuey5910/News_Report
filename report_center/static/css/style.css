@@ -782,41 +782,44 @@ td.num-col { color: var(--text); }
    เมนูซ้ายพับเข้า-ออก
    ============================================================ */
 
+/* ปุ่มกลมเกาะขอบขวาของเมนู — กดหุบ/กางเมนู เลื่อนตามเมนูไปด้วย ไม่ทับหัวข้อหน้า */
 .sidebar-toggle {
   position: fixed;
-  top: calc(.7rem + env(safe-area-inset-top));
-  left: .7rem;
+  top: calc(1.15rem + env(safe-area-inset-top));
+  left: 250px;                      /* เมนูกว้าง 265px จึงคร่อมขอบพอดี */
   z-index: 1100;
-  width: 42px;
-  height: 42px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid rgba(199, 210, 254, .28);
-  border-radius: 11px;
-  background: rgba(15, 20, 40, .82);
-  backdrop-filter: blur(6px);
-  cursor: pointer;
+  width: 30px;
+  height: 30px;
   padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 2px 9px rgba(30, 27, 75, .35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: left .22s ease, background .15s;
 }
 
-.sidebar-toggle .bar {
-  display: block;
-  width: 18px;
-  height: 2px;
-  border-radius: 2px;
-  background: #c7d2fe;
-  transition: transform .18s, opacity .18s;
+.sidebar-toggle:hover { background: var(--primary-dark); }
+
+.sidebar-toggle svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform .22s ease;
 }
 
-:root:not(.sidebar-collapsed) .sidebar-toggle .bar:nth-child(1) { transform: translateY(6px) rotate(45deg); }
-:root:not(.sidebar-collapsed) .sidebar-toggle .bar:nth-child(2) { opacity: 0; }
-:root:not(.sidebar-collapsed) .sidebar-toggle .bar:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+/* เมนูหุบแล้ว: ปุ่มย้ายมาชิดขอบจอ และลูกศรกลับด้านเป็น "กางเมนู" */
+:root.sidebar-collapsed .sidebar-toggle { left: 12px; }
+:root.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
 
 .sidebar { transition: margin-left .22s ease, transform .22s ease; }
-.sidebar h1 { padding-left: 3.6rem; }   /* เว้นที่ให้ปุ่มแฮมเบอร์เกอร์ */
 
 :root.sidebar-collapsed .sidebar { margin-left: -265px; }
 
@@ -830,7 +833,11 @@ td.num-col { color: var(--text); }
 .sidebar-backdrop { display: none; }
 
 @media (max-width: 900px) {
-  /* จอเล็ก: เมนูเลื่อนทับเนื้อหา ไม่ดันหน้าลง */
+  /* จอเล็ก: ปุ่มเกาะขอบเมนูที่เลื่อนทับเนื้อหา */
+  .sidebar-toggle { left: min(84vw, 300px); margin-left: -15px; }
+  :root.sidebar-collapsed .sidebar-toggle { left: 12px; margin-left: 0; }
+
+  /* เมนูเลื่อนทับเนื้อหา ไม่ดันหน้าลง */
   .sidebar {
     position: fixed;
     top: 0;
@@ -1002,7 +1009,7 @@ body.map-page .map-card-full .situation-map { height: auto; flex: 1; min-height:
 /* --- แก้การซ้อนทับของปุ่ม/แถบต่างๆ บนแผนที่ --- */
 
 /* เมนูพับแล้ว ต้องเว้นที่ให้ปุ่มแฮมเบอร์เกอร์ ไม่ให้ทับหัวข้อหน้า */
-:root.sidebar-collapsed .main { padding-left: 4.2rem; }
+:root.sidebar-collapsed .main { padding-left: 3.4rem; }
 
 /* แถบตัวกรองเริ่มถัดจากปุ่มซูมของแผนที่ */
 .map-filters { left: 3.6rem; }

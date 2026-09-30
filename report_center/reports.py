@@ -538,14 +538,27 @@ def _filtered_query(q, province, rtype, level):
 @bp.route("/map")
 @login_required
 def situation_map():
-    """แผนที่สถานการณ์ — หน้าเต็มจอ ไม่มีอย่างอื่นมาเบียดพื้นที่แผนที่."""
+    """แผนที่สถานการณ์ — หน้าเต็มจอ ปักหมุดเฉพาะ "ข่าวล่วงหน้าที่ยังไม่ผ่าน" เพื่อไม่ให้แผนที่รก
+
+    กิจกรรมที่เลยไปแล้วไม่ปัก ยกเว้นกิจกรรมหลายวันที่ยังไม่สิ้นสุด
+    """
     q = (request.args.get("q") or "").strip()
     province = (request.args.get("province") or "").strip()
-    rtype = (request.args.get("rtype") or "").strip()
     level = (request.args.get("level") or "").strip()
 
-    query = _filtered_query(q, province, rtype, level)
-    map_points = _map_points(query.order_by(NewsReport.created_at.desc()).limit(2000).all())
+    today = thai_today()
+    now_thai = datetime.utcnow() + timedelta(hours=7)
+    query = (
+        _filtered_query(q, province, "advance", level)
+        .filter(NewsReport.event_datetime.isnot(None))
+        .filter(
+            or_(
+                NewsReport.event_datetime >= today,                    # วันนี้และอนาคต
+                NewsReport.event_end_datetime >= now_thai,             # กิจกรรมหลายวันที่ยังไม่จบ
+            )
+        )
+    )
+    map_points = _map_points(query.order_by(NewsReport.event_datetime.asc()).limit(2000).all())
     return render_template(
         "reports/situation_map.html",
         map_points=map_points,
@@ -556,9 +569,8 @@ def situation_map():
         situation_colors=SITUATION_COLORS,
         q=q,
         province=province,
-        rtype=rtype,
         level=level,
-        filtered=bool(q or province or rtype or level),
+        filtered=bool(q or province or level),
     )
 
 
