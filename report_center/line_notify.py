@@ -48,8 +48,8 @@ FAILED_PERMANENT = "failed_permanent"  # ส่งไม่ได้ และ�
 FAILED_TRANSIENT = "failed_transient"  # ส่งไม่ได้เพราะเน็ตมีปัญหาชั่วคราว — ลองใหม่ภายหลังได้
 
 
-def push_text_status(app, text):
-    """ส่งข้อความเข้า LINE — คืนสถานะ SENT / FAILED_PERMANENT / FAILED_TRANSIENT ไม่มีทาง raise
+def push_message_status(app, message):
+    """ส่ง message object (text/flex) เข้า LINE — คืนสถานะ SENT / FAILED_* ไม่มีทาง raise
 
     แยกสถานะเพื่อให้ผู้เรียกตัดสินใจได้ว่าควรลองส่งซ้ำไหม เช่นช่วงเน็ตดับหรือเปลี่ยนผู้ให้บริการ
     ถือเป็นชั่วคราว (ลองใหม่ได้) แต่โควตาหมดหรือ token ผิดถือเป็นถาวร (ลองซ้ำก็เสียเวลาเปล่า)
@@ -61,7 +61,6 @@ def push_text_status(app, text):
 
     token = config["LINE_CHANNEL_ACCESS_TOKEN"].strip()
     targets = [t.strip() for t in (config.get("LINE_TARGET_IDS") or "").split(",") if t.strip()]
-    message = {"type": "text", "text": text}
     try:
         if targets:
             ok = all(
@@ -82,9 +81,21 @@ def push_text_status(app, text):
         return FAILED_TRANSIENT
 
 
+def push_text_status(app, text):
+    """ส่งข้อความธรรมดาเข้า LINE — คืนสถานะ SENT / FAILED_PERMANENT / FAILED_TRANSIENT."""
+    return push_message_status(app, {"type": "text", "text": text})
+
+
 def push_text(app, text):
     """ส่งข้อความเข้า LINE — คืน True เมื่อส่งสำเร็จ ไม่มีทาง raise."""
     return push_text_status(app, text) == SENT
+
+
+def push_flex_status(app, alt_text, contents):
+    """ส่งการ์ด (Flex Message) เข้า LINE — alt_text คือข้อความที่โผล่ในรายการแชท/แจ้งเตือน."""
+    return push_message_status(
+        app, {"type": "flex", "altText": alt_text[:395], "contents": contents}
+    )
 
 
 def _fmt_be(dt):

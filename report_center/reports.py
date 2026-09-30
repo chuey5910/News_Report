@@ -3,8 +3,9 @@ from datetime import datetime, time as time_cls, timedelta
 from flask import Blueprint, abort, current_app, render_template, redirect, request, url_for, flash
 from flask_login import current_user, login_required
 from sqlalchemy import and_, func, or_
+from sqlalchemy.exc import IntegrityError
 
-from . import sheets_sync
+from . import line_card, line_notify, sheets_sync
 from .admin import admin_required
 from .extensions import db
 from .forms import CLOSURE_TREND_PLACEHOLDER, DeleteForm, NewsReportForm
@@ -169,6 +170,53 @@ def _fields_from_form(form):
         "reporter_name": form.reporter_name.data,
         "reporter_phone": form.reporter_phone.data,
     }
+
+
+def next_ref_number():
+    """เลขที่อ้างอิงถัดไป — รันต่อกันทั้งระบบภายในปี พ.ศ. เดียวกัน เช่น 2569/0004."""
+    year = (datetime.utcnow() + timedelta(hours=7)).year + 543
+    prefix = f"{year}/"
+    last = (
+        db.session.query(func.max(NewsReport.ref_number))
+        .filter(NewsReport.ref_number.like(f"{prefix}%"))
+        .scalar()
+    )
+    try:
+        seq = int(last.split("/")[1]) + 1 if last else 1
+    except (AttributeError, IndexError, ValueError):
+        seq = 1
+    return f"{prefix}{seq:04d}"
+
+
+def _assign_ref_number(item):
+    """ใส่เลขที่อ้างอิงแล้วบันทึก — ถ้าเลขชนกับของคนอื่นที่บันทึกพร้อมกันจะขยับเลขให้เอง."""
+    for _ in range(5):
+        item.ref_number = next_ref_number()
+        try:
+            db.session.commit()
+            return True
+        except IntegrityError:
+            db.session.rollback()
+    item.ref_number = None
+    db.session.commit()   # ยอมบันทึกโดยไม่มีเลขที่ ดีกว่าเสียข้อมูลรายงาน
+    return False
+
+
+def _send_line_card(item):
+    """ส่งการ์ดเข้ากลุ่มไลน์ตามที่ผู้บันทึกติ๊กไว้ แล้วแจ้งผลให้เห็นบนหน้าเว็บ."""
+    app = current_app._get_current_object()
+    if not line_notify.is_configured(app.config):
+        flash("ยังไม่ได้ตั้งค่าไลน์ในระบบ — บันทึกข้อมูลแล้ว แต่ไม่ได้ส่งการ์ด", "warning")
+        return
+    status = line_card.send_card(app, item)
+    if status == line_notify.SENT:
+        item.line_card_sent_at = datetime.utcnow()
+        db.session.commit()
+        flash("ส่งการ์ดเข้ากลุ่มไลน์เรียบร้อยแล้ว", "success")
+    elif status == line_notify.FAILED_TRANSIENT:
+        flash("ส่งการ์ดไม่สำเร็จ (เน็ตมีปัญหาชั่วคราว) — ข้อมูลถูกบันทึกแล้ว ลองกดแก้ไขแล้วติ๊กส่งอีกครั้งได้", "warning")
+    else:
+        flash("ส่งการ์ดไม่สำเร็จ — อาจเป็นเพราะโควตาไลน์เดือนนี้หมด (ดู log) ข้อมูลถูกบันทึกแล้ว", "warning")
 
 
 def _get_at(values, idx):
@@ -743,13 +791,17 @@ def new_report(form_type):
         _attach_children(item, form, form_type)
         db.session.add(item)
         db.session.commit()
+        _assign_ref_number(item)
 
         # Best-effort sync to Google Sheets (never blocks or fails the save)
         synced = sheets_sync.sync_report(current_app._get_current_object(), item)
         if sheets_sync.is_configured(current_app.config) and not synced:
             flash("บันทึกเรียบร้อย แต่ sync ขึ้น Google Sheets ไม่สำเร็จ (ดู log) — ข้อมูลถูกเก็บในระบบแล้ว", "warning")
         else:
-            flash(f"บันทึก{REPORT_FORM_TITLES[form_type]}เรียบร้อยแล้ว", "success")
+            label = f"เลขที่ {item.ref_number} " if item.ref_number else ""
+            flash(f"บันทึก{REPORT_FORM_TITLES[form_type]} {label}เรียบร้อยแล้ว", "success")
+        if form.send_line_card.data:
+            _send_line_card(item)
         return redirect(url_for("reports.new_report", form_type=form_type))
 
     rows = _rows_from_request() if request.method == "POST" else {}
@@ -967,7 +1019,10 @@ def view_report(report_id):
 
     thai_created = item.created_at + timedelta(hours=7)
     recorder = item.created_by.full_name if item.created_by else "-"
-    copy_lines = ["รายงานข่าว"]
+    head = REPORT_FORM_TITLES.get(item.report_type, "รายงานข่าว")
+    copy_lines = [f"{head} {line_card.UNIT_NAME}"]
+    if item.ref_number:
+        copy_lines.append(f"เลขที่ {item.ref_number}")
     copy_lines += [f"{label}: {value}" for label, value in rows]
     copy_lines.append(
         f"บันทึกเมื่อ: {thai_created.strftime(f'%d/%m/{thai_created.year + 543} %H:%M')} โดย {recorder}"
@@ -1013,11 +1068,16 @@ def edit_report(report_id):
         _attach_children(item, form, form_type)
         db.session.commit()
 
+        if not item.ref_number:      # รายงานเก่าที่ยังไม่มีเลขที่ ใส่ให้ตอนแก้ไข
+            _assign_ref_number(item)
+
         synced = sheets_sync.sync_report(current_app._get_current_object(), item)
         if sheets_sync.is_configured(current_app.config) and not synced:
             flash("แก้ไขเรียบร้อย แต่ sync ขึ้น Google Sheets ไม่สำเร็จ (ดู log)", "warning")
         else:
             flash("แก้ไขรายงานข่าวเรียบร้อยแล้ว", "success")
+        if form.send_line_card.data:
+            _send_line_card(item)
         return redirect(url_for("reports.view_report", report_id=item.id))
 
     if request.method == "GET":

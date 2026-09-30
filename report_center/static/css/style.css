@@ -323,6 +323,20 @@ textarea.ta-tall { min-height: 96px; }
 .btn.secondary { background: #64748b; box-shadow: 0 2px 6px rgba(71, 85, 105, .25); }
 .btn.danger { background: var(--danger); box-shadow: 0 2px 6px rgba(225, 29, 72, .3); }
 .btn.small { padding: .35rem .85rem; font-size: .8rem; }
+.btn.big { width: 100%; padding: .85rem 1rem; font-size: 1rem; background: #16305c; }
+
+/* ช่องติ๊กส่งการ์ดเข้าไลน์ (ท้ายแบบฟอร์ม) */
+.line-card-opt {
+  border: 1px dashed #93a7cc;
+  border-radius: 10px;
+  padding: .7rem .9rem;
+  background: #f6f8fc;
+}
+.line-card-opt .checkbox-option { font-weight: 700; }
+
+/* ปุ่มคัดลอกล่างสุดของหน้ารายงานเต็ม */
+.copy-bar { margin: 1rem 0 2rem; text-align: center; }
+.copy-bar .label-hint { margin-top: .4rem; }
 
 /* ---------- ตาราง ---------- */
 
@@ -371,6 +385,7 @@ tr:hover td { background: var(--row-hover); }
 .badge.pending { background: var(--badge-warn-bg); color: var(--badge-warn-text); }
 .badge.admin { background: var(--badge-info-bg); color: var(--badge-info-text); }
 .badge.user { background: var(--badge-mute-bg); color: var(--badge-mute-text); }
+.badge.ref { background: #16305c; color: #fff; letter-spacing: .02em; }
 .badge.success { background: var(--badge-ok-bg); color: var(--badge-ok-text); }
 .badge.fail { background: var(--badge-bad-bg); color: var(--badge-bad-text); }
 

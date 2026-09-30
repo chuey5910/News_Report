@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import click
 from flask import Flask, request
@@ -135,6 +135,8 @@ def _auto_migrate():
             ("latitude", "FLOAT"),
             ("longitude", "FLOAT"),
             ("situation_level", "VARCHAR(16)"),
+            ("ref_number", "VARCHAR(16)"),
+            ("line_card_sent_at", "DATETIME"),
         ],
         "news_report_leaders": [("position", "VARCHAR(128)"), ("role", "VARCHAR(255)")],
         "news_report_vehicles": [("owner", "VARCHAR(128)"), ("usage", "VARCHAR(255)")],
@@ -145,6 +147,37 @@ def _auto_migrate():
             for name, ddl_type in columns:
                 if name not in existing:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl_type}"))
+        # เติมเลขที่อ้างอิงให้รายงานเก่าที่บันทึกไว้ก่อนมีฟีเจอร์นี้ (เรียงตามเวลาบันทึก แยกตามปี พ.ศ.)
+        rows = conn.execute(
+            text(
+                "SELECT id, created_at FROM news_reports "
+                "WHERE ref_number IS NULL OR ref_number = '' ORDER BY created_at, id"
+            )
+        ).fetchall()
+        if rows:
+            used = {
+                row[0]
+                for row in conn.execute(
+                    text("SELECT ref_number FROM news_reports WHERE ref_number IS NOT NULL")
+                ).fetchall()
+            }
+            next_seq = {}
+            for report_id, created_at in rows:
+                # created_at เก็บเป็น UTC — ปีของ "เลขที่" ใช้ปี พ.ศ. ตามเวลาไทย
+                stamp = created_at if isinstance(created_at, datetime) else datetime.fromisoformat(str(created_at))
+                year = (stamp + timedelta(hours=7)).year + 543
+                seq = next_seq.get(year, 0)
+                while True:
+                    seq += 1
+                    ref = f"{year}/{seq:04d}"
+                    if ref not in used:
+                        break
+                next_seq[year] = seq
+                used.add(ref)
+                conn.execute(
+                    text("UPDATE news_reports SET ref_number = :ref WHERE id = :id"),
+                    {"ref": ref, "id": report_id},
+                )
         # แบบฟอร์ม "เหตุการณ์(สถานการณ์)" กับ "ข่าวทั่วไป" ถูกรวมเป็นแท็บเดียว
         # จึงรวมข้อมูลเก่าประเภท general เข้ากับ incident
         conn.execute(text("UPDATE news_reports SET report_type = 'incident' WHERE report_type = 'general'"))

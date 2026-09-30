@@ -1,5 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import (
+    BooleanField,
     DateField,
     IntegerField,
     PasswordField,
@@ -186,3 +187,6 @@ class NewsReportForm(FlaskForm):
     considerations = TextAreaField("ข้อพิจารณา", validators=[Optional()])
     reporter_name = StringField("ผู้รายงาน", validators=[Optional(), Length(max=128)])
     reporter_phone = StringField("เบอร์ติดต่อ", validators=[Optional(), Length(max=32)])
+
+    # ไม่ติ๊กไว้ล่วงหน้า — ส่งเมื่อผู้บันทึกกดเองเท่านั้น (โควตาไลน์มีจำกัด 300 ข้อความ/เดือน)
+    send_line_card = BooleanField("ส่งการ์ดรายงานนี้เข้ากลุ่มไลน์", default=False)

@@ -144,6 +144,11 @@ class NewsReport(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # เลขที่อ้างอิง รันต่อกันทั้งระบบภายในปี พ.ศ. เดียวกัน เช่น "2569/0004"
+    ref_number = db.Column(db.String(16), unique=True, index=True, nullable=True)
+    # เวลาที่ส่งการ์ดรายงานนี้เข้ากลุ่มไลน์ครั้งล่าสุด (ว่าง = ยังไม่เคยส่ง)
+    line_card_sent_at = db.Column(db.DateTime, nullable=True)
+
     # ประเภทรายงาน (เลือกได้ข้อเดียว — advance | closure | incident | general)
     report_type = db.Column(db.String(16), nullable=False)
 
