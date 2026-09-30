@@ -11,7 +11,8 @@
   <div id="situation-map" class="situation-map"
        data-points='{{ map_points | tojson }}'
        data-type-labels='{{ report_type_labels | tojson }}'
-       data-provinces-url="{{ url_for('static', filename='data/thai-provinces.geojson') }}"></div>
+       data-provinces-url="{{ url_for('static', filename='data/thai-provinces.geojson') }}"
+       data-my-provinces='{{ provinces | tojson }}'></div>
 
   <form method="get" class="map-filters" id="map-filters">
     <input type="text" name="q" value="{{ q }}" placeholder="ค้นหาในแผนที่: กิจกรรม / กลุ่ม / สถานที่ / ชื่อ / ทะเบียนรถ">
@@ -40,7 +41,7 @@
     {% endfor %}
   </div>
 
-  <div class="map-count">ข่าวล่วงหน้าที่ยังไม่ผ่าน {{ map_report_count }} รายการ · {{ map_points | length }} จุด</div>
+  <div class="map-count">ข่าวล่วงหน้าที่ยังไม่ผ่าน {{ map_report_count }} รายการ · {{ map_points | length }} จุด{% if province_from_q %} · เฉพาะ จว.{{ province_from_q }}{% endif %}</div>
 </div>
 {% endblock %}
 

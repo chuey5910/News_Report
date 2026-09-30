@@ -492,6 +492,61 @@ def _map_points(reports):
     return points
 
 
+# ช่วงเวลาของรายการรายงานในหน้าภาพรวม (ค่าเริ่มต้น 1 เดือน — ข้อมูลเก่ายังอยู่ในฐานข้อมูล ค้นด้วยตัวกรองได้)
+REPORT_PERIODS = [
+    ("1m", "1 เดือนล่าสุด"),
+    ("3m", "3 เดือนล่าสุด"),
+    ("6m", "6 เดือนล่าสุด"),
+    ("1y", "1 ปีล่าสุด"),
+    ("all", "ทั้งหมด"),
+]
+PERIOD_DAYS = {"1m": 30, "3m": 90, "6m": 180, "1y": 365}
+PERIOD_DEFAULT = "1m"
+PERIOD_LABELS = dict(REPORT_PERIODS)
+RESULT_LIMIT = 300
+
+
+def _province_from_text(text):
+    """ถ้าคำค้นคือ "ชื่อจังหวัด" ให้ถือว่าผู้ใช้ต้องการกรองจังหวัดนั้นจริงๆ
+
+    เดิมคำว่า "เชียงใหม่" ถูกค้นในช่องข้อความทุกช่อง (สถานที่/ข้อเรียกร้อง/ข้อมูลอื่น)
+    ทำให้รายงานของจังหวัดอื่นที่เอ่ยถึงเชียงใหม่ติดมาด้วย
+    """
+    cleaned = text.replace("จังหวัด", "").replace("จว.", "").replace(" ", "")
+    for name in SPECIAL_BRANCH_PROVINCES:
+        if cleaned == name.replace(" ", ""):
+            return name
+    return None
+
+
+def read_filters(with_period=False):
+    """อ่านค่าตัวกรองจาก query string และทำให้เป็นค่ามาตรฐาน (ใช้ร่วมกันทุกหน้า)."""
+    q = (request.args.get("q") or "").strip()
+    province = (request.args.get("province") or "").strip()
+    rtype = (request.args.get("rtype") or "").strip()
+    level = (request.args.get("level") or "").strip()
+
+    # พิมพ์ชื่อจังหวัดในช่องค้นหา = กรองจังหวัดนั้น (ไม่ใช่ค้นข้อความ)
+    province_from_q = None
+    if q and not province:
+        province_from_q = _province_from_text(q)
+        if province_from_q:
+            province = province_from_q
+            q = ""
+
+    filters = {
+        "q": q,
+        "province": province if province in SPECIAL_BRANCH_PROVINCES else "",
+        "rtype": rtype if rtype in REPORT_TYPE_LABELS else "",
+        "level": level if level in SITUATION_LEVELS else "",
+        "province_from_q": province_from_q,
+    }
+    if with_period:
+        period = (request.args.get("period") or "").strip()
+        filters["period"] = period if period in PERIOD_LABELS else PERIOD_DEFAULT
+    return filters
+
+
 def _filtered_query(q, province, rtype, level):
     """สร้าง query ตามตัวกรองที่เลือก — ใช้ร่วมกันทั้งหน้าแผนที่และหน้าภาพรวม."""
     query = NewsReport.query
@@ -542,9 +597,8 @@ def situation_map():
 
     กิจกรรมที่เลยไปแล้วไม่ปัก ยกเว้นกิจกรรมหลายวันที่ยังไม่สิ้นสุด
     """
-    q = (request.args.get("q") or "").strip()
-    province = (request.args.get("province") or "").strip()
-    level = (request.args.get("level") or "").strip()
+    f = read_filters()
+    q, province, level = f["q"], f["province"], f["level"]
 
     today = thai_today()
     now_thai = datetime.utcnow() + timedelta(hours=7)
@@ -570,6 +624,7 @@ def situation_map():
         q=q,
         province=province,
         level=level,
+        province_from_q=f["province_from_q"],
         filtered=bool(q or province or level),
     )
 
@@ -578,13 +633,18 @@ def situation_map():
 @login_required
 def dashboard():
     """ภาพรวม — ตัวเลขสรุป กิจกรรมวันนี้/ล่วงหน้า ค้นหา และผลวิเคราะห์รายจังหวัด."""
-    q = (request.args.get("q") or "").strip()
-    province = (request.args.get("province") or "").strip()
-    rtype = (request.args.get("rtype") or "").strip()
-    level = (request.args.get("level") or "").strip()
+    f = read_filters(with_period=True)
+    q, province, rtype, level, period = f["q"], f["province"], f["rtype"], f["level"], f["period"]
 
     query = _filtered_query(q, province, rtype, level)
-    results = query.order_by(NewsReport.created_at.desc()).limit(100).all()
+    # รายการรายงานแสดง 1 เดือนล่าสุดเป็นค่าเริ่มต้น — ของเก่ายังอยู่ในฐานข้อมูล
+    # เลือกช่วงเวลาให้ยาวขึ้น หรือใช้ตัวกรองอื่น เพื่อดึงย้อนหลังได้
+    days = PERIOD_DAYS.get(period)
+    if days:
+        query = query.filter(NewsReport.created_at >= datetime.utcnow() - timedelta(days=days))
+    results = query.order_by(NewsReport.created_at.desc()).limit(RESULT_LIMIT + 1).all()
+    truncated = len(results) > RESULT_LIMIT
+    results = results[:RESULT_LIMIT]
 
     # สรุปภาพรวมทั้งระบบ (ไม่ขึ้นกับตัวกรอง)
     counts = {"total": NewsReport.query.count()}
@@ -649,6 +709,12 @@ def dashboard():
         province=province,
         rtype=rtype,
         level=level,
+        period=period,
+        period_choices=REPORT_PERIODS,
+        period_label=PERIOD_LABELS[period],
+        province_from_q=f["province_from_q"],
+        truncated=truncated,
+        result_limit=RESULT_LIMIT,
         situation_levels=SITUATION_LEVELS,
         filtered=bool(q or province or rtype or level),
     )

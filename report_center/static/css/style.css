@@ -996,6 +996,35 @@ body.map-page .map-card-full .situation-map { height: auto; flex: 1; min-height:
   font-size: .76rem;
 }
 
+/* ชื่อจังหวัดบนแผนที่ — วางกลางพื้นที่จังหวัด ไม่ตัดคำ มีขอบขาวรอบตัวอักษรให้อ่านออกบนแผนที่ถนน
+   ขนาดตัวอักษรถูกย่อด้วย JS ให้พอดีกับความกว้างของจังหวัดในแต่ละระดับซูม */
+.pv-label {
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ตัวหนังสือจริงอยู่ใน span ข้างใน — จัดให้จุดกึ่งกลางของชื่ออยู่ตรงพิกัดที่คำนวณไว้
+   (ห้ามใส่ transform ที่ตัว .pv-label เพราะ Leaflet ใช้ transform นั้นวางตำแหน่งหมุด) */
+.pv-label .pv-name {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  display: block;
+  white-space: nowrap;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+  color: #10204a;
+  letter-spacing: .01em;
+  text-shadow:
+    0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff,
+    1px 1px 0 #fff, -1px 1px 0 #fff, 1px -1px 0 #fff, -1px -1px 0 #fff;
+}
+
 /* หมุดจังหวัด (วงกลมมีเลขจำนวนรายงาน) */
 .province-pin {
   display: flex;

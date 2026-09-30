@@ -85,11 +85,21 @@
       <option value="{{ key }}" {{ 'selected' if rtype == key else '' }}>{{ label }}</option>
       {% endfor %}
     </select>
+    <select name="period">
+      {% for key, label in period_choices %}
+      <option value="{{ key }}" {{ 'selected' if period == key else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
     <button class="btn small" type="submit">ค้นหา</button>
-    {% if filtered %}
+    {% if filtered or period != '1m' %}
     <a class="btn small secondary" href="{{ url_for('reports.dashboard') }}">ล้างตัวกรอง</a>
     {% endif %}
   </form>
+  {% if province_from_q %}
+  <div class="filter-note">ค้นหา “{{ province_from_q }}” = แสดงเฉพาะรายงานของสันติบาล จว.{{ province_from_q }} เท่านั้น</div>
+  {% else %}
+  <div class="filter-note">รายการด้านล่างแสดง{{ period_label }} — ข้อมูลเก่ายังเก็บไว้ครบ เลือกช่วงเวลาให้ยาวขึ้นหรือใส่ตัวกรองเพื่อดูย้อนหลัง</div>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -123,7 +133,10 @@
 </div>
 
 <div class="card">
-  <h2 class="with-ico"><span class="head-ico tone-all">{{ ic.icon('list') }}</span>รายงานข่าว{{ ' (ตามตัวกรอง)' if filtered else '' }} — {{ results|length }} รายการ</h2>
+  <h2 class="with-ico"><span class="head-ico tone-all">{{ ic.icon('list') }}</span>รายงานข่าว{{ ' (ตามตัวกรอง)' if filtered else '' }} · {{ period_label }} — {{ results|length }} รายการ</h2>
+  {% if truncated %}
+  <div class="filter-note">แสดง {{ result_limit }} รายการล่าสุดเท่านั้น — ใส่ตัวกรองให้แคบลงเพื่อดูรายการที่เหลือ</div>
+  {% endif %}
   {% if results %}
   <div class="table-scroll">
     <table>
