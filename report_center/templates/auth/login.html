@@ -11,7 +11,11 @@
 {% import "_macros.html" as m %}
 <div class="auth-wrap">
   <div class="auth-card">
-    <h1>เข้าสู่ระบบ</h1>
+    <div class="auth-brand">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" width="96" height="96">
+      <div class="auth-brand-unit">กก.3 บก.ส.1</div>
+      <h1>ศูนย์บันทึกข่าว</h1>
+    </div>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}

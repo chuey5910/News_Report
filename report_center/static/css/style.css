@@ -453,6 +453,27 @@ tr:hover td { background: var(--row-hover); }
   color: var(--primary-dark);
 }
 
+/* ตราหน่วยแทนคำว่า "เข้าสู่ระบบ" บนหน้าล็อกอิน — ลำดับเดียวกับหัวเมนู: ตรา / กก.3 บก.ส.1 / เส้น / ชื่อระบบ */
+.auth-brand { text-align: center; margin-bottom: 1.4rem; }
+.auth-brand img {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(17, 12, 66, .25);
+  display: block;
+  margin: 0 auto .7rem;
+}
+.auth-brand-unit {
+  display: inline-block;
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: .03em;
+  padding: 0 1.4rem .3rem;
+  border-bottom: 1px solid var(--border);
+}
+.auth-brand h1 { margin: .45rem 0 0; font-size: 1.45rem; }
+
 .auth-card .form-field { margin-bottom: 1rem; }
 .auth-card .btn { width: 100%; margin-top: .5rem; }
 .auth-card .switch { text-align: center; margin-top: 1.25rem; font-size: .88rem; }
