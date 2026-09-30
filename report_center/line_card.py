@@ -51,11 +51,52 @@ EMPTY = "ไม่ปรากฏ"
 LONG_LIMIT = 220        # ตัวอักษรสูงสุดของข้อที่เป็นข้อความยาว
 LIST_LIMIT = 6          # จำนวนบรรทัดสูงสุดของรายการ (แกนนำ/ยานพาหนะ/บุคคล)
 
+ZWSP = "\u200b"         # ตัวแบ่งคำที่มองไม่เห็น — บอกไลน์ว่าตัดบรรทัดตรงนี้ได้
+
+
+# ---------- ตัดคำภาษาไทย ----------
+
+def _is_thai(ch):
+    return "\u0e00" <= ch <= "\u0e7f"
+
+
+def thai_words(text):
+    """แยกข้อความเป็นคำ (ใช้ pythainlp ถ้ามี) — ไม่มีไลบรารีก็คืนทั้งก้อนเป็นคำเดียว."""
+    try:
+        from pythainlp.tokenize import word_tokenize
+    except ImportError:  # ไม่มีไลบรารี = ไม่แทรกตัวแบ่งคำ ไลน์ยังแสดงผลได้ตามเดิม
+        return [text]
+    return word_tokenize(text, engine="newmm", keep_whitespace=True)
+
+
+def thai_wrap(text):
+    """แทรกตัวแบ่งคำที่มองไม่เห็นระหว่างคำไทย
+
+    ภาษาไทยไม่มีช่องว่างระหว่างคำ ไลน์บางเครื่อง (เช่น LINE บน Mac) จึงตัดบรรทัดกลางคำ
+    เช่น "เห|ตุการณ์" — ใส่ตัวแบ่งคำไว้ ไลน์จะเลือกตัดตรงรอยต่อคำแทน
+    """
+    if not text or not any(_is_thai(ch) for ch in text):
+        return text
+    out = []
+    for line in text.split("\n"):
+        words = thai_words(line)
+        pieces = []
+        for i, word in enumerate(words):
+            if i and word and pieces and not word[0].isspace() and not pieces[-1][-1:].isspace() \
+                    and pieces[-1][-1:] != "\u00a0" and (_is_thai(word[0]) or _is_thai(pieces[-1][-1:])):
+                pieces.append(ZWSP)
+            pieces.append(word)
+        out.append("".join(pieces))
+    return "\n".join(out)
+
 
 # ---------- ตัวช่วยจัดข้อความ ----------
 
 def shorten(text, limit=LONG_LIMIT):
-    """ตัดข้อความยาวที่ท้ายประโยค/ท้ายคำ ไม่ตัดกลางคำ — คืน (ข้อความ, ถูกตัดไหม)."""
+    """ตัดข้อความยาวที่ท้ายประโยค/ท้ายคำ ไม่ตัดกลางคำ — คืน (ข้อความ, ถูกตัดไหม).
+
+    ลำดับจุดตัด: ท้ายบรรทัด → ท้ายประโยค (ช่องว่างซึ่งภาษาไทยใช้คั่นประโยค) → ท้ายคำ
+    """
     text = (text or "").strip()
     if len(text) <= limit:
         return text, False
@@ -67,8 +108,14 @@ def shorten(text, limit=LONG_LIMIT):
             cut = pos
             break
     if cut < 0:
-        cut = limit
-    return text[:cut].rstrip(" \n•·-") + " …", True
+        # ไม่มีช่องว่างให้ตัด — ตัดที่รอยต่อคำสุดท้ายก่อนถึงขีดจำกัด
+        pos = 0
+        for word in thai_words(text):
+            if pos + len(word) > limit:
+                break
+            pos += len(word)
+        cut = pos if pos >= limit * 0.5 else limit
+    return text[:cut].rstrip(" \n•·-\u00a0") + " …", True
 
 
 def _bullets(lines):
@@ -306,7 +353,7 @@ def _pill(text, bg, color):
         "paddingTop": "2px",
         "paddingBottom": "2px",
         "flex": 0,
-        "contents": [{"type": "text", "text": text, "size": "xxs", "weight": "bold", "color": color}],
+        "contents": [{"type": "text", "text": text, "size": "xs", "weight": "bold", "color": color}],
     }
 
 
@@ -321,20 +368,20 @@ def _chip(text, tone):
         "paddingStart": "9px",
         "paddingEnd": "9px",
         "margin": "xs",
-        "contents": [{"type": "text", "text": text, "size": "xxs", "weight": "bold", "color": color, "wrap": True}],
+        "contents": [{"type": "text", "text": thai_wrap(text), "size": "xs", "weight": "bold", "color": color, "wrap": True}],
     }
 
 
 def _extra_block(extra):
     contents = [
-        {"type": "text", "text": extra["title"], "size": "xxs", "weight": "bold", "color": "#475569"}
+        {"type": "text", "text": extra["title"], "size": "xs", "weight": "bold", "color": "#475569"}
     ]
     if extra.get("chips"):
         for chip in extra["chips"]:
             contents.append(_chip(chip, extra.get("tone", "activity")))
     if extra.get("text"):
         contents.append(
-            {"type": "text", "text": extra["text"], "size": "xs", "color": "#334155", "wrap": True, "margin": "xs"}
+            {"type": "text", "text": thai_wrap(extra["text"]), "size": "sm", "color": "#334155", "wrap": True, "margin": "xs"}
         )
     return {
         "type": "box",
@@ -355,8 +402,8 @@ def _row_block(row, detail_url):
         "contents": [
             {
                 "type": "text",
-                "text": f"{row['icon']} {row['label']}",
-                "size": "xs",
+                "text": thai_wrap(f"{row['icon']} {row['label']}"),
+                "size": "sm",
                 "weight": "bold",
                 "color": LABEL_COLOR,
                 "wrap": True,
@@ -369,8 +416,8 @@ def _row_block(row, detail_url):
 
     contents = [label_line, {
         "type": "text",
-        "text": row["value"],
-        "size": "md" if row["big"] else "sm",
+        "text": thai_wrap(row["value"]),
+        "size": "lg" if row["big"] else "md",
         "weight": "bold" if row["big"] else "regular",
         "color": MUTED_COLOR if row["empty"] else TEXT_COLOR,
         "wrap": True,
@@ -382,7 +429,7 @@ def _row_block(row, detail_url):
             {
                 "type": "text",
                 "text": row["link"]["text"],
-                "size": "xs",
+                "size": "sm",
                 "weight": "bold",
                 "color": "#0E7490",
                 "margin": "xs",
@@ -397,7 +444,7 @@ def _row_block(row, detail_url):
             {
                 "type": "text",
                 "text": f"📄 อ่านข้อ {number} แบบเต็ม (เปิดรายงานเต็มทุกข้อ)",
-                "size": "xs",
+                "size": "sm",
                 "weight": "bold",
                 "color": LABEL_COLOR,
                 "margin": "xs",
@@ -438,7 +485,7 @@ def build_card(config, item):
     title = CARD_TITLES.get(item.report_type, REPORT_TYPE_LABELS.get(item.report_type, "รายงานข่าว"))
 
     header_top = [
-        {"type": "text", "text": f"📋 {title}", "color": "#FFFFFF", "weight": "bold", "size": "md",
+        {"type": "text", "text": f"📋 {title}", "color": "#FFFFFF", "weight": "bold", "size": "lg",
          "wrap": True, "flex": 1},
     ]
     if item.special_branch_province:
@@ -448,7 +495,7 @@ def build_card(config, item):
     if item.ref_number:
         sub += f" · เลขที่ {item.ref_number}"
     header_sub = [
-        {"type": "text", "text": sub, "size": "xs", "color": "#C7D7F0", "wrap": True, "flex": 1},
+        {"type": "text", "text": sub, "size": "sm", "color": "#C7D7F0", "wrap": True, "flex": 1},
         _pill(level, pill_bg, pill_color),
     ]
 
@@ -464,9 +511,9 @@ def build_card(config, item):
             "type": "box",
             "layout": "baseline",
             "contents": [
-                {"type": "text", "text": "👮 ผู้รายงาน", "size": "sm", "color": MUTED_COLOR, "flex": 0},
-                {"type": "text", "text": " ", "size": "sm", "flex": 0},
-                {"type": "text", "text": reporter, "size": "sm", "weight": "bold", "color": TEXT_COLOR, "wrap": True},
+                {"type": "text", "text": "👮 ผู้รายงาน", "size": "md", "color": MUTED_COLOR, "flex": 0},
+                {"type": "text", "text": " ", "size": "md", "flex": 0},
+                {"type": "text", "text": reporter, "size": "md", "weight": "bold", "color": TEXT_COLOR, "wrap": True},
             ],
         }
     ]
@@ -493,9 +540,9 @@ def build_card(config, item):
             }
         )
 
-    return {
+    bubble = {
         "type": "bubble",
-        "size": "mega",
+        "size": "giga",   # กว้างที่สุดที่ไลน์อนุญาต (ไลน์เว้นที่รูปโปรไฟล์/เวลาไว้เสมอ เต็มจอ 100% ไม่ได้)
         "header": {
             "type": "box",
             "layout": "vertical",
@@ -515,6 +562,20 @@ def build_card(config, item):
         "body": {"type": "box", "layout": "vertical", "paddingAll": "14px", "contents": body},
         "footer": {"type": "box", "layout": "vertical", "paddingAll": "14px", "contents": footer},
     }
+    _enable_scaling(bubble)
+    return bubble
+
+
+def _enable_scaling(node):
+    """ให้ตัวอักษร/ปุ่มขยายตามขนาดตัวอักษรที่ผู้ใช้ตั้งไว้ในแอปไลน์ (เหมือนข้อความแชท)."""
+    if isinstance(node, dict):
+        if node.get("type") in ("text", "button"):
+            node["scaling"] = True
+        for value in node.values():
+            _enable_scaling(value)
+    elif isinstance(node, list):
+        for value in node:
+            _enable_scaling(value)
 
 
 def alt_text(item):
