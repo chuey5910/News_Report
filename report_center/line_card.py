@@ -8,6 +8,10 @@
 - ล้มเหลวอย่างไรก็ไม่กระทบการบันทึกข้อมูล (ตัวส่งกลืน error ให้แล้ว)
 """
 
+import hashlib
+import hmac
+from datetime import timedelta
+
 from . import line_notify
 from .models import (
     AFFILIATE_CATEGORIES,
@@ -79,6 +83,17 @@ def _bullets(lines):
     return text, False
 
 
+def _keep_all(text, limit=None):
+    """โหมดเต็ม — ไม่ตัดทอน (ใช้แทน shorten)."""
+    return (text or "").strip(), False
+
+
+def _bullets_all(lines):
+    """โหมดเต็ม — แสดงทุกรายการ (ใช้แทน _bullets)."""
+    lines = [line for line in lines if line]
+    return ("\n".join(f"• {line}" for line in lines) if lines else EMPTY), False
+
+
 def thai_datetime(dt, approx=False):
     if not dt:
         return None
@@ -93,14 +108,36 @@ def _split(value):
     return [v.strip() for v in (value or "").split(",") if v.strip()]
 
 
+def tidy_bullets(text):
+    """ขีดหน้าบรรทัด (- หรือ –) → • และผูกกับคำถัดไปด้วยช่องว่างแบบไม่ตัดบรรทัด
+
+    ไลน์ตัดบรรทัดที่ช่องว่าง ข้อความไทยยาวๆ ไม่มีช่องว่างจึงถูกยกไปทั้งก้อน
+    ทิ้งขีดไว้โดดๆ ท้ายบรรทัดบน (เห็นในการ์ดจริง) — ช่องว่างไม่ตัดบรรทัดแก้ตรงนี้
+    """
+    out = []
+    for line in (text or "").splitlines():
+        stripped = line.lstrip()
+        if stripped[:1] in ("-", "–", "•") and stripped[1:2] in (" ", ""):
+            stripped = "•\u00a0" + stripped[1:].lstrip()
+        out.append(stripped)
+    return "\n".join(out)
+
+
 # ---------- เนื้อหา 15 ข้อ ----------
 
-def card_rows(item):
-    """(ไอคอน, เลขข้อ+หัวข้อ, ค่า, ถูกตัดไหม, ข้อมูลประกอบ, ลิงก์เพิ่ม) ของการ์ด 1 ใบ."""
+def card_rows(item, full=False):
+    """(ไอคอน, เลขข้อ+หัวข้อ, ค่า, ถูกตัดไหม, ข้อมูลประกอบ, ลิงก์เพิ่ม) ของการ์ด 1 ใบ
+
+    full=True = ไม่ตัดทอนอะไรเลย (ใช้กับหน้ารายงานเต็มและข้อความคัดลอก)
+    """
     advance = item.report_type == "advance"
     rows = []
 
+    cut_text = _keep_all if full else shorten
+    bullets = _bullets_all if full else _bullets
+
     def add(icon, no, label, value, cut=False, extras=None, link=None, big=False):
+        value = tidy_bullets(value)
         rows.append(
             {
                 "icon": icon,
@@ -158,7 +195,7 @@ def card_rows(item):
         if leader.position:
             line += f" ({leader.position})"
         leader_lines.append(line)
-    text, cut = _bullets(leader_lines)
+    text, cut = bullets(leader_lines)
     add("🗣", 5, "ชื่อแกนนำ", text, cut=cut)
 
     # 6 มวลชน
@@ -175,14 +212,14 @@ def card_rows(item):
     add("👥", 6, mass_label, item.mass_count, extras=mass_extras)
 
     # 7 วัตถุประสงค์/ข้อเรียกร้อง
-    text, cut = shorten(item.demands)
+    text, cut = cut_text(item.demands)
     add("📣", 7, "วัตถุประสงค์และข้อเรียกร้อง", text, cut=cut)
 
     # 8 รูปแบบกิจกรรม (+ รายละเอียดการทำกิจกรรมของรายงานปิดข่าว/เหตุการณ์)
-    text, cut = shorten(item.activity_format)
+    text, cut = cut_text(item.activity_format)
     detail_extras = []
     if item.activity_detail:
-        detail_text, detail_cut = shorten(item.activity_detail)
+        detail_text, detail_cut = cut_text(item.activity_detail)
         detail_extras.append({"title": "รายละเอียดการทำกิจกรรม", "text": detail_text})
         cut = cut or detail_cut
     add("🎪", 8, "รูปแบบ/ลักษณะการจัดกิจกรรม", text, cut=cut, extras=detail_extras)
@@ -196,14 +233,14 @@ def card_rows(item):
             parts = [p for p in (v.vehicle_type, v.plate_number and f"ทะเบียน {v.plate_number}",
                                  v.province, v.color and f"สี {v.color}") if p]
             lines.append(" ".join(parts))
-        vehicle_text, vehicle_cut = _bullets(lines)
+        vehicle_text, vehicle_cut = bullets(lines)
     add("🚗", 9, "ยานพาหนะที่ใช้", vehicle_text, cut=vehicle_cut)
 
     # 10 สัมภาระค้างแรม/อุปกรณ์
     equipment = item.overnight_equipment_status or ""
     if item.overnight_equipment_detail:
         equipment += f" — {item.overnight_equipment_detail}"
-    text, cut = shorten(equipment)
+    text, cut = cut_text(equipment)
     add("🎒", 10, "สัมภาระค้างแรม และอุปกรณ์ในการทำกิจกรรม", text, cut=cut)
 
     # 11 ผู้สนับสนุน (ข้อความอิสระ หรือรายชื่อที่กรอกเป็นช่องย่อย)
@@ -212,9 +249,9 @@ def card_rows(item):
         for p in item.people_of("supporter")
     ]
     if support_lines:
-        text, cut = _bullets(support_lines)
+        text, cut = bullets(support_lines)
     else:
-        text, cut = shorten(item.supporters)
+        text, cut = cut_text(item.supporters)
     add("💰", 11, "ผู้สนับสนุน/ผู้อยู่เบื้องหลัง", text, cut=cut)
 
     # 12 ความเกี่ยวข้อง/ความเชื่อมโยง + รายชื่อเครือข่าย/องค์กร
@@ -225,31 +262,31 @@ def card_rows(item):
     for category in RELATED_ORG_CATEGORIES:
         for p in item.people_of("related_org", category):
             linked.append(f"{category}: {p.full_name}" + (f" — {p.role}" if p.role else ""))
-    base_text, cut = shorten(item.affiliations)
+    base_text, cut = cut_text(item.affiliations)
     if linked:
-        extra_text, extra_cut = _bullets(linked)
+        extra_text, extra_cut = bullets(linked)
         base_text = f"{base_text}\n{extra_text}" if base_text else extra_text
         cut = cut or extra_cut
     add("🔗", 12, "ความเกี่ยวข้อง/ความเชื่อมโยงกับการเมือง องค์กร หรือบุคคลอื่นๆ", base_text, cut=cut)
 
     # 13 ข้อมูลน่าสนใจอื่นๆ (+ สื่อออนไลน์ของรายงานปิดข่าว)
-    text, cut = shorten(item.other_info)
+    text, cut = cut_text(item.other_info)
     media_extras = []
     if item.media_posts:
         lines = [
             f"{m.page_name} — Like {m.likes or '-'} / แชร์ {m.shares or '-'}" for m in item.media_posts
         ]
-        media_text, media_cut = _bullets(lines)
+        media_text, media_cut = bullets(lines)
         media_extras.append({"title": "การเผยแพร่ทางสื่อออนไลน์", "text": media_text})
         cut = cut or media_cut
     add("🔍", 13, "ข้อมูลที่น่าสนใจอื่นๆ", text, cut=cut, extras=media_extras)
 
     # 14 ข้อพิจารณา
-    text, cut = shorten(item.considerations)
+    text, cut = cut_text(item.considerations)
     add("⚖️", 14, "ข้อพิจารณา", text, cut=cut)
 
     # 15 แนวโน้ม
-    text, cut = shorten(item.trend_assessment)
+    text, cut = cut_text(item.trend_assessment)
     label = "แนวโน้มในอนาคต" if item.report_type == "closure" else "แนวโน้มสถานการณ์"
     add("📈", 15, label, text, cut=cut)
 
@@ -370,14 +407,26 @@ def _row_block(row, detail_url):
     return {"type": "box", "layout": "vertical", "paddingTop": "8px", "paddingBottom": "8px", "contents": contents}
 
 
-def _tel_uri(phone):
+def tel_uri(phone):
     digits = "".join(ch for ch in (phone or "") if ch.isdigit())
     return f"tel:{digits}" if len(digits) >= 9 else None
 
 
-def detail_url(config, report_id):
+def share_token(config, report_id):
+    """รหัสลับประจำรายงาน (คำนวณจาก SECRET_KEY) — ลิงก์ในการ์ดเปิดได้โดยไม่ต้องล็อกอิน
+    แต่เดาเลขรายงานอื่นไม่ได้ และยังต้องอยู่บน Tailscale ถึงจะเปิดถึงเครื่องอยู่ดี"""
+    key = (config.get("SECRET_KEY") or "").encode("utf-8")
+    return hmac.new(key, f"share:{report_id}".encode("utf-8"), hashlib.sha256).hexdigest()[:24]
+
+
+def share_url(config, report_id):
     base = (config.get("REPORT_CENTER_BASE_URL") or "").rstrip("/")
-    return f"{base}/reports/{report_id}" if base else None
+    return f"{base}/reports/{report_id}/s/{share_token(config, report_id)}" if base else None
+
+
+def detail_url(config, report_id):
+    """ลิงก์ที่ปุ่มในการ์ดใช้ = หน้ารายงานเต็มแบบไม่ต้องล็อกอิน."""
+    return share_url(config, report_id)
 
 
 def build_card(config, item):
@@ -421,7 +470,7 @@ def build_card(config, item):
             ],
         }
     ]
-    tel = _tel_uri(item.reporter_phone)
+    tel = tel_uri(item.reporter_phone)
     if tel:
         footer.append(
             {
@@ -479,6 +528,43 @@ def alt_text(item):
     head = " · ".join(parts)
     when = thai_datetime(item.event_datetime, approx=item.report_type == "advance")
     return f"{head}\n{item.title}" + (f"\n{when}" if when else "")
+
+
+def plain_text(config, item):
+    """ข้อความสำหรับปุ่ม "คัดลอก" — หน้าตาเหมือนการ์ด (ไอคอน เลขข้อ เว้นบรรทัด) แต่ครบไม่ตัดทอน
+    เอาไปวางเป็นข้อความธรรมดาในไลน์ได้เลย"""
+    title = CARD_TITLES.get(item.report_type, "รายงานข่าว")
+    level = item.situation_level or SITUATION_DEFAULT
+    head = [f"📋 {title}" + (f" · ส.จว.{item.special_branch_province}" if item.special_branch_province else "")]
+    meta = f"📌 {UNIT_NAME}"
+    if item.ref_number:
+        meta += f" · เลขที่ {item.ref_number}"
+    meta += f" · ระดับ{level}"
+    head.append(meta)
+
+    blocks = ["\n".join(head)]
+    for row in card_rows(item, full=True):
+        lines = [f"{row['icon']} {row['label']}", row["value"].replace("\u00a0", " ")]
+        for extra in row["extras"]:
+            if extra.get("chips"):
+                lines.append(f"  ▸ {extra['title']}: {', '.join(extra['chips'])}")
+            elif extra.get("text"):
+                lines.append(f"  ▸ {extra['title']}: {extra['text'].replace(chr(10), chr(10) + '    ')}")
+        if row.get("link") and row["link"].get("uri", "").startswith("https://www.google.com/maps"):
+            lines.append(f"  🗺 {row['link']['uri']}")
+        blocks.append("\n".join(lines))
+
+    reporter = item.reporter_name or (item.created_by.full_name if item.created_by else "-")
+    foot = f"👮 ผู้รายงาน {reporter}"
+    if item.reporter_phone:
+        foot += f" · 📞 {item.reporter_phone}"
+    thai_created = item.created_at + timedelta(hours=7)
+    foot += f"\n🕓 บันทึกเมื่อ {thai_created.strftime(f'%d/%m/{thai_created.year + 543} %H:%M')} น."
+    url = share_url(config, item.id)
+    if url:
+        foot += f"\n🔗 รายงานเต็ม: {url}"
+    blocks.append(foot)
+    return "\n\n".join(blocks)
 
 
 def send_card(app, item):

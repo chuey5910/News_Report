@@ -3,8 +3,9 @@ document.addEventListener("DOMContentLoaded", function () {
   var source = document.getElementById("copy-report-source");
   if (!btn || !source) return;
 
+  var original = btn.textContent;   // จำข้อความเดิมของปุ่ม (แต่ละหน้าใช้คำไม่เหมือนกัน)
+
   function flash(ok) {
-    var original = "คัดลอกข้อมูล (Copy)";
     btn.textContent = ok ? "คัดลอกแล้ว ✓" : "คัดลอกไม่สำเร็จ";
     btn.disabled = true;
     setTimeout(function () {

@@ -1,3 +1,4 @@
+import hmac
 from datetime import datetime, time as time_cls, timedelta
 
 from flask import Blueprint, abort, current_app, render_template, redirect, request, url_for, flash
@@ -1017,24 +1018,42 @@ def view_report(report_id):
     item = NewsReport.query.get_or_404(report_id)
     rows = _detail_rows(item)
 
-    thai_created = item.created_at + timedelta(hours=7)
-    recorder = item.created_by.full_name if item.created_by else "-"
-    head = REPORT_FORM_TITLES.get(item.report_type, "รายงานข่าว")
-    copy_lines = [f"{head} {line_card.UNIT_NAME}"]
-    if item.ref_number:
-        copy_lines.append(f"เลขที่ {item.ref_number}")
-    copy_lines += [f"{label}: {value}" for label, value in rows]
-    copy_lines.append(
-        f"บันทึกเมื่อ: {thai_created.strftime(f'%d/%m/{thai_created.year + 543} %H:%M')} โดย {recorder}"
-    )
-    copy_text = "\n".join(copy_lines)
-
     return render_template(
         "reports/detail.html",
         item=item,
         rows=rows,
-        copy_text=copy_text,
+        # ข้อความคัดลอกหน้าตาเดียวกับการ์ดไลน์ (ไอคอน เลขข้อ เว้นบรรทัด) ครบทุกข้อไม่ตัดทอน
+        copy_text=line_card.plain_text(current_app.config, item),
+        share_url=line_card.share_url(current_app.config, item.id),
         delete_form=DeleteForm(),
+    )
+
+
+@bp.route("/<int:report_id>/s/<token>")
+def share_report(report_id, token):
+    """หน้ารายงานเต็มแบบไม่ต้องล็อกอิน — ปลายทางของปุ่มในการ์ดไลน์
+
+    เปิดได้เฉพาะลิงก์ที่มีรหัสลับตรงกับรายงานนั้น (คำนวณจาก SECRET_KEY เดาไม่ได้)
+    และเครื่องที่เปิดยังต้องอยู่บน Tailscale เหมือนเดิม — หน้านี้อ่านอย่างเดียว ไม่มีปุ่มแก้ไข/ลบ
+    """
+    expected = line_card.share_token(current_app.config, report_id)
+    if not hmac.compare_digest(expected, token or ""):
+        abort(404)
+    item = NewsReport.query.get_or_404(report_id)
+    level = item.situation_level or SITUATION_DEFAULT
+    reporter = item.reporter_name or (item.created_by.full_name if item.created_by else "-")
+    return render_template(
+        "reports/share.html",
+        item=item,
+        rows=line_card.card_rows(item, full=True),
+        title=line_card.CARD_TITLES.get(item.report_type, "รายงานข่าว"),
+        unit_name=line_card.UNIT_NAME,
+        level=level,
+        header_color=line_card.HEADER_COLORS.get(level, line_card.HEADER_COLORS["ปกติ"]),
+        level_colors=line_card.LEVEL_PILL.get(level, line_card.LEVEL_PILL["ปกติ"]),
+        reporter=reporter,
+        tel=line_card.tel_uri(item.reporter_phone),
+        copy_text=line_card.plain_text(current_app.config, item),
     )
 
 

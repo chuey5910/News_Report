@@ -47,7 +47,13 @@
 {# ปุ่มล่างสุดของหน้า — คัดลอกรายงานเต็มไปวางเป็นข้อความในไลน์ได้เลย #}
 <div class="copy-bar">
   <button type="button" class="btn big" id="copy-report-btn">คัดลอกรายงานเต็ม (วางในไลน์ได้เลย)</button>
-  <div class="label-hint">คัดลอกแล้ววางในแชทไลน์ได้ทันที ข้อมูลครบทุกข้อเหมือนหน้านี้</div>
+  <div class="label-hint">คัดลอกแล้ววางในแชทไลน์ได้ทันที มีไอคอนและเว้นบรรทัดเหมือนการ์ด ครบทุกข้อ</div>
+  {% if share_url %}
+  <div class="label-hint share-link">
+    ลิงก์เปิดอ่านโดยไม่ต้องล็อกอิน (ตัวเดียวกับปุ่มในการ์ดไลน์ ใช้ได้เฉพาะเครื่องที่ต่อ Tailscale):
+    <a href="{{ share_url }}" target="_blank" rel="noopener">{{ share_url }}</a>
+  </div>
+  {% endif %}
 </div>
 
 <textarea id="copy-report-source" hidden readonly>{{ copy_text }}</textarea>
