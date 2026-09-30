@@ -159,7 +159,9 @@ class NewsReportForm(FlaskForm):
         "ผู้สนับสนุน/ผู้อยู่เบื้องหลัง (ถ้ามี) (คน)", choices=PEOPLE_COUNT_CHOICES, coerce=int, default=0
     )
 
-    affiliations = TextAreaField("ความเชื่อมโยงกับบุคคลหรือองค์กรอื่นๆ", validators=[Optional()])
+    affiliations = TextAreaField(
+        "ความเกี่ยวข้อง/ความเชื่อมโยงกับการเมือง องค์กร หรือบุคคลอื่นๆ", validators=[Optional()]
+    )
     aff_net_count = SelectField("เป็นเครือข่ายของกลุ่ม (จำนวน)", choices=SMALL_COUNT_CHOICES, coerce=int, default=0)
     aff_coord_count = SelectField("ได้รับการประสานมาจาก (จำนวน)", choices=SMALL_COUNT_CHOICES, coerce=int, default=0)
     aff_joint_count = SelectField("เคยร่วมกิจกรรมด้วยกับ (จำนวน)", choices=SMALL_COUNT_CHOICES, coerce=int, default=0)

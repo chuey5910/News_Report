@@ -415,7 +415,18 @@ def _rows_from_item(item):
     return rows
 
 
+MASS_COUNT_LABELS = {
+    # ข่าวล่วงหน้ายังไม่เกิดกิจกรรม กรอกได้แค่ตัวเลขที่คาดการณ์
+    "advance": ("คาดการณ์จำนวนมวลชน", "(คาดว่าจะมาร่วมกิจกรรมกี่คน)"),
+    "closure": ("จำนวนมวลชน", "(มวลชนที่มาร่วมงานจริง)"),
+    "incident": ("จำนวนมวลชน", "(มวลชนที่มาร่วมงานจริง)"),
+}
+
+
 def _render_report_form(form, form_type, rows, edit_item=None):
+    label, hint = MASS_COUNT_LABELS.get(form_type, MASS_COUNT_LABELS["incident"])
+    form.mass_count.label.text = label
+    form.mass_count.render_kw = dict(form.mass_count.render_kw or {}, placeholder=hint)
     return render_template(
         "reports/report_form.html",
         form=form,
@@ -885,7 +896,7 @@ def _detail_rows(item):
 
     rows += [
         ("สถานที่นัดหมาย", item.location),
-        ("จำนวนมวลชน", item.mass_count or "-"),
+        (MASS_COUNT_LABELS.get(item.report_type, MASS_COUNT_LABELS["incident"])[0], item.mass_count or "-"),
     ]
     if mass_parts:
         rows.append(("จำแนกมวลชน", "\n".join(mass_parts)))
@@ -915,7 +926,9 @@ def _detail_rows(item):
             affiliate_lines.append(line)
     affiliation_text = item.affiliations or ""
     combined_affiliations = "\n".join(filter(None, [affiliation_text, "\n".join(affiliate_lines)]))
-    rows.append(("ความเชื่อมโยง/ความเกี่ยวข้องกับบุคคลหรือองค์กรอื่นๆ", combined_affiliations or "-"))
+    rows.append(
+        ("ความเกี่ยวข้อง/ความเชื่อมโยงกับการเมือง องค์กร หรือบุคคลอื่นๆ", combined_affiliations or "-")
+    )
 
     org_lines = []
     for category in RELATED_ORG_CATEGORIES:
