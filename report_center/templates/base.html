@@ -15,7 +15,13 @@
   </button>
   <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
   <aside class="sidebar" id="sidebar">
-    <h1>ศูนย์บันทึกข่าว</h1>
+    <h1 class="brand">
+      <img class="brand-logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="" width="48" height="48">
+      <span class="brand-text">
+        <span class="brand-unit">กก.3 บก.ส.1</span>
+        <span class="brand-name">ศูนย์บันทึกข่าว</span>
+      </span>
+    </h1>
     <nav>
       <a href="{{ url_for('reports.situation_map') }}"
          class="nav-dashboard {{ 'active' if request.endpoint == 'reports.situation_map' else '' }}">แผนที่สถานการณ์</a>
