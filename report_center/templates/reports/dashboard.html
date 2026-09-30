@@ -1,23 +1,25 @@
 {% extends "base.html" %}
 {% block title %}ภาพรวม — ศูนย์บันทึกข่าว{% endblock %}
+{% import "_icons.html" as ic %}
 {% block content %}
 <h2 class="page-title">ภาพรวม</h2>
 
+{% set tile_icons = {'advance': 'calendar', 'closure': 'check', 'incident': 'alert'} %}
 <div class="stat-row">
   <div class="stat-tile">
-    <div class="num">{{ counts.total }}</div>
-    <div class="label">รายงานทั้งหมด</div>
+    <span class="tile-ico">{{ ic.icon('doc') }}</span>
+    <span class="tile-text"><span class="num">{{ counts.total }}</span><span class="label">รายงานทั้งหมด</span></span>
   </div>
   {% for key, label in report_type_choices %}
   <div class="stat-tile tile-{{ key }}">
-    <div class="num">{{ counts[key] }}</div>
-    <div class="label">{{ label }}</div>
+    <span class="tile-ico">{{ ic.icon(tile_icons.get(key, 'doc')) }}</span>
+    <span class="tile-text"><span class="num">{{ counts[key] }}</span><span class="label">{{ label }}</span></span>
   </div>
   {% endfor %}
 </div>
 
 <div class="card">
-  <h2>กิจกรรมวันนี้ — {{ today_label }}
+  <h2 class="with-ico"><span class="head-ico tone-adv">{{ ic.icon('clock') }}</span>กิจกรรมวันนี้ — {{ today_label }}
     {% if today_events %}<span class="upcoming-badge badge-today">{{ today_events|length }} กิจกรรม</span>{% endif %}
   </h2>
   {% if today_events %}
@@ -40,7 +42,7 @@
 </div>
 
 <div class="card">
-  <h2>กิจกรรมที่กำลังจะมาถึง (ข่าวล่วงหน้า 7 วันข้างหน้า)
+  <h2 class="with-ico"><span class="head-ico tone-inc">{{ ic.icon('upcoming') }}</span>กิจกรรมที่กำลังจะมาถึง (ข่าวล่วงหน้า 7 วันข้างหน้า)
     {% if upcoming_count %}<span class="upcoming-badge">{{ upcoming_count }} กิจกรรม</span>{% endif %}
   </h2>
   {% if upcoming_count %}
@@ -68,7 +70,7 @@
 </div>
 
 <div class="card">
-  <h2>ค้นหารายงาน</h2>
+  <h2 class="with-ico"><span class="head-ico tone-all">{{ ic.icon('search') }}</span>ค้นหารายงาน</h2>
   <form method="get" class="filter-bar">
     <input type="text" name="q" value="{{ q }}" placeholder="ค้นหา: ชื่อกิจกรรม / กลุ่ม / สถานที่ / ชื่อ-นามสกุล / ทะเบียนรถ / ประเภทรถ...">
     <select name="province">
@@ -91,7 +93,7 @@
 </div>
 
 <div class="card">
-  <h2>ผลวิเคราะห์แยกจังหวัด{{ ' (ตามตัวกรอง)' if filtered else '' }}</h2>
+  <h2 class="with-ico"><span class="head-ico tone-clo">{{ ic.icon('chart') }}</span>ผลวิเคราะห์แยกจังหวัด{{ ' (ตามตัวกรอง)' if filtered else '' }}</h2>
   {% if analysis_rows %}
   <div class="table-scroll">
     <table>
@@ -121,7 +123,7 @@
 </div>
 
 <div class="card">
-  <h2>รายงานข่าว{{ ' (ตามตัวกรอง)' if filtered else '' }} — {{ results|length }} รายการ</h2>
+  <h2 class="with-ico"><span class="head-ico tone-all">{{ ic.icon('list') }}</span>รายงานข่าว{{ ' (ตามตัวกรอง)' if filtered else '' }} — {{ results|length }} รายการ</h2>
   {% if results %}
   <div class="table-scroll">
     <table>

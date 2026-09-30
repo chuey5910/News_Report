@@ -196,6 +196,27 @@ body {
   flex-shrink: 0;
 }
 
+/* หัวการ์ดที่มีไอคอนไม่ต้องมีแถบสีนำหน้า (หน้าที่ยังไม่มีไอคอนยังได้แถบเหมือนเดิม) */
+.card h2.with-ico::before { display: none; }
+
+.head-ico {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.head-ico .ic { width: 17px; height: 17px; stroke: #fff; }
+.head-ico.tone-all { background: var(--primary); }
+.head-ico.tone-adv { background: var(--type-advance); }
+.head-ico.tone-clo { background: var(--type-closure); }
+.head-ico.tone-inc { background: #d97706; }
+
+.ic { fill: none; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+
 /* ---------- ฟอร์ม ---------- */
 
 .form-grid {
@@ -319,12 +340,12 @@ th, td {
 }
 
 th {
-  color: var(--primary-dark);
+  color: #e2e8f5;
   font-weight: 700;
   font-size: .74rem;
   text-transform: uppercase;
   letter-spacing: .05em;
-  background: var(--primary-soft);
+  background: #1e293b;
 }
 
 th:first-child { border-radius: 8px 0 0 8px; }
@@ -410,23 +431,36 @@ tr:hover td { background: var(--row-hover); }
 }
 
 .stat-tile {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 1rem 1.25rem;
-  border-top: 4px solid var(--primary);
-  box-shadow: 0 1px 2px rgba(30, 27, 75, .05), 0 5px 18px rgba(79, 70, 229, .07);
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  border-radius: 13px;
+  padding: .95rem 1.1rem;
+  color: #fff;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  box-shadow: 0 6px 18px rgba(30, 27, 75, .18);
 }
 
-.stat-tile .num { font-size: 1.75rem; font-weight: 700; color: var(--primary); line-height: 1.2; }
-.stat-tile .label { font-size: .82rem; color: var(--muted); margin-top: .15rem; }
+.stat-tile .tile-text { display: flex; flex-direction: column; min-width: 0; }
+.stat-tile .num { font-size: 1.85rem; font-weight: 700; line-height: 1.05; }
+.stat-tile .label { font-size: .8rem; opacity: .93; }
 
-.stat-tile.tile-advance { border-top-color: var(--type-advance); }
-.stat-tile.tile-advance .num { color: var(--type-advance); }
-.stat-tile.tile-closure { border-top-color: var(--type-closure); }
-.stat-tile.tile-closure .num { color: var(--type-closure); }
-.stat-tile.tile-incident { border-top-color: var(--type-incident); }
-.stat-tile.tile-incident .num { color: var(--type-incident); }
+.stat-tile .tile-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.stat-tile .tile-ico .ic { width: 18px; height: 18px; stroke: #fff; }
+
+.stat-tile.tile-advance { background: linear-gradient(135deg, #0369a1, #0ea5e9); }
+.stat-tile.tile-closure { background: linear-gradient(135deg, #047857, #10b981); }
+.stat-tile.tile-incident { background: linear-gradient(135deg, #b45309, #f59e0b); }
 
 .empty-note { color: var(--muted); font-size: .88rem; padding: .5rem 0; }
 
@@ -653,8 +687,8 @@ td.num-col { color: var(--text); }
 /* ---------- ปฏิทินกิจกรรมที่กำลังจะมาถึง ---------- */
 
 .upcoming-badge {
-  background: var(--type-incident-bg);
-  color: var(--incident-text);
+  background: #1e293b;
+  color: #fff;
   border-radius: 999px;
   padding: .15rem .6rem;
   font-size: .74rem;
@@ -669,7 +703,7 @@ td.num-col { color: var(--text); }
 }
 
 /* กิจกรรมวันนี้ — ชิปแบบเดียวกับปฏิทิน แต่เรียงเป็นแถวการ์ดใหญ่ขึ้น */
-.badge-today { background: var(--type-advance-bg); color: var(--accent-text-strong); }
+.badge-today { background: #1e293b; color: #fff; }
 
 .today-events {
   display: grid;
