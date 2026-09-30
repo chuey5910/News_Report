@@ -24,32 +24,34 @@
     maxBounds: THAILAND,
     maxBoundsViscosity: 1,
   });
-  var satellite = L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    { maxZoom: 17, minZoom: 6, bounds: THAILAND, updateWhenIdle: true, keepBuffer: 1,
-      attribution: el.dataset.tilesAttribution || "" }
-  );
-  var streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+
+  // ใช้แผนที่ถนนแบบเดียว (มีชื่อถนน/สถานที่/จังหวัดเป็นภาษาไทยอยู่แล้ว)
+  // ไม่มีภาพดาวเทียมและไม่มีปุ่มสลับชั้น เพื่อไม่ให้ต้องดาวน์โหลดภาพหลายชุด
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 17,
     minZoom: 6,
     bounds: THAILAND,
     updateWhenIdle: true,
     keepBuffer: 1,
     attribution: "&copy; OpenStreetMap",
-  });
-  // ชื่อถนน/สถานที่วางทับภาพดาวเทียม เพื่อให้อ่านตำแหน่งได้ (แบบ Hybrid)
-  var labels = L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-    { maxZoom: 17, minZoom: 6, bounds: THAILAND, updateWhenIdle: true, keepBuffer: 1 }
-  );
-  satellite.addTo(map);
-  L.control
-    .layers(
-      { "ภาพดาวเทียม": satellite, "แผนที่ถนน": streets },
-      { "ชื่อถนน/สถานที่": labels },   // ชั้นเสริม เปิดเมื่อต้องการ (โหลดภาพเพิ่มอีกเท่าตัว)
-      { position: "topright" }
-    )
-    .addTo(map);
+  }).addTo(map);
+
+  // เส้นขอบเขตจังหวัด — อ่านจากไฟล์ในระบบเอง (โหลดครั้งเดียวแล้วเบราว์เซอร์เก็บไว้ 30 วัน)
+  if (el.dataset.provincesUrl) {
+    fetch(el.dataset.provincesUrl)
+      .then(function (res) {
+        return res.json();
+      })
+      .then(function (geo) {
+        L.geoJSON(geo, {
+          interactive: false,   // ไม่ขวางการคลิกหมุด
+          style: { color: "#1d4ed8", weight: 1.4, opacity: 0.7, fill: false },
+        }).addTo(map);
+      })
+      .catch(function () {
+        /* ไม่มีเส้นขอบเขตก็ยังใช้แผนที่ได้ปกติ */
+      });
+  }
 
   function escapeHtml(text) {
     return String(text == null ? "" : text).replace(/[&<>"']/g, function (ch) {

@@ -11,7 +11,7 @@
   <div id="situation-map" class="situation-map"
        data-points='{{ map_points | tojson }}'
        data-type-labels='{{ report_type_labels | tojson }}'
-       data-tiles-attribution="Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics"></div>
+       data-provinces-url="{{ url_for('static', filename='data/thai-provinces.geojson') }}"></div>
 
   <form method="get" class="map-filters" id="map-filters">
     <input type="text" name="q" value="{{ q }}" placeholder="ค้นหาในแผนที่: กิจกรรม / กลุ่ม / สถานที่ / ชื่อ / ทะเบียนรถ">
