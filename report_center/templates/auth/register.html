@@ -28,6 +28,8 @@
       <button class="btn" type="submit">สมัครสมาชิก</button>
     </form>
     <div class="switch">มีบัญชีอยู่แล้ว? <a href="{{ url_for('auth.login') }}">เข้าสู่ระบบ</a></div>
+
+    {% include "auth/_pdpa_notice.html" %}
   </div>
 </div>
 </body>
