@@ -516,6 +516,23 @@ tr:hover td { background: var(--row-hover); }
 }
 .auth-brand h1 { margin: .45rem 0 0; font-size: 1.45rem; }
 
+/* กรอบคำเตือน PDPA ใต้ลิงก์สมัครสมาชิก */
+.auth-notice {
+  margin-top: 1.4rem;
+  padding: .85rem 1rem;
+  border: 1px solid #f2c94c;
+  border-left: 5px solid #e0a800;
+  border-radius: 10px;
+  background: #fff8db;
+  color: #5c4500;
+  font-size: .8rem;
+  line-height: 1.55;
+}
+.auth-notice-title { font-weight: 800; font-size: .86rem; color: #7a5a00; margin-bottom: .35rem; }
+.auth-notice p { margin: 0 0 .45rem; }
+.auth-notice p:last-child { margin-bottom: 0; }
+.auth-notice-foot { font-weight: 700; }
+
 .auth-card .form-field { margin-bottom: 1rem; }
 .auth-card .btn { width: 100%; margin-top: .5rem; }
 .auth-card .switch { text-align: center; margin-top: 1.25rem; font-size: .88rem; }
