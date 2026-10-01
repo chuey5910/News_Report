@@ -25,6 +25,11 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # รูปภาพแนบรายงาน — ว่าง = เก็บไว้ข้างไฟล์ฐานข้อมูล (โฟลเดอร์ uploads/) ดู create_app()
+    UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "")
+    # ขนาดคำขอสูงสุด (รูป 10 รูปจากมือถือ) — เกินนี้เบราว์เซอร์จะได้หน้า "ไฟล์ใหญ่เกิน"
+    MAX_CONTENT_LENGTH = 80 * 1024 * 1024
+
     # API key required by external systems (e.g. the RSS news_report pipeline)
     # to pull report data for notification purposes. Set via environment
     # variable in production; never commit real keys.

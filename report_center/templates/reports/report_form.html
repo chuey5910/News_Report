@@ -7,7 +7,7 @@
 
 <div class="card">
   <h2>{{ ('แก้ไขรายงาน (สิทธิ์ผู้ดูแลระบบ)' if editing else 'บันทึกรายงานใหม่') }}</h2>
-  <form method="post" id="news-report-form" class="confirm-before-submit">
+  <form method="post" id="news-report-form" class="confirm-before-submit" enctype="multipart/form-data">
     {{ form.hidden_tag() }}
     <div class="form-grid">
       {{ m.render_radio_group(form.special_branch_province) }}
@@ -176,6 +176,28 @@
       {{ m.render_field(form.reporter_name, half=True) }}
       {{ m.render_field(form.reporter_phone, class_="w-short") }}
 
+      {# รูปภาพแนบ — เลือกจากอัลบั้มหรือถ่ายใหม่ได้ สูงสุด max_photos รูป คำบรรยายไม่บังคับ #}
+      <div class="form-field full photo-field" id="photo-field" data-max="{{ max_photos }}" data-existing="{{ existing_photos | length }}">
+        <label>รูปภาพแนบ <span class="label-hint">(ไม่บังคับ — สูงสุด {{ max_photos }} รูป ระบบย่อขนาดให้เอง)</span></label>
+        {% if existing_photos %}
+        <div class="photo-grid" id="photo-existing">
+          {% for p in existing_photos %}
+          <div class="photo-tile">
+            <img src="{{ p.thumb }}" alt="">
+            <input type="text" name="photo_caption_{{ p.id }}" value="{{ p.caption }}" placeholder="คำบรรยาย (ไม่บังคับ)"
+                   maxlength="255" data-label="คำบรรยายรูปเดิมที่ {{ loop.index }}">
+            <label class="photo-del"><input type="checkbox" name="photo_delete" value="{{ p.id }}"
+                   data-group-label="ลบรูปเดิมที่ {{ loop.index }}" data-option-label="ลบรูปนี้" data-unchecked-label="เก็บไว้"> ลบรูปนี้</label>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="photo-grid" id="photo-preview"></div>
+        <label class="btn secondary photo-pick" for="photo-input">📷 เพิ่มรูป / ถ่ายรูป</label>
+        <input type="file" id="photo-input" name="photos" accept="image/*" multiple hidden data-label="รูปภาพแนบ">
+        <div class="label-hint" id="photo-count"></div>
+      </div>
+
       {# ช่องติ๊กนี้ไปโผล่ในหน้าต่าง "ตรวจสอบก่อนบันทึก" (confirm-submit.js) — ซ่อนในฟอร์มไว้ #}
       <div class="form-field full confirm-only">
         {{ form.send_line_card(data_ask_in_confirm="📨 ส่งการ์ดรายงานนี้เข้ากลุ่มไลน์",
@@ -195,4 +217,5 @@
 
 {% block page_scripts %}
 <script defer src="{{ url_for('static', filename='js/coord-paste.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/photo-upload.js') }}"></script>
 {% endblock %}

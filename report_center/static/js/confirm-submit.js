@@ -12,6 +12,10 @@
       var opt = el.options[el.selectedIndex];
       return opt ? opt.text : "";
     }
+    if (el.type === "file") {       // ช่องแนบรูป: บอกจำนวน ไม่ใช่ path ของไฟล์
+      var n = el.files ? el.files.length : 0;
+      return n ? "แนบรูปใหม่ " + n + " รูป" : "";
+    }
     return el.value;
   }
 
@@ -71,7 +75,8 @@
 
     fields.forEach(function (el) {
       if (el.name === "csrf_token" || el.type === "hidden") return;
-      if (el.offsetParent === null) return; // skip fields hidden by conditional show/hide
+      // ช่องเลือกไฟล์ถูกซ่อนไว้ (ใช้ปุ่มสวยแทน) แต่ยังต้องโชว์ในสรุปว่าแนบกี่รูป
+      if (el.offsetParent === null && el.type !== "file") return; // skip fields hidden by conditional show/hide
 
       if (el.type === "checkbox" || el.type === "radio") {
         var group = checkboxGroups[el.name];

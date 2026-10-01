@@ -209,6 +209,9 @@ class NewsReport(db.Model):
     media_posts = db.relationship(
         "NewsReportMedia", backref="news_report", cascade="all, delete-orphan", order_by="NewsReportMedia.id"
     )
+    photos = db.relationship(
+        "NewsReportPhoto", backref="news_report", cascade="all, delete-orphan", order_by="NewsReportPhoto.id"
+    )
 
     def people_of(self, kind, category=None):
         return [
@@ -274,3 +277,22 @@ class NewsReportMedia(db.Model):
     page_name = db.Column(db.String(255), nullable=False)  # ชื่อเพจ
     likes = db.Column(db.String(64), nullable=True)  # ยอดคนกด Like
     shares = db.Column(db.String(64), nullable=True)  # ยอดคนกดแชร์
+
+
+class NewsReportPhoto(db.Model):
+    """รูปภาพแนบรายงาน — ไฟล์จริงอยู่ในโฟลเดอร์ uploads/<เลขรายงาน>/ (ดู photos.py) ตารางนี้เก็บแค่ชื่อไฟล์กับคำบรรยาย."""
+
+    __tablename__ = "news_report_photos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    news_report_id = db.Column(db.Integer, db.ForeignKey("news_reports.id"), nullable=False, index=True)
+    filename = db.Column(db.String(64), nullable=False)      # ชื่อไฟล์ที่ระบบตั้งเอง (สุ่ม) ลงท้าย .jpg
+    caption = db.Column(db.String(255), nullable=True)       # คำบรรยายใต้รูป (ไม่บังคับ)
+    width = db.Column(db.Integer, nullable=True)
+    height = db.Column(db.Integer, nullable=True)
+    size_bytes = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    @property
+    def thumb_filename(self):
+        return self.filename[:-4] + "_t.jpg"

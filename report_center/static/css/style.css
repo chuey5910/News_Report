@@ -355,6 +355,48 @@ textarea.ta-tall { min-height: 96px; }
 }
 .line-card-opt .checkbox-option { font-weight: 700; }
 
+/* รูปภาพแนบ — ในฟอร์ม (ตัวอย่าง + คำบรรยาย) และหน้ารายละเอียด */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: .7rem;
+  margin: .5rem 0;
+}
+.photo-tile {
+  background: var(--bg-soft, #f6f8fc);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .45rem;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  margin: 0;
+}
+.photo-tile img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 7px;
+  display: block;
+  background: #e5e7eb;
+}
+.photo-tile input[type="text"] { font-size: .82rem; padding: .35rem .5rem; }
+.photo-tile figcaption { font-size: .82rem; color: var(--muted); line-height: 1.35; }
+.photo-del { font-size: .8rem; color: #b91c1c; display: flex; align-items: center; gap: .35rem; cursor: pointer; }
+.photo-remove {
+  font: inherit; font-size: .78rem; padding: .3rem; border-radius: 7px;
+  border: 1px solid #fca5a5; background: #fff; color: #b91c1c; cursor: pointer;
+}
+.form-field label.photo-pick {
+  display: inline-flex;
+  width: auto;
+  margin: .3rem 0 0;
+  padding: .55rem 1.1rem;
+  cursor: pointer;
+}
+.photo-section { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.photo-section .detail-label { margin-bottom: .4rem; }
+
 /* ปุ่มคัดลอกล่างสุดของหน้ารายงานเต็ม */
 .copy-bar { margin: 1rem 0 2rem; text-align: center; }
 .copy-bar .label-hint { margin-top: .4rem; }

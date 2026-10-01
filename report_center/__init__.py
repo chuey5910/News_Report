@@ -53,6 +53,22 @@ def create_app(config_object=Config):
         except OSError:
             pass
 
+    # โฟลเดอร์รูปแนบ: ถ้าไม่ได้ตั้ง UPLOAD_DIR ให้วางไว้ข้างไฟล์ฐานข้อมูล (บน NAS = /data/uploads)
+    if not app.config.get("UPLOAD_DIR"):
+        uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        db_path = uri.split("sqlite:///")[-1] if uri.startswith("sqlite") else ""
+        if db_path and not os.path.isabs(db_path):
+            db_path = os.path.join(app.root_path, db_path)
+        base = os.path.dirname(db_path) if db_path else os.path.join(app.root_path, "instance")
+        app.config["UPLOAD_DIR"] = os.path.join(base, "uploads")
+    os.makedirs(app.config["UPLOAD_DIR"], exist_ok=True)
+
+    @app.errorhandler(413)
+    def too_large(_error):
+        from flask import flash, redirect
+        flash("ไฟล์รูปรวมกันใหญ่เกินไป (เกิน 80 MB) — ลองแนบน้อยรูปลงต่อครั้ง", "error")
+        return redirect(request.referrer or "/")
+
     db.init_app(app)
     login_manager.init_app(app)
 
@@ -265,6 +281,12 @@ def register_cli(app):
                 removed += 1
         kept = len([n for n in os.listdir(backup_dir) if n.endswith(".db")])
         click.echo(f"ลบไฟล์เก่ากว่า {keep_days} วัน {removed} ไฟล์ — คงเหลือทั้งหมด {kept} ไฟล์")
+
+        # รูปแนบรายงาน: คัดลอกเฉพาะไฟล์ที่ยังไม่มีในสำรอง (รูปไม่เปลี่ยนแปลง ไม่ต้องคัดลอกซ้ำทุกคืน)
+        from . import photos as photo_store
+
+        copied = photo_store.mirror_to(os.path.join(backup_dir, "uploads"), app.config)
+        click.echo(f"สำรองรูปแนบเพิ่ม {copied} ไฟล์ → {os.path.join(backup_dir, 'uploads')}")
 
     @app.cli.command("list-users")
     def list_users():

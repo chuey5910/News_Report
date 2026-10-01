@@ -1,12 +1,12 @@
 import hmac
 from datetime import datetime, time as time_cls, timedelta
 
-from flask import Blueprint, abort, current_app, render_template, redirect, request, url_for, flash
+from flask import Blueprint, abort, current_app, render_template, redirect, request, send_from_directory, url_for, flash
 from flask_login import current_user, login_required
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError
 
-from . import line_card, line_notify, sheets_sync
+from . import line_card, line_notify, photos as photo_store, sheets_sync
 from .admin import admin_required
 from .extensions import db
 from .forms import CLOSURE_TREND_PLACEHOLDER, DeleteForm, NewsReportForm
@@ -218,6 +218,22 @@ def _send_line_card(item):
         flash("ส่งการ์ดไม่สำเร็จ (เน็ตมีปัญหาชั่วคราว) — ข้อมูลถูกบันทึกแล้ว ลองกดแก้ไขแล้วติ๊กส่งอีกครั้งได้", "warning")
     else:
         flash("ส่งการ์ดไม่สำเร็จ — อาจเป็นเพราะโควตาไลน์เดือนนี้หมด (ดู log) ข้อมูลถูกบันทึกแล้ว", "warning")
+
+
+def _handle_photos(item, editing=False):
+    """เก็บรูปที่แนบมากับฟอร์ม (และตอนแก้ไข: ลบ/แก้คำบรรยายรูปเดิม) แล้วแจ้งเตือนถ้ามีปัญหา."""
+    if editing:
+        captions = {}
+        for key, value in request.form.items():
+            if key.startswith("photo_caption_") and key[14:].isdigit():
+                captions[int(key[14:])] = value
+        photo_store.apply_edits(item, request.form.getlist("photo_delete"), captions)
+    saved, warnings = photo_store.save_uploads(
+        item, request.files.getlist("photos"), request.form.getlist("photo_caption")
+    )
+    for message in warnings:
+        flash(message, "warning")
+    return saved
 
 
 def _get_at(values, idx):
@@ -485,6 +501,15 @@ def _render_report_form(form, form_type, rows, edit_item=None):
         trend_label="แนวโน้มในอนาคต" if form_type == "closure" else "แนวโน้มสถานการณ์",
         trend_placeholder=CLOSURE_TREND_PLACEHOLDER if form_type == "closure" else "",
         edit_item=edit_item,
+        max_photos=photo_store.MAX_PHOTOS,
+        existing_photos=[
+            {
+                "id": p.id,
+                "thumb": url_for("reports.report_photo", report_id=edit_item.id, filename=p.thumb_filename),
+                "caption": p.caption or "",
+            }
+            for p in edit_item.photos
+        ] if edit_item else [],
     )
 
 
@@ -793,6 +818,7 @@ def new_report(form_type):
         db.session.add(item)
         db.session.commit()
         _assign_ref_number(item)
+        _handle_photos(item)
 
         # Best-effort sync to Google Sheets (never blocks or fails the save)
         synced = sheets_sync.sync_report(current_app._get_current_object(), item)
@@ -1025,8 +1051,40 @@ def view_report(report_id):
         # ข้อความคัดลอกหน้าตาเดียวกับการ์ดไลน์ (ไอคอน เลขข้อ เว้นบรรทัด) ครบทุกข้อไม่ตัดทอน
         copy_text=line_card.plain_text(current_app.config, item),
         share_url=line_card.share_url(current_app.config, item.id),
+        photos=[
+            {
+                "full": url_for("reports.report_photo", report_id=item.id, filename=p.filename),
+                "thumb": url_for("reports.report_photo", report_id=item.id, filename=p.thumb_filename),
+                "caption": p.caption,
+            }
+            for p in item.photos
+        ],
         delete_form=DeleteForm(),
     )
+
+
+def _send_photo(report_id, filename):
+    """ส่งไฟล์รูป — รับเฉพาะชื่อไฟล์ที่ระบบตั้งเอง (ตัวเลข/ตัวอักษร + .jpg) กันเดินออกนอกโฟลเดอร์."""
+    stem = filename[:-4]
+    if not filename.endswith(".jpg") or not stem.replace("_t", "").isalnum():
+        abort(404)
+    directory = photo_store.report_dir(report_id)
+    # รูปไม่เปลี่ยน (ชื่อสุ่มใหม่ทุกครั้ง) จึงให้เบราว์เซอร์แคชได้ยาว
+    return send_from_directory(directory, filename, max_age=60 * 60 * 24 * 30)
+
+
+@bp.route("/<int:report_id>/photos/<filename>")
+@login_required
+def report_photo(report_id, filename):
+    return _send_photo(report_id, filename)
+
+
+@bp.route("/<int:report_id>/s/<token>/photos/<filename>")
+def shared_photo(report_id, token, filename):
+    """รูปสำหรับหน้ารายงานเต็มแบบไม่ล็อกอิน — ต้องมีรหัสลับของรายงานนั้นเหมือนตัวหน้า."""
+    if not hmac.compare_digest(line_card.share_token(current_app.config, report_id), token or ""):
+        abort(404)
+    return _send_photo(report_id, filename)
 
 
 @bp.route("/<int:report_id>/s/<token>")
@@ -1054,6 +1112,14 @@ def share_report(report_id, token):
         reporter=reporter,
         tel=line_card.tel_uri(item.reporter_phone),
         copy_text=line_card.plain_text(current_app.config, item),
+        photos=[
+            {
+                "full": url_for("reports.shared_photo", report_id=item.id, token=token, filename=p.filename),
+                "thumb": url_for("reports.shared_photo", report_id=item.id, token=token, filename=p.thumb_filename),
+                "caption": p.caption,
+            }
+            for p in item.photos
+        ],
     )
 
 
@@ -1069,6 +1135,7 @@ def delete_report(report_id):
     title = item.title
     db.session.delete(item)
     db.session.commit()
+    photo_store.remove_report_dir(report_id)
     flash(f"ลบรายงาน “{title}” เรียบร้อยแล้ว", "success")
     return redirect(url_for("reports.dashboard"))
 
@@ -1089,6 +1156,7 @@ def edit_report(report_id):
 
         if not item.ref_number:      # รายงานเก่าที่ยังไม่มีเลขที่ ใส่ให้ตอนแก้ไข
             _assign_ref_number(item)
+        _handle_photos(item, editing=True)
 
         synced = sheets_sync.sync_report(current_app._get_current_object(), item)
         if sheets_sync.is_configured(current_app.config) and not synced:

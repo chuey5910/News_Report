@@ -506,17 +506,31 @@ def build_card(config, item):
         body.append(_row_block(row, url))
 
     reporter = item.reporter_name or (item.created_by.full_name if item.created_by else "-")
-    footer = [
+    footer = []
+    if item.photos:
+        footer.append(
+            {
+                "type": "text",
+                "text": f"📷 รูปแนบ {len(item.photos)} รูป — ดูได้ในรายงานเต็ม",
+                "size": "sm",
+                "weight": "bold",
+                "color": "#0E7490",
+                "wrap": True,
+                "margin": "none",
+            }
+        )
+    footer.append(
         {
             "type": "box",
             "layout": "baseline",
+            "margin": "md" if item.photos else "none",
             "contents": [
                 {"type": "text", "text": "👮 ผู้รายงาน", "size": "md", "color": MUTED_COLOR, "flex": 0},
                 {"type": "text", "text": " ", "size": "md", "flex": 0},
                 {"type": "text", "text": reporter, "size": "md", "weight": "bold", "color": TEXT_COLOR, "wrap": True},
             ],
         }
-    ]
+    )
     tel = tel_uri(item.reporter_phone)
     if tel:
         footer.append(
@@ -616,7 +630,10 @@ def plain_text(config, item):
         blocks.append("\n".join(lines))
 
     reporter = item.reporter_name or (item.created_by.full_name if item.created_by else "-")
-    foot = f"👮 ผู้รายงาน {reporter}"
+    foot = ""
+    if item.photos:
+        foot += f"📷 รูปแนบ {len(item.photos)} รูป (ดูในรายงานเต็ม)\n"
+    foot += f"👮 ผู้รายงาน {reporter}"
     if item.reporter_phone:
         foot += f" · 📞 {item.reporter_phone}"
     thai_created = item.created_at + timedelta(hours=7)

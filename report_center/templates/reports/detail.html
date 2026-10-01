@@ -42,6 +42,20 @@
     </div>
     {% endfor %}
   </div>
+
+  {% if photos %}
+  <div class="photo-section">
+    <div class="detail-label">รูปภาพแนบ ({{ photos | length }} รูป) — กดที่รูปเพื่อดูขนาดเต็ม</div>
+    <div class="photo-grid view">
+      {% for p in photos %}
+      <figure class="photo-tile">
+        <a href="{{ p.full }}" target="_blank" rel="noopener"><img src="{{ p.thumb }}" alt="" loading="lazy"></a>
+        {% if p.caption %}<figcaption>{{ p.caption }}</figcaption>{% endif %}
+      </figure>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 {# ปุ่มล่างสุดของหน้า — คัดลอกรายงานเต็มไปวางเป็นข้อความในไลน์ได้เลย #}

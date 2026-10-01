@@ -39,6 +39,12 @@
   .chip { font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #e3ebfa; color: #1e3a8a; }
   .chip.problem { background: #ede9fe; color: #5b21b6; }
   .ex-v { white-space: pre-line; color: #334155; font-size: 14px; margin-top: 4px; }
+  .photos { padding: 4px 16px 10px; }
+  .photos .k { margin-bottom: 8px; }
+  .pgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .pgrid figure { margin: 0; }
+  .pgrid img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; background: #eef0f4; }
+  .pgrid figcaption { font-size: 12.5px; color: #475569; margin-top: 4px; line-height: 1.35; }
   .foot { border-top: 1px solid #e5e7eb; padding: 12px 16px 16px; }
   .reporter { font-size: 14px; margin-bottom: 10px; }
   .reporter b { font-weight: 800; }
@@ -89,6 +95,20 @@
       </div>
       {% endfor %}
     </div>
+
+    {% if photos %}
+    <div class="photos">
+      <div class="k">📷 รูปภาพแนบ ({{ photos | length }} รูป) — กดที่รูปเพื่อดูขนาดเต็ม</div>
+      <div class="pgrid">
+        {% for p in photos %}
+        <figure>
+          <a href="{{ p.full }}" target="_blank" rel="noopener"><img src="{{ p.thumb }}" alt="" loading="lazy"></a>
+          {% if p.caption %}<figcaption>{{ p.caption }}</figcaption>{% endif %}
+        </figure>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
 
     <div class="foot">
       <div class="reporter">👮 ผู้รายงาน <b>{{ reporter }}</b></div>
