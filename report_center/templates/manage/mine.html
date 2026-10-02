@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}งานของฉัน — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">งานของฉัน</h2>
+
+<div class="card">
+  <div class="status-summary">
+    <span class="status-badge returned">ส่งกลับแก้ไข {{ counts.returned }}</span>
+    <span class="status-badge pending">รอยืนยัน {{ counts.pending }}</span>
+    <span class="status-badge verified">ยืนยันแล้ว {{ counts.verified }}</span>
+  </div>
+  {% if items %}
+  <div class="table-scroll">
+    <table class="queue-table">
+      <thead>
+        <tr><th>บันทึกเมื่อ</th><th>เลขที่</th><th>ประเภท</th><th>ชื่อกิจกรรม</th><th>สถานะ</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>{{ item.created_at | thai_time }}</td>
+          <td>{{ item.ref_number or '-' }}</td>
+          <td><span class="badge type-{{ item.report_type }}">{{ report_type_labels.get(item.report_type, item.report_type) }}</span></td>
+          <td>{{ item.title }}</td>
+          <td>
+            {% if item.status == 'returned' %}
+            <span class="status-badge returned">{{ item.status_label }}</span>
+            <div class="status-note">{{ item.returned_by.level_label if item.returned_by else '' }} {{ item.returned_at | thai_time }} — เหตุผล: {{ item.return_reason }}</div>
+            {% elif item.status == 'verified' %}
+            <span class="status-badge verified">{{ item.status_label }}</span>
+            <div class="status-note">{{ item.verified_by.level_label if item.verified_by else 'ยืนยันอัตโนมัติ (ข้อมูลเดิม)' }} {{ item.verified_at | thai_time }}</div>
+            {% else %}
+            <span class="status-badge {{ 'again' if item.resubmitted else 'pending' }}">{{ item.status_label }}</span>
+            {% endif %}
+          </td>
+          <td class="row-actions">
+            {% if item.status == 'returned' %}
+            <a class="btn small warn" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไข</a>
+            {% else %}
+            <a class="btn small secondary" href="{{ url_for('reports.view_report', report_id=item.id) }}">ดูรายละเอียด</a>
+            {% if item.status == 'pending' %}
+            <a class="btn small secondary" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไข</a>
+            {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-note">ยังไม่มีรายงานที่คุณบันทึก</div>
+  {% endif %}
+</div>
+{% endblock %}

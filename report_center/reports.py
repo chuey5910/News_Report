@@ -1,0 +1,1267 @@
+import hmac
+from datetime import datetime, time as time_cls, timedelta
+
+from flask import Blueprint, abort, current_app, render_template, redirect, request, send_from_directory, url_for, flash
+from flask_login import current_user, login_required
+from sqlalchemy import and_, func, or_
+from sqlalchemy.exc import IntegrityError
+
+from . import audit, line_card, line_notify, permissions, photos as photo_store, sheets_sync
+from .admin import admin_required
+from .extensions import db
+from .forms import CLOSURE_TREND_PLACEHOLDER, DeleteForm, NewsReportForm, VerifyForm
+from .models import (
+    AFFILIATE_CATEGORIES,
+    PROVINCE_COORDS,
+    RELATED_ORG_CATEGORIES,
+    REPORT_FORM_TABS,
+    REPORT_TYPE_CHOICES,
+    REPORT_TYPE_LABELS,
+    SITUATION_COLORS,
+    SITUATION_DEFAULT,
+    SITUATION_LEVELS,
+    SPECIAL_BRANCH_PROVINCES,
+    STATUS_PENDING,
+    STATUS_RETURNED,
+    STATUS_VERIFIED,
+    NewsReport,
+    NewsReportLeader,
+    NewsReportMedia,
+    NewsReportPerson,
+    NewsReportVehicle,
+)
+
+bp = Blueprint("reports", __name__, url_prefix="/reports")
+
+REPORT_FORM_TITLES = dict(REPORT_FORM_TABS)
+
+# หมวดบุคคล/องค์กรแบบไดนามิก: (prefix ของชื่อ input, kind, category, ฟิลด์ย่อยที่มี)
+# input จริงในฟอร์มชื่อ f"{prefix}_name" / f"{prefix}_group" / f"{prefix}_role"
+PERSON_SECTIONS = [
+    ("aff_net", "affiliate", AFFILIATE_CATEGORIES[0], ("name", "group")),
+    ("aff_coord", "affiliate", AFFILIATE_CATEGORIES[1], ("name", "group")),
+    ("aff_joint", "affiliate", AFFILIATE_CATEGORIES[2], ("name", "group")),
+    ("participant", "participant", None, ("name", "group", "role")),
+    ("supporter", "supporter", None, ("name", "group", "role")),
+    ("org_party", "related_org", RELATED_ORG_CATEGORIES[0], ("name", "role")),
+    ("org_ngo", "related_org", RELATED_ORG_CATEGORIES[1], ("name", "role")),
+    ("org_gov", "related_org", RELATED_ORG_CATEGORIES[2], ("name", "role")),
+]
+
+# หมวดไหนโผล่ในแบบฟอร์มไหน
+FORM_PERSON_PREFIXES = {
+    "advance": ("aff_net", "aff_coord", "aff_joint"),
+    "closure": ("participant", "supporter", "org_party", "org_ngo", "org_gov"),
+    "incident": (),
+}
+
+PERSON_FIELD_LABELS = {
+    "name": "ชื่อ-นามสกุล",
+    "group": "กลุ่ม/ตำแหน่ง",
+    "role": "บทบาท/หน้าที่",
+}
+
+THAI_WEEKDAYS = ["จันทร์", "อังคาร", "พุธ", "พฤหัสฯ", "ศุกร์", "เสาร์", "อาทิตย์"]
+THAI_MONTHS_ABBR = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."]
+
+PERSON_SECTION_HEADINGS = {
+    "aff_net": "เครือข่ายของกลุ่ม รายที่",
+    "aff_coord": "ได้รับการประสานมาจาก รายที่",
+    "aff_joint": "เคยร่วมกิจกรรมด้วยกับ รายที่",
+    "participant": "แนวร่วม/บุคคลสำคัญ คนที่",
+    "supporter": "ผู้สนับสนุน/ผู้อยู่เบื้องหลัง คนที่",
+    "org_party": "พรรคการเมือง รายที่",
+    "org_ngo": "NGO รายที่",
+    "org_gov": "หน่วยงานรัฐ รายที่",
+}
+
+
+def thai_today():
+    """เที่ยงคืนของ "วันนี้" ตามเวลาไทย (ระบบเก็บเวลาเป็น UTC แต่วันกิจกรรมเป็นเวลาไทย)."""
+    return (datetime.utcnow() + timedelta(hours=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def todays_advance_items(today):
+    """ข่าวล่วงหน้าที่มีกิจกรรม "วันนี้" — เริ่มวันนี้ หรือเริ่มก่อนหน้าแต่ยังไม่จบ (ต่อเนื่องหลายวัน)."""
+    tomorrow = today + timedelta(days=1)
+    return (
+        permissions.verified_only(NewsReport.query).filter(
+            NewsReport.report_type == "advance",
+            or_(
+                and_(NewsReport.event_datetime >= today, NewsReport.event_datetime < tomorrow),
+                and_(NewsReport.event_datetime < today, NewsReport.event_end_datetime >= today),
+            ),
+        )
+        .order_by(NewsReport.event_datetime.asc())
+        .all()
+    )
+
+
+def upcoming_advance_items(today):
+    """ข่าวล่วงหน้าที่จะถึงวันจริงช่วงพรุ่งนี้–7 วันข้างหน้า."""
+    tomorrow = today + timedelta(days=1)
+    horizon = today + timedelta(days=8)
+    return (
+        permissions.verified_only(NewsReport.query).filter(
+            NewsReport.report_type == "advance",
+            NewsReport.event_datetime >= tomorrow,
+            NewsReport.event_datetime < horizon,
+        )
+        .order_by(NewsReport.event_datetime.asc())
+        .all()
+    )
+
+
+def _as_coord(value, limit):
+    """แปลงพิกัดที่กรอกมา (ข้อความ) เป็นตัวเลข — ค่าว่างหรือเกินช่วงที่เป็นไปได้ถือว่าไม่ระบุ
+
+    limit = 90 สำหรับละติจูด, 180 สำหรับลองติจูด
+    """
+    try:
+        num = float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return num if -limit <= num <= limit else None
+
+
+def _combine_date_time(date_val, time_val):
+    if date_val is None:
+        return None
+    # ผู้ใช้บางคนกรอกปีเป็น พ.ศ. (เช่น 2569) — แปลงเป็น ค.ศ. ให้อัตโนมัติ
+    # (ปี ค.ศ. จริงจะไม่มีทางเกิน 2400 ในการใช้งานระบบนี้)
+    if date_val.year >= 2400:
+        try:
+            date_val = date_val.replace(year=date_val.year - 543)
+        except ValueError:  # 29 ก.พ. ที่ปี ค.ศ. ปลายทางไม่ใช่ปีอธิกสุรทิน
+            date_val = date_val.replace(year=date_val.year - 543, day=28)
+    return datetime.combine(date_val, time_val or time_cls.min)
+
+
+def _fields_from_form(form):
+    permit_granted = form.permit_status.data == "มีการขออนุญาต"
+    equipment_present = form.overnight_equipment_status.data == "มี"
+
+    return {
+        "special_branch_province": form.special_branch_province.data or None,
+        "title": form.title.data,
+        "activity_types": ", ".join(form.activity_types.data) or None,
+        "problem_group_types": ", ".join(form.problem_group_types.data) or None,
+        "event_datetime": _combine_date_time(form.event_date.data, form.event_time.data),
+        "event_end_datetime": _combine_date_time(form.event_end_date.data, form.event_end_time.data),
+        "permit_status": form.permit_status.data,
+        "permit_location": form.permit_location.data if permit_granted else None,
+        "permit_duration_days": form.permit_duration_days.data if permit_granted else None,
+        "location": form.location.data,
+        "latitude": _as_coord(form.latitude.data, 90),
+        "longitude": _as_coord(form.longitude.data, 180),
+        "situation_level": form.situation_level.data or SITUATION_DEFAULT,
+        "group_name": form.group_name.data,
+        "mass_count": form.mass_count.data,
+        "mass_members": form.mass_members.data,
+        "mass_media": form.mass_media.data,
+        "mass_others": form.mass_others.data,
+        "activity_format": form.activity_format.data,
+        "demands": form.demands.data,
+        "activity_detail": form.activity_detail.data,
+        "supporters": form.supporters.data,
+        "affiliations": form.affiliations.data,
+        "overnight_equipment_status": form.overnight_equipment_status.data,
+        "overnight_equipment_detail": form.overnight_equipment_detail.data if equipment_present else None,
+        "vehicle_status": form.vehicle_status.data,
+        "other_info": form.other_info.data,
+        "trend_assessment": form.trend_assessment.data,
+        "considerations": form.considerations.data,
+        "reporter_name": form.reporter_name.data,
+        "reporter_phone": form.reporter_phone.data,
+    }
+
+
+def next_ref_number():
+    """เลขที่อ้างอิงถัดไป — รันต่อกันทั้งระบบภายในปี พ.ศ. เดียวกัน เช่น 2569/0004."""
+    year = (datetime.utcnow() + timedelta(hours=7)).year + 543
+    prefix = f"{year}/"
+    last = (
+        db.session.query(func.max(NewsReport.ref_number))
+        .filter(NewsReport.ref_number.like(f"{prefix}%"))
+        .scalar()
+    )
+    try:
+        seq = int(last.split("/")[1]) + 1 if last else 1
+    except (AttributeError, IndexError, ValueError):
+        seq = 1
+    return f"{prefix}{seq:04d}"
+
+
+def _assign_ref_number(item):
+    """ใส่เลขที่อ้างอิงแล้วบันทึก — ถ้าเลขชนกับของคนอื่นที่บันทึกพร้อมกันจะขยับเลขให้เอง."""
+    for _ in range(5):
+        item.ref_number = next_ref_number()
+        try:
+            db.session.commit()
+            return True
+        except IntegrityError:
+            db.session.rollback()
+    item.ref_number = None
+    db.session.commit()   # ยอมบันทึกโดยไม่มีเลขที่ ดีกว่าเสียข้อมูลรายงาน
+    return False
+
+
+def _send_line_card(item):
+    """ส่งการ์ดเข้าไลน์ (หัวหน้าติ๊กตอนยืนยัน) แล้วแจ้งผลให้เห็นบนหน้าเว็บ."""
+    app = current_app._get_current_object()
+    if not line_notify.is_configured(app.config):
+        flash("ยังไม่ได้ตั้งค่าไลน์ในระบบ — บันทึกข้อมูลแล้ว แต่ไม่ได้ส่งการ์ด", "warning")
+        return
+    status = line_card.send_card(app, item)
+    audit.log("send_line_card", "report", item.id, "สำเร็จ" if status == line_notify.SENT else f"ไม่สำเร็จ ({status})")
+    if status == line_notify.SENT:
+        item.line_card_sent_at = datetime.utcnow()
+        db.session.commit()
+        flash("ส่งการ์ดเข้ากลุ่มไลน์เรียบร้อยแล้ว", "success")
+    elif status == line_notify.FAILED_TRANSIENT:
+        flash("ส่งการ์ดไม่สำเร็จ (เน็ตมีปัญหาชั่วคราว) — ข้อมูลถูกบันทึกแล้ว ลองกดแก้ไขแล้วติ๊กส่งอีกครั้งได้", "warning")
+    else:
+        flash("ส่งการ์ดไม่สำเร็จ — อาจเป็นเพราะโควตาไลน์เดือนนี้หมด (ดู log) ข้อมูลถูกบันทึกแล้ว", "warning")
+
+
+def _handle_photos(item, editing=False):
+    """เก็บรูปที่แนบมากับฟอร์ม (และตอนแก้ไข: ลบ/แก้คำบรรยายรูปเดิม) แล้วแจ้งเตือนถ้ามีปัญหา."""
+    if editing:
+        captions = {}
+        for key, value in request.form.items():
+            if key.startswith("photo_caption_") and key[14:].isdigit():
+                captions[int(key[14:])] = value
+        photo_store.apply_edits(item, request.form.getlist("photo_delete"), captions)
+    saved, warnings = photo_store.save_uploads(
+        item, request.files.getlist("photos"), request.form.getlist("photo_caption")
+    )
+    for message in warnings:
+        flash(message, "warning")
+    return saved
+
+
+def _sync_sheets(item, ok_message):
+    """ส่งขึ้น Google Sheets (เฉพาะรายงานที่ยืนยันแล้ว) — ไม่สำเร็จก็แค่เตือน ไม่กระทบข้อมูล."""
+    synced = sheets_sync.sync_report(current_app._get_current_object(), item)
+    if sheets_sync.is_configured(current_app.config) and not synced:
+        flash(ok_message + " แต่ sync ขึ้น Google Sheets ไม่สำเร็จ (ดู log)", "warning")
+    else:
+        flash(ok_message, "success")
+
+
+def _get_at(values, idx):
+    return values[idx].strip() if idx < len(values) else ""
+
+
+def _leaders_from_request():
+    names = request.form.getlist("leader_name")
+    positions = request.form.getlist("leader_position")
+    roles = request.form.getlist("leader_role")
+    leaders = []
+    for i, name in enumerate(names):
+        if name.strip():
+            leaders.append(
+                NewsReportLeader(
+                    full_name=name.strip(),
+                    position=_get_at(positions, i) or None,
+                    role=_get_at(roles, i) or None,
+                )
+            )
+    return leaders
+
+
+def _vehicles_from_request():
+    field_lists = {
+        key: request.form.getlist(f"vehicle_{key}")
+        for key in ("type", "plate", "province", "color", "owner", "usage")
+    }
+    count = max((len(v) for v in field_lists.values()), default=0)
+    rows = []
+    for i in range(count):
+        values = {key: _get_at(lst, i) for key, lst in field_lists.items()}
+        if any(values.values()):
+            rows.append(
+                NewsReportVehicle(
+                    vehicle_type=values["type"] or None,
+                    plate_number=values["plate"] or None,
+                    province=values["province"] or None,
+                    color=values["color"] or None,
+                    owner=values["owner"] or None,
+                    usage=values["usage"] or None,
+                )
+            )
+    return rows
+
+
+def _people_from_request(form_type):
+    people = []
+    for prefix, kind, category, _fields in PERSON_SECTIONS:
+        if prefix not in FORM_PERSON_PREFIXES.get(form_type, ()):
+            continue
+        names = request.form.getlist(f"{prefix}_name")
+        groups = request.form.getlist(f"{prefix}_group")
+        roles = request.form.getlist(f"{prefix}_role")
+        for i, name in enumerate(names):
+            if name.strip():
+                people.append(
+                    NewsReportPerson(
+                        kind=kind,
+                        category=category,
+                        full_name=name.strip(),
+                        group_name=_get_at(groups, i) or None,
+                        role=_get_at(roles, i) or None,
+                    )
+                )
+    return people
+
+
+def _media_from_request():
+    pages = request.form.getlist("media_page")
+    likes = request.form.getlist("media_likes")
+    shares = request.form.getlist("media_shares")
+    posts = []
+    for i, page in enumerate(pages):
+        if page.strip():
+            posts.append(
+                NewsReportMedia(
+                    page_name=page.strip(),
+                    likes=_get_at(likes, i) or None,
+                    shares=_get_at(shares, i) or None,
+                )
+            )
+    return posts
+
+
+def _attach_children(item, form, form_type):
+    """แทนที่รายการลูกทั้งหมด (แกนนำ/ยานพาหนะ/บุคคล/สื่อ) ด้วยค่าที่ส่งมาในฟอร์ม."""
+    item.leaders = _leaders_from_request()
+    item.vehicles = _vehicles_from_request() if form.vehicle_status.data == "มี" else []
+    item.people = _people_from_request(form_type)
+    item.media_posts = _media_from_request() if form_type == "closure" else []
+
+
+# ---------- config สำหรับ activity-form.js (เรนเดอร์ช่องกรอกตามจำนวนที่เลือก) ----------
+
+def _dynamic_sections(form_type, rows):
+    """rows: dict key -> list[dict input_name -> value] ค่าเดิมไว้เติมกลับ (หน้าแก้ไข/ฟอร์มที่ validate ไม่ผ่าน)"""
+    sections = []
+
+    leader_fields = [{"name": "leader_name", "label": "ชื่อ-นามสกุล"}]
+    if form_type == "closure":
+        leader_fields += [
+            {"name": "leader_position", "label": "ตำแหน่ง"},
+            {"name": "leader_role", "label": "บทบาทหน้าที่"},
+        ]
+    sections.append(
+        {
+            "count": "leader_count",
+            "container": "leader-fields-container",
+            "heading": "แกนนำ คนที่",
+            "fields": leader_fields,
+            "rows": rows.get("leader", []),
+        }
+    )
+
+    for prefix, _kind, _category, fields in PERSON_SECTIONS:
+        if prefix not in FORM_PERSON_PREFIXES.get(form_type, ()):
+            continue
+        sections.append(
+            {
+                "count": f"{prefix}_count",
+                "container": f"{prefix.replace('_', '-')}-fields-container",
+                "heading": PERSON_SECTION_HEADINGS[prefix],
+                "fields": [
+                    {"name": f"{prefix}_{f}", "label": PERSON_FIELD_LABELS[f]} for f in fields
+                ],
+                "rows": rows.get(prefix, []),
+            }
+        )
+
+    if form_type == "closure":
+        sections.append(
+            {
+                "count": "media_count",
+                "container": "media-fields-container",
+                "heading": "สื่อออนไลน์ รายการที่",
+                "fields": [
+                    {"name": "media_page", "label": "ชื่อเพจ"},
+                    {"name": "media_likes", "label": "ยอดคนกด Like"},
+                    {"name": "media_shares", "label": "ยอดคนกดแชร์"},
+                ],
+                "rows": rows.get("media", []),
+            }
+        )
+
+    vehicle_fields = [
+        {"name": "vehicle_type", "label": "ประเภทรถยนต์"},
+        {"name": "vehicle_plate", "label": "หมายเลขทะเบียน"},
+        {"name": "vehicle_province", "label": "จังหวัด"},
+        {"name": "vehicle_color", "label": "สี"},
+    ]
+    if form_type == "closure":
+        vehicle_fields += [
+            {"name": "vehicle_owner", "label": "เจ้าของ/ผู้ครอบครอง"},
+            {"name": "vehicle_usage", "label": "ใช้ทำอะไรในกิจกรรม"},
+        ]
+    sections.append(
+        {
+            "count": "vehicle_count",
+            "container": "vehicle-fields-container",
+            "heading": "ยานพาหนะคันที่",
+            "fields": vehicle_fields,
+            "rows": rows.get("vehicle", []),
+        }
+    )
+
+    return sections
+
+
+def _form_config(form_type, rows):
+    return {
+        "toggles": [
+            {"select": "permit_status", "value": "มีการขออนุญาต", "wrappers": ["permit-detail-wrapper"]},
+            {"select": "overnight_equipment_status", "value": "มี", "wrappers": ["equipment-detail-wrapper"]},
+            {
+                "select": "vehicle_status",
+                "value": "มี",
+                "wrappers": ["vehicle-count-wrap", "vehicle-section-wrapper"],
+            },
+        ],
+        "sections": _dynamic_sections(form_type, rows),
+    }
+
+
+def _rows_from_request():
+    """เก็บค่าดิบที่ผู้ใช้กรอกไว้ เพื่อเรนเดอร์ฟอร์มกลับหลัง validate ไม่ผ่าน."""
+    specs = {
+        "leader": ["leader_name", "leader_position", "leader_role"],
+        "vehicle": [
+            "vehicle_type", "vehicle_plate", "vehicle_province",
+            "vehicle_color", "vehicle_owner", "vehicle_usage",
+        ],
+        "media": ["media_page", "media_likes", "media_shares"],
+    }
+    for prefix, _kind, _category, fields in PERSON_SECTIONS:
+        specs[prefix] = [f"{prefix}_{f}" for f in fields]
+
+    rows = {}
+    for key, names in specs.items():
+        lists = [request.form.getlist(n) for n in names]
+        count = max((len(lst) for lst in lists), default=0)
+        rows[key] = [
+            {names[j]: (lists[j][i] if i < len(lists[j]) else "") for j in range(len(names))}
+            for i in range(count)
+        ]
+    return rows
+
+
+def _rows_from_item(item):
+    rows = {
+        "leader": [
+            {
+                "leader_name": leader.full_name,
+                "leader_position": leader.position or "",
+                "leader_role": leader.role or "",
+            }
+            for leader in item.leaders
+        ],
+        "vehicle": [
+            {
+                "vehicle_type": v.vehicle_type or "",
+                "vehicle_plate": v.plate_number or "",
+                "vehicle_province": v.province or "",
+                "vehicle_color": v.color or "",
+                "vehicle_owner": v.owner or "",
+                "vehicle_usage": v.usage or "",
+            }
+            for v in item.vehicles
+        ],
+        "media": [
+            {"media_page": m.page_name, "media_likes": m.likes or "", "media_shares": m.shares or ""}
+            for m in item.media_posts
+        ],
+    }
+    for prefix, kind, category, _fields in PERSON_SECTIONS:
+        rows[prefix] = [
+            {
+                f"{prefix}_name": p.full_name,
+                f"{prefix}_group": p.group_name or "",
+                f"{prefix}_role": p.role or "",
+            }
+            for p in item.people_of(kind, category)
+        ]
+    return rows
+
+
+MASS_COUNT_LABELS = {
+    # ข่าวล่วงหน้ายังไม่เกิดกิจกรรม กรอกได้แค่ตัวเลขที่คาดการณ์
+    "advance": ("คาดการณ์จำนวนมวลชน", "(คาดว่าจะมาร่วมกิจกรรมกี่คน)"),
+    "closure": ("จำนวนมวลชน", "(มวลชนที่มาร่วมงานจริง)"),
+    "incident": ("จำนวนมวลชน", "(มวลชนที่มาร่วมงานจริง)"),
+}
+
+
+def _render_report_form(form, form_type, rows, edit_item=None):
+    label, hint = MASS_COUNT_LABELS.get(form_type, MASS_COUNT_LABELS["incident"])
+    form.mass_count.label.text = label
+    form.mass_count.render_kw = dict(form.mass_count.render_kw or {}, placeholder=hint)
+    return render_template(
+        "reports/report_form.html",
+        form=form,
+        form_type=form_type,
+        form_title=REPORT_FORM_TITLES[form_type],
+        form_config=_form_config(form_type, rows),
+        trend_label="แนวโน้มในอนาคต" if form_type == "closure" else "แนวโน้มสถานการณ์",
+        trend_placeholder=CLOSURE_TREND_PLACEHOLDER if form_type == "closure" else "",
+        edit_item=edit_item,
+        max_photos=photo_store.MAX_PHOTOS,
+        existing_photos=[
+            {
+                "id": p.id,
+                "thumb": url_for("reports.report_photo", report_id=edit_item.id, filename=p.thumb_filename),
+                "caption": p.caption or "",
+            }
+            for p in edit_item.photos
+        ] if edit_item else [],
+    )
+
+
+# ---------- หน้าเว็บ ----------
+
+def _map_points(reports):
+    """สร้างข้อมูลหมุดสำหรับแผนที่ — รายงานที่จิ้มพิกัดไว้ปักตรงจุด ที่เหลือรวมเป็นหมุดของจังหวัด
+
+    หมุดจังหวัดใช้สีของ "ระดับสถานการณ์ที่รุนแรงที่สุด" ในจังหวัดนั้น เพื่อให้เห็นจุดร้อนได้ทันที
+    """
+    severity_rank = {level: i for i, level in enumerate(SITUATION_LEVELS)}
+
+    def entry(item):
+        # ส่งเฉพาะฟิลด์ที่กล่องรายละเอียดใช้จริง — ข้อมูลชุดนี้ฝังไปในหน้า ยิ่งเล็กยิ่งโหลดเร็ว
+        return {
+            "t": item.title,
+            "k": item.report_type,
+            "w": (item.event_datetime.strftime("%d/%m/") + str(item.event_datetime.year + 543)
+                  + item.event_datetime.strftime(" %H:%M") if item.event_datetime else None),
+            "p": item.location,
+            "u": url_for("reports.view_report", report_id=item.id),
+        }
+
+    points = []
+    by_province = {}
+    for item in reports:
+        if item.latitude is not None and item.longitude is not None:
+            points.append(
+                {
+                    "lat": item.latitude,
+                    "lng": item.longitude,
+                    "exact": True,
+                    "level": item.situation_level or SITUATION_DEFAULT,
+                    "color": SITUATION_COLORS.get(item.situation_level or SITUATION_DEFAULT),
+                    "label": item.special_branch_province or item.location,
+                    "total": 1,
+                    "reports": [entry(item)],
+                }
+            )
+            continue
+        coords = PROVINCE_COORDS.get(item.special_branch_province or "")
+        if coords:
+            by_province.setdefault(item.special_branch_province, []).append(item)
+
+    for province_name, items in by_province.items():
+        lat, lng = PROVINCE_COORDS[province_name]
+        worst = max(
+            (i.situation_level or SITUATION_DEFAULT for i in items),
+            key=lambda lvl: severity_rank.get(lvl, 0),
+        )
+        points.append(
+            {
+                "lat": lat,
+                "lng": lng,
+                "exact": False,
+                "level": worst,
+                "color": SITUATION_COLORS.get(worst),
+                "label": province_name,
+                # จำกัดไว้ 12 รายการต่อหมุด (เท่าที่กล่องแสดง) เพื่อให้หน้าเบา
+                "total": len(items),
+                "reports": [entry(i) for i in sorted(
+                    items, key=lambda x: x.event_datetime or x.created_at, reverse=True)[:12]],
+            }
+        )
+    return points
+
+
+# ช่วงเวลาของรายการรายงานในหน้าภาพรวม (ค่าเริ่มต้น 1 เดือน — ข้อมูลเก่ายังอยู่ในฐานข้อมูล ค้นด้วยตัวกรองได้)
+REPORT_PERIODS = [
+    ("1m", "1 เดือนล่าสุด"),
+    ("3m", "3 เดือนล่าสุด"),
+    ("6m", "6 เดือนล่าสุด"),
+    ("1y", "1 ปีล่าสุด"),
+    ("all", "ทั้งหมด"),
+]
+PERIOD_DAYS = {"1m": 30, "3m": 90, "6m": 180, "1y": 365}
+PERIOD_DEFAULT = "1m"
+PERIOD_LABELS = dict(REPORT_PERIODS)
+RESULT_LIMIT = 300
+
+
+def _province_from_text(text):
+    """ถ้าคำค้นคือ "ชื่อจังหวัด" ให้ถือว่าผู้ใช้ต้องการกรองจังหวัดนั้นจริงๆ
+
+    เดิมคำว่า "เชียงใหม่" ถูกค้นในช่องข้อความทุกช่อง (สถานที่/ข้อเรียกร้อง/ข้อมูลอื่น)
+    ทำให้รายงานของจังหวัดอื่นที่เอ่ยถึงเชียงใหม่ติดมาด้วย
+    """
+    cleaned = text.replace("จังหวัด", "").replace("จว.", "").replace(" ", "")
+    for name in SPECIAL_BRANCH_PROVINCES:
+        if cleaned == name.replace(" ", ""):
+            return name
+    return None
+
+
+def read_filters(with_period=False):
+    """อ่านค่าตัวกรองจาก query string และทำให้เป็นค่ามาตรฐาน (ใช้ร่วมกันทุกหน้า)."""
+    q = (request.args.get("q") or "").strip()
+    province = (request.args.get("province") or "").strip()
+    rtype = (request.args.get("rtype") or "").strip()
+    level = (request.args.get("level") or "").strip()
+
+    # พิมพ์ชื่อจังหวัดในช่องค้นหา = กรองจังหวัดนั้น (ไม่ใช่ค้นข้อความ)
+    province_from_q = None
+    if q and not province:
+        province_from_q = _province_from_text(q)
+        if province_from_q:
+            province = province_from_q
+            q = ""
+
+    filters = {
+        "q": q,
+        "province": province if province in SPECIAL_BRANCH_PROVINCES else "",
+        "rtype": rtype if rtype in REPORT_TYPE_LABELS else "",
+        "level": level if level in SITUATION_LEVELS else "",
+        "province_from_q": province_from_q,
+    }
+    if with_period:
+        period = (request.args.get("period") or "").strip()
+        filters["period"] = period if period in PERIOD_LABELS else PERIOD_DEFAULT
+    return filters
+
+
+def _filtered_query(q, province, rtype, level):
+    """สร้าง query ตามตัวกรองที่เลือก — ใช้ร่วมกันทั้งหน้าแผนที่และหน้าภาพรวม (เฉพาะรายงานที่ยืนยันแล้ว)."""
+    query = permissions.verified_only(NewsReport.query)
+    if q:
+        like = f"%{q}%"
+        # ทะเบียนรถค้นแบบไม่สนช่องว่าง — พิมพ์ "กข1234" ต้องเจอ "กข 1234" ด้วย
+        plate_like = f"%{q.replace(' ', '')}%"
+        vehicle_match = NewsReport.vehicles.any(
+            or_(
+                NewsReportVehicle.vehicle_type.ilike(like),
+                NewsReportVehicle.plate_number.ilike(like),
+                func.replace(NewsReportVehicle.plate_number, " ", "").ilike(plate_like),
+                NewsReportVehicle.province.ilike(like),
+                NewsReportVehicle.owner.ilike(like),
+            )
+        )
+        query = query.filter(
+            or_(
+                NewsReport.title.ilike(like),
+                NewsReport.group_name.ilike(like),
+                NewsReport.location.ilike(like),
+                NewsReport.demands.ilike(like),
+                NewsReport.other_info.ilike(like),
+                NewsReport.reporter_name.ilike(like),
+                NewsReport.leaders.any(NewsReportLeader.full_name.ilike(like)),
+                NewsReport.people.any(NewsReportPerson.full_name.ilike(like)),
+                vehicle_match,
+            )
+        )
+    if province:
+        query = query.filter(NewsReport.special_branch_province == province)
+    if rtype in REPORT_TYPE_LABELS:
+        query = query.filter(NewsReport.report_type == rtype)
+    if level in SITUATION_LEVELS:
+        if level == SITUATION_DEFAULT:  # รายงานเก่าที่ยังไม่มีค่า ถือเป็น "ปกติ"
+            query = query.filter(
+                or_(NewsReport.situation_level == level, NewsReport.situation_level.is_(None))
+            )
+        else:
+            query = query.filter(NewsReport.situation_level == level)
+    return query
+
+
+@bp.route("/map")
+@login_required
+def situation_map():
+    """แผนที่สถานการณ์ — หน้าเต็มจอ ปักหมุดเฉพาะ "ข่าวล่วงหน้าที่ยังไม่ผ่าน" เพื่อไม่ให้แผนที่รก
+
+    กิจกรรมที่เลยไปแล้วไม่ปัก ยกเว้นกิจกรรมหลายวันที่ยังไม่สิ้นสุด
+    """
+    f = read_filters()
+    q, province, level = f["q"], f["province"], f["level"]
+
+    today = thai_today()
+    now_thai = datetime.utcnow() + timedelta(hours=7)
+    query = (
+        _filtered_query(q, province, "advance", level)
+        .filter(NewsReport.event_datetime.isnot(None))
+        .filter(
+            or_(
+                NewsReport.event_datetime >= today,                    # วันนี้และอนาคต
+                NewsReport.event_end_datetime >= now_thai,             # กิจกรรมหลายวันที่ยังไม่จบ
+            )
+        )
+    )
+    map_points = _map_points(query.order_by(NewsReport.event_datetime.asc()).limit(2000).all())
+    return render_template(
+        "reports/situation_map.html",
+        map_points=map_points,
+        map_report_count=sum(pt["total"] for pt in map_points),
+        report_type_choices=REPORT_TYPE_CHOICES,
+        provinces=SPECIAL_BRANCH_PROVINCES,
+        situation_levels=SITUATION_LEVELS,
+        situation_colors=SITUATION_COLORS,
+        q=q,
+        province=province,
+        level=level,
+        province_from_q=f["province_from_q"],
+        filtered=bool(q or province or level),
+    )
+
+
+@bp.route("/")
+@login_required
+def dashboard():
+    """ภาพรวม — ตัวเลขสรุป กิจกรรมวันนี้/ล่วงหน้า ค้นหา และผลวิเคราะห์รายจังหวัด."""
+    f = read_filters(with_period=True)
+    q, province, rtype, level, period = f["q"], f["province"], f["rtype"], f["level"], f["period"]
+
+    query = _filtered_query(q, province, rtype, level)
+    # รายการรายงานแสดง 1 เดือนล่าสุดเป็นค่าเริ่มต้น — ของเก่ายังอยู่ในฐานข้อมูล
+    # เลือกช่วงเวลาให้ยาวขึ้น หรือใช้ตัวกรองอื่น เพื่อดึงย้อนหลังได้
+    days = PERIOD_DAYS.get(period)
+    if days:
+        query = query.filter(NewsReport.created_at >= datetime.utcnow() - timedelta(days=days))
+    results = query.order_by(NewsReport.created_at.desc()).limit(RESULT_LIMIT + 1).all()
+    truncated = len(results) > RESULT_LIMIT
+    results = results[:RESULT_LIMIT]
+
+    # สรุปภาพรวมทั้งระบบ (ไม่ขึ้นกับตัวกรอง) — นับเฉพาะที่ยืนยันแล้ว
+    verified = permissions.verified_only(NewsReport.query)
+    counts = {"total": verified.count()}
+    for key, _label in REPORT_TYPE_CHOICES:
+        counts[key] = verified.filter_by(report_type=key).count()
+
+    # วิเคราะห์แยกจังหวัด × ประเภทรายงาน (ตามตัวกรองที่เลือกอยู่ เพื่อให้ตารางสอดคล้องกับผลค้นหา)
+    grouped = (
+        query.with_entities(
+            NewsReport.special_branch_province, NewsReport.report_type, func.count(NewsReport.id)
+        )
+        .group_by(NewsReport.special_branch_province, NewsReport.report_type)
+        .all()
+    )
+    analysis = {}  # {province: {"advance": n, ..., "total": n}}
+    for prov, type_key, n in grouped:
+        prov = prov or "ไม่ระบุ"
+        row = analysis.setdefault(prov, {key: 0 for key, _ in REPORT_TYPE_CHOICES})
+        row[type_key] = row.get(type_key, 0) + n
+    for row in analysis.values():
+        row["total"] = sum(row.get(key, 0) for key, _ in REPORT_TYPE_CHOICES)
+    # เรียงตามลำดับรายชื่อจังหวัดสันติบาล, "ไม่ระบุ" ไว้ท้ายสุด
+    province_order = {name: i for i, name in enumerate(SPECIAL_BRANCH_PROVINCES)}
+    analysis_rows = sorted(analysis.items(), key=lambda kv: province_order.get(kv[0], len(province_order)))
+
+    # กิจกรรมวันนี้ + กิจกรรมที่กำลังจะมาถึง (ข่าวล่วงหน้า 7 วันข้างหน้า)
+    today = thai_today()
+    tomorrow = today + timedelta(days=1)
+
+    today_items = todays_advance_items(today)
+    today_events = [
+        {"item": r, "ongoing": r.event_datetime < today} for r in today_items
+    ]
+    today_label = f"{THAI_WEEKDAYS[today.weekday()]} {today.day} {THAI_MONTHS_ABBR[today.month - 1]}"
+
+    # กำลังจะมาถึง: พรุ่งนี้ถึงอีก 7 วันข้างหน้า (วันนี้แยกไปการ์ดของตัวเองแล้ว)
+    upcoming = upcoming_advance_items(today)
+    calendar_days = []
+    for offset in range(1, 8):
+        day = today + timedelta(days=offset)
+        calendar_days.append(
+            {
+                "weekday": THAI_WEEKDAYS[day.weekday()],
+                "label": f"{day.day} {THAI_MONTHS_ABBR[day.month - 1]}",
+                "is_today": False,
+                "events": [r for r in upcoming if r.event_datetime.date() == day.date()],
+            }
+        )
+
+    return render_template(
+        "reports/dashboard.html",
+        counts=counts,
+        results=results,
+        analysis_rows=analysis_rows,
+        today_events=today_events,
+        today_label=today_label,
+        upcoming_count=len(upcoming),
+        calendar_days=calendar_days,
+        report_type_choices=REPORT_TYPE_CHOICES,
+        provinces=SPECIAL_BRANCH_PROVINCES,
+        q=q,
+        province=province,
+        rtype=rtype,
+        level=level,
+        period=period,
+        period_choices=REPORT_PERIODS,
+        period_label=PERIOD_LABELS[period],
+        province_from_q=f["province_from_q"],
+        truncated=truncated,
+        result_limit=RESULT_LIMIT,
+        situation_levels=SITUATION_LEVELS,
+        filtered=bool(q or province or rtype or level),
+    )
+
+
+@bp.route("/new/<form_type>", methods=["GET", "POST"])
+@login_required
+def new_report(form_type):
+    if form_type not in REPORT_FORM_TITLES:
+        abort(404)
+
+    form = NewsReportForm()
+    if form.validate_on_submit():
+        item = NewsReport(report_type=form_type, created_by_id=current_user.id, **_fields_from_form(form))
+        _attach_children(item, form, form_type)
+        now = datetime.utcnow()
+        item.submitted_at = now
+        if current_user.is_verifier:
+            # หัวหน้า/แอดมินบันทึกเอง = ยืนยันแล้วทันที (ระดับผู้ตรวจอยู่แล้ว)
+            item.status = STATUS_VERIFIED
+            item.verified_at = now
+            item.verified_by_id = current_user.id
+        else:
+            item.status = STATUS_PENDING
+        db.session.add(item)
+        db.session.commit()
+        _assign_ref_number(item)
+        _handle_photos(item)
+        audit.log("create_report", "report", item.id,
+                  f"เลขที่ {item.ref_number} · {item.title[:80]} · {item.status_label}")
+
+        label = f"เลขที่ {item.ref_number} " if item.ref_number else ""
+        if item.is_verified:
+            _sync_sheets(item, f"บันทึก{REPORT_FORM_TITLES[form_type]} {label}เรียบร้อยแล้ว")
+        else:
+            flash(f"บันทึก{REPORT_FORM_TITLES[form_type]} {label}เรียบร้อยแล้ว — รอหัวหน้าตรวจยืนยัน", "success")
+        return redirect(url_for("reports.new_report", form_type=form_type))
+
+    rows = _rows_from_request() if request.method == "POST" else {}
+    return _render_report_form(form, form_type, rows)
+
+
+# เส้นทางเดิมก่อนแยกเป็น 3 แท็บ — เผื่อ bookmark เก่า
+@bp.route("/news-report")
+@login_required
+def news_report():
+    return redirect(url_for("reports.new_report", form_type="advance"))
+
+
+def _split_choices(value):
+    return [v.strip() for v in (value or "").split(",") if v.strip()]
+
+
+def _prefill_form(form, item):
+    """เติมค่าจากรายงานเดิมลงฟอร์ม (ใช้ตอนเปิดหน้าแก้ไขครั้งแรก)."""
+    form.special_branch_province.data = item.special_branch_province
+    form.title.data = item.title
+    form.activity_types.data = _split_choices(item.activity_types)
+    form.problem_group_types.data = _split_choices(item.problem_group_types)
+    if item.event_datetime:
+        form.event_date.data = item.event_datetime.date()
+        form.event_time.data = item.event_datetime.time()
+    if item.event_end_datetime:
+        form.event_end_date.data = item.event_end_datetime.date()
+        form.event_end_time.data = item.event_end_datetime.time()
+    form.permit_status.data = item.permit_status
+    form.permit_location.data = item.permit_location
+    form.permit_duration_days.data = item.permit_duration_days
+    form.location.data = item.location
+    form.latitude.data = item.latitude
+    form.longitude.data = item.longitude
+    form.situation_level.data = item.situation_level or SITUATION_DEFAULT
+    form.group_name.data = item.group_name
+    form.leader_count.data = len(item.leaders)
+    form.participant_count.data = len(item.people_of("participant"))
+    form.supporter_count.data = len(item.people_of("supporter"))
+    form.aff_net_count.data = len(item.people_of("affiliate", AFFILIATE_CATEGORIES[0]))
+    form.aff_coord_count.data = len(item.people_of("affiliate", AFFILIATE_CATEGORIES[1]))
+    form.aff_joint_count.data = len(item.people_of("affiliate", AFFILIATE_CATEGORIES[2]))
+    form.org_party_count.data = len(item.people_of("related_org", RELATED_ORG_CATEGORIES[0]))
+    form.org_ngo_count.data = len(item.people_of("related_org", RELATED_ORG_CATEGORIES[1]))
+    form.org_gov_count.data = len(item.people_of("related_org", RELATED_ORG_CATEGORIES[2]))
+    form.media_count.data = len(item.media_posts)
+    form.mass_count.data = item.mass_count
+    form.mass_members.data = item.mass_members
+    form.mass_media.data = item.mass_media
+    form.mass_others.data = item.mass_others
+    form.activity_format.data = item.activity_format
+    form.demands.data = item.demands
+    form.activity_detail.data = item.activity_detail
+    form.supporters.data = item.supporters
+    form.affiliations.data = item.affiliations
+    form.overnight_equipment_status.data = item.overnight_equipment_status
+    form.overnight_equipment_detail.data = item.overnight_equipment_detail
+    form.vehicle_status.data = item.vehicle_status
+    form.vehicle_count.data = len(item.vehicles)
+    form.other_info.data = item.other_info
+    form.trend_assessment.data = item.trend_assessment
+    form.considerations.data = item.considerations
+    form.reporter_name.data = item.reporter_name
+    form.reporter_phone.data = item.reporter_phone
+
+
+def _fmt_dt(dt):
+    """วัน-เวลากิจกรรมที่ผู้ใช้กรอกเอง (เวลาไทยอยู่แล้ว ไม่ต้องเลื่อนโซนเวลา) — แสดงปีเป็น พ.ศ."""
+    if not dt:
+        return "-"
+    return dt.strftime(f"%d/%m/{dt.year + 543} %H:%M")
+
+
+def _person_lines(people, with_role=True):
+    lines = []
+    for i, p in enumerate(people):
+        parts = [p.full_name]
+        if p.group_name:
+            parts.append(f"กลุ่ม/ตำแหน่ง: {p.group_name}")
+        if with_role and p.role:
+            parts.append(f"บทบาท: {p.role}")
+        lines.append(f"{i + 1}. " + " — ".join(parts))
+    return "\n".join(lines)
+
+
+def _detail_rows(item):
+    """(หัวข้อ, ค่า) ทุกช่องของรายงาน — ใช้ทั้งแสดงหน้ารายละเอียดและข้อความสำหรับปุ่ม copy."""
+    leader_lines = []
+    for i, leader in enumerate(item.leaders):
+        parts = [leader.full_name]
+        if leader.position:
+            parts.append(f"ตำแหน่ง: {leader.position}")
+        if leader.role:
+            parts.append(f"บทบาท: {leader.role}")
+        leader_lines.append(f"{i + 1}. " + " — ".join(parts))
+    leaders = "\n".join(leader_lines) or "-"
+
+    vehicle_lines = []
+    for i, v in enumerate(item.vehicles):
+        line = (
+            f"คันที่ {i + 1}: {v.vehicle_type or '-'} ทะเบียน {v.plate_number or '-'} "
+            f"จังหวัด {v.province or '-'} สี {v.color or '-'}"
+        )
+        if v.owner:
+            line += f" เจ้าของ/ผู้ครอบครอง: {v.owner}"
+        if v.usage:
+            line += f" ใช้ทำ: {v.usage}"
+        vehicle_lines.append(line)
+    vehicles = "\n".join(vehicle_lines) or "-"
+
+    equipment = item.overnight_equipment_status
+    if item.overnight_equipment_detail:
+        equipment += f" — {item.overnight_equipment_detail}"
+
+    mass_parts = []
+    if item.mass_members:
+        mass_parts.append(f"สมาชิกกลุ่ม: {item.mass_members}")
+    if item.mass_media:
+        mass_parts.append(f"นักข่าว/สื่อ: {item.mass_media}")
+    if item.mass_others:
+        mass_parts.append(f"อื่นๆ: {item.mass_others}")
+
+    trend_label = "แนวโน้มในอนาคต" if item.report_type == "closure" else "แนวโน้มสถานการณ์"
+
+    rows = [
+        ("ประเภทรายงาน", REPORT_TYPE_LABELS.get(item.report_type, item.report_type)),
+        ("สันติบาล จว.", item.special_branch_province or "-"),
+        ("ชื่อกิจกรรม", item.title),
+        ("ประเภทกิจกรรม", item.activity_types or "-"),
+        ("ประเภทกลุ่มปัญหา", item.problem_group_types or "-"),
+        ("วันเวลานัดหมายทำกิจกรรม", _fmt_dt(item.event_datetime)),
+        ("วันเวลาสิ้นสุดกิจกรรม", _fmt_dt(item.event_end_datetime)),
+        ("การขออนุญาต", item.permit_status),
+        ("ขออนุญาตที่ไหน", item.permit_location or "-"),
+        ("ระยะเวลาทำกิจกรรม (วัน)", str(item.permit_duration_days) if item.permit_duration_days is not None else "-"),
+        ("ชื่อกลุ่ม", item.group_name or "-"),
+        ("แกนนำ", leaders),
+    ]
+
+    participants = item.people_of("participant")
+    if participants:
+        rows.append(("แนวร่วมหรือบุคคลสำคัญที่มาร่วมกิจกรรม", _person_lines(participants)))
+
+    rows += [
+        ("สถานที่นัดหมาย", item.location),
+        (MASS_COUNT_LABELS.get(item.report_type, MASS_COUNT_LABELS["incident"])[0], item.mass_count or "-"),
+    ]
+    if mass_parts:
+        rows.append(("จำแนกมวลชน", "\n".join(mass_parts)))
+
+    rows += [
+        ("รูปแบบการจัดกิจกรรม", item.activity_format or "-"),
+        ("ข้อเรียกร้อง/วัตถุประสงค์", item.demands),
+    ]
+    if item.activity_detail:
+        rows.append(("รายละเอียดการทำกิจกรรม", item.activity_detail))
+
+    supporters_people = item.people_of("supporter")
+    if supporters_people:
+        rows.append(("ผู้สนับสนุน/ผู้อยู่เบื้องหลัง", _person_lines(supporters_people)))
+    elif item.supporters:
+        rows.append(("ผู้สนับสนุน", item.supporters))
+    else:
+        rows.append(("ผู้สนับสนุน", "-"))
+
+    affiliate_lines = []
+    for category in AFFILIATE_CATEGORIES:
+        entries = item.people_of("affiliate", category)
+        for p in entries:
+            line = f"{category}: {p.full_name}"
+            if p.group_name:
+                line += f" (กลุ่ม: {p.group_name})"
+            affiliate_lines.append(line)
+    affiliation_text = item.affiliations or ""
+    combined_affiliations = "\n".join(filter(None, [affiliation_text, "\n".join(affiliate_lines)]))
+    rows.append(
+        ("ความเกี่ยวข้อง/ความเชื่อมโยงกับการเมือง องค์กร หรือบุคคลอื่นๆ", combined_affiliations or "-")
+    )
+
+    org_lines = []
+    for category in RELATED_ORG_CATEGORIES:
+        for p in item.people_of("related_org", category):
+            line = f"{category}: {p.full_name}"
+            if p.role:
+                line += f" — บทบาท: {p.role}"
+            org_lines.append(line)
+    if org_lines:
+        rows.append(("กลุ่มการเมือง องค์กร หรือบุคคลอื่นๆ ที่มาเกี่ยวข้อง", "\n".join(org_lines)))
+
+    if item.media_posts:
+        media_lines = [
+            f"{i + 1}. {m.page_name} — Like: {m.likes or '-'}, แชร์: {m.shares or '-'}"
+            for i, m in enumerate(item.media_posts)
+        ]
+        rows.append(("การเผยแพร่กิจกรรมทางสื่อออนไลน์และกระแสสนใจ", "\n".join(media_lines)))
+
+    rows += [
+        ("สัมภาระค้างแรม/อุปกรณ์", equipment),
+        ("ยานพาหนะ", item.vehicle_status if item.vehicle_status == "ไม่มี" else f"มี\n{vehicles}"),
+        ("ข้อมูลน่าสนใจอื่นๆ", item.other_info or "-"),
+        (trend_label, item.trend_assessment or "-"),
+        ("ข้อพิจารณา", item.considerations or "-"),
+        ("ผู้รายงาน", item.reporter_name or "-"),
+        ("เบอร์ติดต่อ", item.reporter_phone or "-"),
+    ]
+    return rows
+
+
+@bp.route("/<int:report_id>")
+@login_required
+def view_report(report_id):
+    item = NewsReport.query.get_or_404(report_id)
+    if not permissions.can_view(current_user, item):
+        abort(404)   # ไม่บอกด้วยซ้ำว่ามีรายงานนี้อยู่
+    rows = _detail_rows(item)
+    audit.log("view_report", "report", item.id, f"เลขที่ {item.ref_number}")
+
+    return render_template(
+        "reports/detail.html",
+        item=item,
+        rows=rows,
+        can_edit=permissions.can_edit(current_user, item),
+        can_delete=permissions.can_delete(current_user, item),
+        can_verify=permissions.can_verify(current_user, item),
+        verify_form=VerifyForm(),
+        photos=[
+            {
+                "full": url_for("reports.report_photo", report_id=item.id, filename=p.filename),
+                "thumb": url_for("reports.report_photo", report_id=item.id, filename=p.thumb_filename),
+                "caption": p.caption,
+            }
+            for p in item.photos
+        ],
+        delete_form=DeleteForm(),
+    )
+
+
+def _send_photo(report_id, filename):
+    """ส่งไฟล์รูป — รับเฉพาะชื่อไฟล์ที่ระบบตั้งเอง (ตัวเลข/ตัวอักษร + .jpg) กันเดินออกนอกโฟลเดอร์."""
+    stem = filename[:-4]
+    if not filename.endswith(".jpg") or not stem.replace("_t", "").isalnum():
+        abort(404)
+    directory = photo_store.report_dir(report_id)
+    # รูปไม่เปลี่ยน (ชื่อสุ่มใหม่ทุกครั้ง) จึงให้เบราว์เซอร์แคชได้ยาว
+    return send_from_directory(directory, filename, max_age=60 * 60 * 24 * 30)
+
+
+@bp.route("/<int:report_id>/photos/<filename>")
+@login_required
+def report_photo(report_id, filename):
+    return _send_photo(report_id, filename)
+
+
+@bp.route("/<int:report_id>/s/<token>/photos/<filename>")
+def shared_photo(report_id, token, filename):
+    """รูปสำหรับหน้ารายงานเต็มแบบไม่ล็อกอิน — ต้องมีรหัสลับของรายงานนั้นเหมือนตัวหน้า."""
+    if not hmac.compare_digest(line_card.share_token(current_app.config, report_id), token or ""):
+        abort(404)
+    item = NewsReport.query.get_or_404(report_id)
+    if not item.is_verified:
+        abort(404)
+    return _send_photo(report_id, filename)
+
+
+@bp.route("/<int:report_id>/s/<token>")
+def share_report(report_id, token):
+    """หน้ารายงานเต็มแบบไม่ต้องล็อกอิน — ปลายทางของปุ่มในการ์ดไลน์
+
+    เปิดได้เฉพาะลิงก์ที่มีรหัสลับตรงกับรายงานนั้น (คำนวณจาก SECRET_KEY เดาไม่ได้)
+    และเครื่องที่เปิดยังต้องอยู่บน Tailscale เหมือนเดิม — หน้านี้อ่านอย่างเดียว ไม่มีปุ่มแก้ไข/ลบ
+    """
+    expected = line_card.share_token(current_app.config, report_id)
+    if not hmac.compare_digest(expected, token or ""):
+        abort(404)
+    item = NewsReport.query.get_or_404(report_id)
+    if not item.is_verified:      # ถูกส่งกลับไปแก้ = ลิงก์เดิมใช้ไม่ได้จนกว่าจะยืนยันใหม่
+        abort(404)
+    audit.log("view_shared", "report", item.id, f"เลขที่ {item.ref_number}")
+    level = item.situation_level or SITUATION_DEFAULT
+    reporter = item.reporter_name or (item.created_by.full_name if item.created_by else "-")
+    return render_template(
+        "reports/share.html",
+        item=item,
+        rows=line_card.card_rows(item, full=True),
+        title=line_card.CARD_TITLES.get(item.report_type, "รายงานข่าว"),
+        unit_name=line_card.UNIT_NAME,
+        level=level,
+        header_color=line_card.HEADER_COLORS.get(level, line_card.HEADER_COLORS["ปกติ"]),
+        level_colors=line_card.LEVEL_PILL.get(level, line_card.LEVEL_PILL["ปกติ"]),
+        reporter=reporter,
+        tel=line_card.tel_uri(item.reporter_phone),
+        copy_text=line_card.plain_text(current_app.config, item),
+        photos=[
+            {
+                "full": url_for("reports.shared_photo", report_id=item.id, token=token, filename=p.filename),
+                "thumb": url_for("reports.shared_photo", report_id=item.id, token=token, filename=p.thumb_filename),
+                "caption": p.caption,
+            }
+            for p in item.photos
+        ],
+    )
+
+
+@bp.route("/<int:report_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def delete_report(report_id):
+    """ลบรายงาน (เฉพาะ admin) — ลบรายการลูกทั้งหมดตามไปด้วย (แกนนำ/ยานพาหนะ/บุคคล/สื่อ)."""
+    item = NewsReport.query.get_or_404(report_id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        abort(400)
+    title = item.title
+    ref = item.ref_number
+    db.session.delete(item)
+    db.session.commit()
+    photo_store.remove_report_dir(report_id)
+    audit.log("delete_report", "report", report_id, f"เลขที่ {ref} · {title[:80]}")
+    flash(f"ลบรายงาน “{title}” เรียบร้อยแล้ว", "success")
+    return redirect(url_for("reports.dashboard"))
+
+
+@bp.route("/<int:report_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_report(report_id):
+    item = NewsReport.query.get_or_404(report_id)
+    if not permissions.can_view(current_user, item):
+        abort(404)
+    if not permissions.can_edit(current_user, item):
+        abort(403)
+    form_type = item.report_type if item.report_type in REPORT_FORM_TITLES else "incident"
+    form = NewsReportForm()
+
+    if form.validate_on_submit():
+        for key, value in _fields_from_form(form).items():
+            setattr(item, key, value)
+        _attach_children(item, form, form_type)
+        was_returned = item.status == STATUS_RETURNED
+        if was_returned:
+            # เจ้าหน้าที่แก้งานที่ถูกส่งกลับแล้วบันทึก = ส่งใหม่ให้ตรวจ (ติดป้าย "แก้ไขแล้ว")
+            item.status = STATUS_PENDING
+            item.resubmitted = True
+            item.submitted_at = datetime.utcnow()
+        db.session.commit()
+        if not item.ref_number:      # รายงานเก่าที่ยังไม่มีเลขที่ ใส่ให้ตอนแก้ไข
+            _assign_ref_number(item)
+        _handle_photos(item, editing=True)
+        audit.log("resubmit_report" if was_returned else "edit_report", "report", item.id,
+                  f"เลขที่ {item.ref_number} · {item.status_label}")
+
+        if was_returned:
+            flash("แก้ไขและส่งให้หัวหน้าตรวจยืนยันใหม่แล้ว", "success")
+        elif item.is_verified:
+            _sync_sheets(item, "แก้ไขรายงานข่าวเรียบร้อยแล้ว")
+        else:
+            flash("แก้ไขรายงานข่าวเรียบร้อยแล้ว (ยังรอหัวหน้าตรวจยืนยัน)", "success")
+        return redirect(url_for("reports.view_report", report_id=item.id))
+
+    if request.method == "GET":
+        _prefill_form(form, item)
+        rows = _rows_from_item(item)
+    else:
+        rows = _rows_from_request()
+
+    return _render_report_form(form, form_type, rows, edit_item=item)
+
+
+@bp.route("/<int:report_id>/verify", methods=["POST"])
+@login_required
+def verify_report(report_id):
+    """หัวหน้าสังกัดเดียวกับผู้บันทึก (หรือแอดมิน) ยืนยันรายงาน — ติ๊กส่งการ์ดไลน์พร้อมกันได้."""
+    item = NewsReport.query.get_or_404(report_id)
+    if not permissions.can_view(current_user, item):
+        abort(404)
+    if not permissions.can_verify(current_user, item):
+        abort(403)
+    form = VerifyForm()
+    if not form.validate_on_submit():
+        abort(400)
+    item.status = STATUS_VERIFIED
+    item.verified_at = datetime.utcnow()
+    item.verified_by_id = current_user.id
+    db.session.commit()
+    audit.log("verify_report", "report", item.id, f"เลขที่ {item.ref_number}")
+    _sync_sheets(item, f"ยืนยันรายงานเลขที่ {item.ref_number} เรียบร้อยแล้ว")
+    if form.send_line_card.data:
+        _send_line_card(item)
+    return redirect(url_for("manage.verify_queue"))
+
+
+@bp.route("/<int:report_id>/return", methods=["POST"])
+@login_required
+def return_report(report_id):
+    """ส่งกลับให้เจ้าหน้าที่แก้ไข — ต้องมีเหตุผล."""
+    item = NewsReport.query.get_or_404(report_id)
+    if not permissions.can_view(current_user, item):
+        abort(404)
+    if not permissions.can_verify(current_user, item):
+        abort(403)
+    form = VerifyForm()
+    if not form.validate_on_submit():
+        abort(400)
+    reason = (form.reason.data or "").strip()
+    if not reason:
+        flash("กรุณากรอกเหตุผลที่ส่งกลับ เพื่อให้เจ้าหน้าที่รู้ว่าต้องแก้อะไร", "danger")
+        return redirect(url_for("reports.view_report", report_id=item.id))
+    item.status = STATUS_RETURNED
+    item.returned_at = datetime.utcnow()
+    item.returned_by_id = current_user.id
+    item.return_reason = reason
+    db.session.commit()
+    audit.log("return_report", "report", item.id, f"เลขที่ {item.ref_number} · เหตุผล: {reason[:200]}")
+    flash(f"ส่งรายงานเลขที่ {item.ref_number} กลับให้เจ้าหน้าที่แก้ไขแล้ว", "warning")
+    return redirect(url_for("manage.verify_queue"))
