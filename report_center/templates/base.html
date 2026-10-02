@@ -30,7 +30,7 @@
       <div class="section-label">บันทึกข่าว</div>
       {% for tab_key, tab_label in report_form_tabs %}
       <a href="{{ url_for('reports.new_report', form_type=tab_key) }}"
-         class="{{ 'active' if request.endpoint == 'reports.new_report' and request.view_args.get('form_type') == tab_key else '' }}">{{ tab_label }}</a>
+         class="{{ 'active' if request.endpoint == 'reports.new_report' and request.view_args.get('form_type') == tab_key else '' }}">{{ tab_label | replace('(', '\u200b(') | replace('/', '/\u200b') }}</a>
       {% endfor %}
       {% if current_user.is_authenticated %}
       <div class="section-label">จัดการระบบ</div>
