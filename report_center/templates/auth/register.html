@@ -23,6 +23,16 @@
       {{ form.hidden_tag() }}
       {{ m.render_field(form.username) }}
       {{ m.render_field(form.full_name) }}
+      {{ m.render_field(form.unit) }}
+      <div class="form-field">
+        {{ form.position.label }}
+        <div class="seg-choice">
+          {% for sub in form.position %}
+          <label class="seg-opt">{{ sub }}<span>{{ sub.label.text }}</span></label>
+          {% endfor %}
+        </div>
+        {% for error in form.position.errors %}<div class="field-error">{{ error }}</div>{% endfor %}
+      </div>
       {{ m.render_field(form.password) }}
       {{ m.render_field(form.confirm_password) }}
       <button class="btn" type="submit">สมัครสมาชิก</button>

@@ -2,6 +2,7 @@ from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, request
 
+from . import permissions
 from .models import REPORT_TYPE_LABELS, NewsReport
 
 bp = Blueprint("api", __name__, url_prefix="/api")
@@ -98,7 +99,7 @@ def latest_reports():
 
     limit = request.args.get("limit", 50, type=int)
 
-    query = NewsReport.query
+    query = permissions.verified_only(NewsReport.query)   # รายงานที่ยังไม่ยืนยันไม่ออกทาง API
     if since is not None:
         query = query.filter(NewsReport.created_at > since)
     if type_param:

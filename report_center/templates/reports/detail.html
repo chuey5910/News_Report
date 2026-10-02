@@ -3,6 +3,27 @@
 {% block content %}
 <h2 class="page-title">รายละเอียดรายงานข่าว</h2>
 
+{% if item.status == 'pending' %}
+<div class="status-banner pending">
+  <b>🟠 {{ item.status_label }}</b> — บันทึกโดย {{ item.created_by.full_name if item.created_by else '-' }}
+  ({{ item.author_unit or 'ไม่ระบุสังกัด' }}) · ส่งเมื่อ {{ item.submitted_at | thai_time }}
+  {% if can_verify %}<div class="status-sub">อ่านให้ครบทุกข้อและรูปแนบ แล้วตัดสินใจที่ท้ายหน้า</div>
+  {% else %}<div class="status-sub">รอหัวหน้าตรวจยืนยัน — รายงานนี้ยังไม่เข้าระบบค้นหาจนกว่าจะยืนยัน</div>{% endif %}
+</div>
+{% elif item.status == 'returned' %}
+<div class="status-banner returned">
+  <b>🔴 ส่งกลับแก้ไข</b> — โดย {{ item.returned_by.level_label if item.returned_by else '-' }} {{ item.returned_at | thai_time }}
+  <div class="status-reason">เหตุผล: {{ item.return_reason }}</div>
+  {% if item.created_by_id == current_user.id %}
+  <div class="status-sub"><a class="btn small warn" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไขแล้วส่งใหม่</a> แก้แล้วบันทึก → กลับเป็น "รอยืนยัน" อัตโนมัติ</div>
+  {% endif %}
+</div>
+{% else %}
+<div class="status-banner verified">
+  <b>🟢 ยืนยันแล้ว</b> — โดย {{ item.verified_by.level_label if item.verified_by else 'ยืนยันอัตโนมัติ (ข้อมูลเดิม)' }} {{ item.verified_at | thai_time }}
+</div>
+{% endif %}
+
 <div class="card">
   <div class="detail-head">
     <div class="detail-head-info">
@@ -22,8 +43,10 @@
     </div>
     <div class="detail-actions">
       <button type="button" class="btn small secondary" onclick="history.back()">← ย้อนกลับ</button>
-      {% if current_user.is_admin %}
-      <a class="btn small secondary" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไขรายงาน</a>
+      {% if can_edit %}
+      <a class="btn small secondary" href="{{ url_for('reports.edit_report', report_id=item.id) }}">{{ 'แก้ไขแล้วส่งใหม่' if item.status == 'returned' and item.created_by_id == current_user.id else 'แก้ไขรายงาน' }}</a>
+      {% endif %}
+      {% if can_delete %}
       <form method="post" action="{{ url_for('reports.delete_report', report_id=item.id) }}" class="inline-form"
             onsubmit="return confirm('ยืนยันการลบรายงานนี้?\nลบแล้วไม่สามารถกู้คืนได้');">
         {{ delete_form.hidden_tag() }}
@@ -58,18 +81,24 @@
   {% endif %}
 </div>
 
-{# ปุ่มล่างสุดของหน้า — คัดลอกรายงานเต็มไปวางเป็นข้อความในไลน์ได้เลย #}
-<div class="copy-bar">
-  <button type="button" class="btn big" id="copy-report-btn">คัดลอกรายงานเต็ม (วางในไลน์ได้เลย)</button>
-  <div class="label-hint">คัดลอกแล้ววางในแชทไลน์ได้ทันที มีไอคอนและเว้นบรรทัดเหมือนการ์ด ครบทุกข้อ</div>
-  {% if share_url %}
-  <div class="label-hint share-link">
-    ลิงก์เปิดอ่านโดยไม่ต้องล็อกอิน (ตัวเดียวกับปุ่มในการ์ดไลน์ ใช้ได้เฉพาะเครื่องที่ต่อ Tailscale):
-    <a href="{{ share_url }}" target="_blank" rel="noopener">{{ share_url }}</a>
-  </div>
-  {% endif %}
+{% if can_verify %}
+<div class="verify-panel">
+  <div class="verify-title">การตรวจยืนยัน — {{ current_user.level_label }}</div>
+  <form method="post" action="{{ url_for('reports.verify_report', report_id=item.id) }}" class="verify-form"
+        onsubmit="return confirm('ยืนยันรายงานเลขที่ {{ item.ref_number }} ใช่หรือไม่?');">
+    {{ verify_form.hidden_tag() }}
+    <label class="confirm-ask-label verify-line">{{ verify_form.send_line_card() }}<span>📨 {{ verify_form.send_line_card.label.text }}</span></label>
+    <button type="submit" class="btn big ok">✓ ยืนยันรายงานนี้</button>
+  </form>
+  <div class="verify-or"><span>หรือ</span></div>
+  <form method="post" action="{{ url_for('reports.return_report', report_id=item.id) }}" class="verify-form"
+        onsubmit="return this.reason.value.trim() ? confirm('ส่งรายงานเลขที่ {{ item.ref_number }} กลับให้เจ้าหน้าที่แก้ไข ใช่หรือไม่?') : (alert('กรุณากรอกเหตุผลที่ส่งกลับ'), false);">
+    {{ verify_form.hidden_tag() }}
+    <label for="verify-reason">{{ verify_form.reason.label.text }} <span class="label-hint">(บังคับกรอกเมื่อส่งกลับ)</span></label>
+    {{ verify_form.reason(id="verify-reason", rows=3, placeholder="เช่น ขาดชื่อแกนนำ / วันเวลาสิ้นสุดกิจกรรมไม่ถูกต้อง / ขอรูปป้ายผ้าเพิ่ม") }}
+    <button type="submit" class="btn big warn">↩ ส่งกลับให้เจ้าหน้าที่แก้ไข</button>
+  </form>
+  <div class="label-hint center">ทุกการยืนยัน/ส่งกลับ ถูกบันทึกชื่อผู้ตรวจและเวลาไว้ในระบบ</div>
 </div>
-
-<textarea id="copy-report-source" hidden readonly>{{ copy_text }}</textarea>
-<script src="{{ url_for('static', filename='js/copy-report.js') }}"></script>
+{% endif %}
 {% endblock %}

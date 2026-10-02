@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}ตรวจยืนยันรายงาน — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">ตรวจยืนยันรายงาน{% if scope_label %} — {{ scope_label }}{% endif %}</h2>
+
+{% for unit in units_without_chief %}
+<div class="flash warning">สังกัด {{ unit }} ยังไม่มีหัวหน้าในระบบ — งานของสังกัดนี้ต้องให้แอดมินยืนยันแทน</div>
+{% endfor %}
+
+<div class="card">
+  <h2>รอยืนยัน <span class="count-pill">{{ rows | length }}</span></h2>
+  {% if rows %}
+  <div class="table-scroll">
+    <table class="queue-table">
+      <thead>
+        <tr>
+          <th class="col-wait">ค้าง</th>
+          <th>ส่งเมื่อ</th>
+          <th>เลขที่</th>
+          {% if not scope_label %}<th>สังกัดผู้บันทึก</th>{% endif %}
+          <th>ชื่อกิจกรรม</th>
+          <th>ผู้บันทึก</th>
+          <th>สถานะ</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="col-wait {{ 'hot' if row.hot else '' }}">{{ row.wait }}</td>
+          <td>{{ row.item.submitted_at | thai_time }}</td>
+          <td>{{ row.item.ref_number or '-' }}</td>
+          {% if not scope_label %}<td>{{ row.item.author_unit or '-' }}</td>{% endif %}
+          <td>{{ row.item.title }}</td>
+          <td>{{ row.item.created_by.full_name if row.item.created_by else '-' }}</td>
+          <td><span class="status-badge {{ 'again' if row.item.resubmitted else 'pending' }}">{{ row.item.status_label }}</span></td>
+          <td class="row-actions"><a class="btn small" href="{{ url_for('reports.view_report', report_id=row.item.id) }}">ดูรายละเอียด</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-note">ไม่มีรายงานรอยืนยัน</div>
+  {% endif %}
+</div>
+
+{% if returned %}
+<div class="card">
+  <h2>ส่งกลับแล้ว รอเจ้าหน้าที่แก้ไข <span class="count-pill muted">{{ returned | length }}</span></h2>
+  <div class="table-scroll">
+    <table class="queue-table">
+      <thead>
+        <tr><th>ส่งกลับเมื่อ</th><th>เลขที่</th><th>ชื่อกิจกรรม</th><th>ผู้บันทึก</th><th>เหตุผลที่ส่งกลับ</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for item in returned %}
+        <tr>
+          <td>{{ item.returned_at | thai_time }}</td>
+          <td>{{ item.ref_number or '-' }}</td>
+          <td>{{ item.title }}</td>
+          <td>{{ item.created_by.full_name if item.created_by else '-' }}</td>
+          <td class="reason-cell">{{ item.return_reason }}</td>
+          <td class="row-actions"><a class="btn small secondary" href="{{ url_for('reports.view_report', report_id=item.id) }}">ดูรายละเอียด</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

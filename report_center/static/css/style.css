@@ -397,6 +397,104 @@ textarea.ta-tall { min-height: 96px; }
 .photo-section { margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .photo-section .detail-label { margin-bottom: .4rem; }
 
+/* ---------- ระบบตรวจยืนยัน / สิทธิ์ ---------- */
+.nav-count {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 .4rem;
+  margin-left: .35rem;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.5;
+  vertical-align: 1px;
+}
+.nav-count.red { background: #dc2626; }
+
+.status-badge {
+  display: inline-block;
+  padding: .2rem .65rem;
+  border-radius: 999px;
+  font-size: .76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.status-badge.pending { background: #ffedd5; color: #9a3412; }
+.status-badge.again { background: #fef3c7; color: #92400e; border: 1px dashed #d97706; }
+.status-badge.verified { background: #dcfce7; color: #166534; }
+.status-badge.returned { background: #fee2e2; color: #991b1b; }
+.status-note { color: var(--muted); font-size: .76rem; margin-top: .2rem; line-height: 1.4; }
+.status-summary { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .9rem; }
+.status-summary .status-badge { font-size: .84rem; padding: .3rem .8rem; }
+
+.status-banner {
+  border-radius: 12px;
+  padding: .8rem 1rem;
+  margin-bottom: 1rem;
+  font-size: .95rem;
+  line-height: 1.5;
+}
+.status-banner.pending { background: #fff7ed; border: 1px solid #fdba74; color: #7c2d12; }
+.status-banner.returned { background: #fef2f2; border: 1px solid #fca5a5; color: #7f1d1d; }
+.status-banner.verified { background: #f0fdf4; border: 1px solid #86efac; color: #14532d; }
+.status-banner .status-sub { font-size: .86rem; margin-top: .35rem; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.status-banner .status-reason { font-weight: 700; margin-top: .3rem; white-space: pre-line; }
+
+.verify-panel {
+  margin: 1.1rem 0 2rem;
+  padding: 1.1rem 1.2rem 1rem;
+  border: 2px solid #fdba74;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(20, 30, 60, .08);
+}
+.verify-title { font-weight: 800; font-size: 1.05rem; color: #1e1b4b; margin-bottom: .7rem; }
+.verify-form label { display: block; font-weight: 700; margin-bottom: .35rem; }
+.verify-form textarea { width: 100%; margin-bottom: .6rem; }
+.verify-line { padding: .65rem .9rem; border: 1px dashed #93a7cc; border-radius: 10px; background: #f6f8fc; margin-bottom: .6rem; }
+.verify-line input { width: 20px; height: 20px; }
+.verify-or { display: flex; align-items: center; gap: .8rem; margin: 1rem 0 .7rem; color: #9ca3af; font-size: .8rem; }
+.verify-or::before, .verify-or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.btn.big.ok { background: #16a34a; }
+.btn.big.warn { background: #ea580c; }
+.btn.warn { background: #ea580c; }
+.btn.ok { background: #16a34a; }
+.label-hint.center { text-align: center; margin-top: .6rem; }
+
+/* ตารางคิวงาน */
+.queue-table th, .queue-table td { white-space: normal; }
+.queue-table .col-wait { white-space: nowrap; font-weight: 800; color: #b45309; }
+.queue-table .col-wait.hot { color: #b91c1c; }
+.queue-table .reason-cell { max-width: 380px; white-space: pre-line; }
+.count-pill { display: inline-block; margin-left: .4rem; padding: 0 .55rem; border-radius: 999px; background: #ea580c; color: #fff; font-size: .78rem; vertical-align: 2px; }
+.count-pill.muted { background: #94a3b8; }
+.pager { display: flex; align-items: center; gap: .6rem; margin-top: 1rem; flex-wrap: wrap; }
+.pager-info { font-size: .85rem; color: var(--muted); }
+.audit-action { display: inline-block; padding: .15rem .55rem; border-radius: 6px; background: #e0e7ff; color: #3730a3; font-size: .76rem; font-weight: 700; white-space: nowrap; }
+.audit-action.a-verify_report { background: #dcfce7; color: #166534; }
+.audit-action.a-return_report, .audit-action.a-delete_report, .audit-action.a-revoke_user { background: #fee2e2; color: #991b1b; }
+.audit-action.a-auto_logout { background: #fef3c7; color: #92400e; }
+
+/* จัดการผู้ใช้ */
+.users-table select.w-unit { width: 170px; min-width: 150px; }
+.users-table select.w-pos { width: 125px; min-width: 110px; }
+.users-table .w-pass { width: 165px; }
+.users-actions { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.users-actions .reset-form { display: inline-flex; gap: .35rem; align-items: center; }
+.row-pending { background: #fffbeb; }
+
+/* สมัครสมาชิก: เลือกตำแหน่ง */
+.seg-choice { display: flex; gap: .6rem; }
+.seg-opt { flex: 1; display: flex; align-items: center; gap: .5rem; padding: .6rem .8rem; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-weight: 600; }
+.seg-opt input { width: 18px; height: 18px; }
+
+/* หน้าต่างเตือนหมดเวลา */
+.session-box p { margin: .4rem 0 1rem; line-height: 1.6; }
+.session-box #session-countdown { font-size: 1.3rem; color: #b91c1c; }
+
 /* ปุ่มคัดลอกล่างสุดของหน้ารายงานเต็ม */
 .copy-bar { margin: 1rem 0 2rem; text-align: center; }
 .copy-bar .label-hint { margin-top: .4rem; }

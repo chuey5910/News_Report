@@ -6,10 +6,10 @@ from flask_login import current_user, login_required
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError
 
-from . import line_card, line_notify, photos as photo_store, sheets_sync
+from . import audit, line_card, line_notify, permissions, photos as photo_store, sheets_sync
 from .admin import admin_required
 from .extensions import db
-from .forms import CLOSURE_TREND_PLACEHOLDER, DeleteForm, NewsReportForm
+from .forms import CLOSURE_TREND_PLACEHOLDER, DeleteForm, NewsReportForm, VerifyForm
 from .models import (
     AFFILIATE_CATEGORIES,
     PROVINCE_COORDS,
@@ -21,6 +21,9 @@ from .models import (
     SITUATION_DEFAULT,
     SITUATION_LEVELS,
     SPECIAL_BRANCH_PROVINCES,
+    STATUS_PENDING,
+    STATUS_RETURNED,
+    STATUS_VERIFIED,
     NewsReport,
     NewsReportLeader,
     NewsReportMedia,
@@ -82,7 +85,7 @@ def todays_advance_items(today):
     """ข่าวล่วงหน้าที่มีกิจกรรม "วันนี้" — เริ่มวันนี้ หรือเริ่มก่อนหน้าแต่ยังไม่จบ (ต่อเนื่องหลายวัน)."""
     tomorrow = today + timedelta(days=1)
     return (
-        NewsReport.query.filter(
+        permissions.verified_only(NewsReport.query).filter(
             NewsReport.report_type == "advance",
             or_(
                 and_(NewsReport.event_datetime >= today, NewsReport.event_datetime < tomorrow),
@@ -99,7 +102,7 @@ def upcoming_advance_items(today):
     tomorrow = today + timedelta(days=1)
     horizon = today + timedelta(days=8)
     return (
-        NewsReport.query.filter(
+        permissions.verified_only(NewsReport.query).filter(
             NewsReport.report_type == "advance",
             NewsReport.event_datetime >= tomorrow,
             NewsReport.event_datetime < horizon,
@@ -204,12 +207,13 @@ def _assign_ref_number(item):
 
 
 def _send_line_card(item):
-    """ส่งการ์ดเข้ากลุ่มไลน์ตามที่ผู้บันทึกติ๊กไว้ แล้วแจ้งผลให้เห็นบนหน้าเว็บ."""
+    """ส่งการ์ดเข้าไลน์ (หัวหน้าติ๊กตอนยืนยัน) แล้วแจ้งผลให้เห็นบนหน้าเว็บ."""
     app = current_app._get_current_object()
     if not line_notify.is_configured(app.config):
         flash("ยังไม่ได้ตั้งค่าไลน์ในระบบ — บันทึกข้อมูลแล้ว แต่ไม่ได้ส่งการ์ด", "warning")
         return
     status = line_card.send_card(app, item)
+    audit.log("send_line_card", "report", item.id, "สำเร็จ" if status == line_notify.SENT else f"ไม่สำเร็จ ({status})")
     if status == line_notify.SENT:
         item.line_card_sent_at = datetime.utcnow()
         db.session.commit()
@@ -234,6 +238,15 @@ def _handle_photos(item, editing=False):
     for message in warnings:
         flash(message, "warning")
     return saved
+
+
+def _sync_sheets(item, ok_message):
+    """ส่งขึ้น Google Sheets (เฉพาะรายงานที่ยืนยันแล้ว) — ไม่สำเร็จก็แค่เตือน ไม่กระทบข้อมูล."""
+    synced = sheets_sync.sync_report(current_app._get_current_object(), item)
+    if sheets_sync.is_configured(current_app.config) and not synced:
+        flash(ok_message + " แต่ sync ขึ้น Google Sheets ไม่สำเร็จ (ดู log)", "warning")
+    else:
+        flash(ok_message, "success")
 
 
 def _get_at(values, idx):
@@ -633,8 +646,8 @@ def read_filters(with_period=False):
 
 
 def _filtered_query(q, province, rtype, level):
-    """สร้าง query ตามตัวกรองที่เลือก — ใช้ร่วมกันทั้งหน้าแผนที่และหน้าภาพรวม."""
-    query = NewsReport.query
+    """สร้าง query ตามตัวกรองที่เลือก — ใช้ร่วมกันทั้งหน้าแผนที่และหน้าภาพรวม (เฉพาะรายงานที่ยืนยันแล้ว)."""
+    query = permissions.verified_only(NewsReport.query)
     if q:
         like = f"%{q}%"
         # ทะเบียนรถค้นแบบไม่สนช่องว่าง — พิมพ์ "กข1234" ต้องเจอ "กข 1234" ด้วย
@@ -731,10 +744,11 @@ def dashboard():
     truncated = len(results) > RESULT_LIMIT
     results = results[:RESULT_LIMIT]
 
-    # สรุปภาพรวมทั้งระบบ (ไม่ขึ้นกับตัวกรอง)
-    counts = {"total": NewsReport.query.count()}
+    # สรุปภาพรวมทั้งระบบ (ไม่ขึ้นกับตัวกรอง) — นับเฉพาะที่ยืนยันแล้ว
+    verified = permissions.verified_only(NewsReport.query)
+    counts = {"total": verified.count()}
     for key, _label in REPORT_TYPE_CHOICES:
-        counts[key] = NewsReport.query.filter_by(report_type=key).count()
+        counts[key] = verified.filter_by(report_type=key).count()
 
     # วิเคราะห์แยกจังหวัด × ประเภทรายงาน (ตามตัวกรองที่เลือกอยู่ เพื่อให้ตารางสอดคล้องกับผลค้นหา)
     grouped = (
@@ -815,20 +829,27 @@ def new_report(form_type):
     if form.validate_on_submit():
         item = NewsReport(report_type=form_type, created_by_id=current_user.id, **_fields_from_form(form))
         _attach_children(item, form, form_type)
+        now = datetime.utcnow()
+        item.submitted_at = now
+        if current_user.is_verifier:
+            # หัวหน้า/แอดมินบันทึกเอง = ยืนยันแล้วทันที (ระดับผู้ตรวจอยู่แล้ว)
+            item.status = STATUS_VERIFIED
+            item.verified_at = now
+            item.verified_by_id = current_user.id
+        else:
+            item.status = STATUS_PENDING
         db.session.add(item)
         db.session.commit()
         _assign_ref_number(item)
         _handle_photos(item)
+        audit.log("create_report", "report", item.id,
+                  f"เลขที่ {item.ref_number} · {item.title[:80]} · {item.status_label}")
 
-        # Best-effort sync to Google Sheets (never blocks or fails the save)
-        synced = sheets_sync.sync_report(current_app._get_current_object(), item)
-        if sheets_sync.is_configured(current_app.config) and not synced:
-            flash("บันทึกเรียบร้อย แต่ sync ขึ้น Google Sheets ไม่สำเร็จ (ดู log) — ข้อมูลถูกเก็บในระบบแล้ว", "warning")
+        label = f"เลขที่ {item.ref_number} " if item.ref_number else ""
+        if item.is_verified:
+            _sync_sheets(item, f"บันทึก{REPORT_FORM_TITLES[form_type]} {label}เรียบร้อยแล้ว")
         else:
-            label = f"เลขที่ {item.ref_number} " if item.ref_number else ""
-            flash(f"บันทึก{REPORT_FORM_TITLES[form_type]} {label}เรียบร้อยแล้ว", "success")
-        if form.send_line_card.data:
-            _send_line_card(item)
+            flash(f"บันทึก{REPORT_FORM_TITLES[form_type]} {label}เรียบร้อยแล้ว — รอหัวหน้าตรวจยืนยัน", "success")
         return redirect(url_for("reports.new_report", form_type=form_type))
 
     rows = _rows_from_request() if request.method == "POST" else {}
@@ -1042,15 +1063,19 @@ def _detail_rows(item):
 @login_required
 def view_report(report_id):
     item = NewsReport.query.get_or_404(report_id)
+    if not permissions.can_view(current_user, item):
+        abort(404)   # ไม่บอกด้วยซ้ำว่ามีรายงานนี้อยู่
     rows = _detail_rows(item)
+    audit.log("view_report", "report", item.id, f"เลขที่ {item.ref_number}")
 
     return render_template(
         "reports/detail.html",
         item=item,
         rows=rows,
-        # ข้อความคัดลอกหน้าตาเดียวกับการ์ดไลน์ (ไอคอน เลขข้อ เว้นบรรทัด) ครบทุกข้อไม่ตัดทอน
-        copy_text=line_card.plain_text(current_app.config, item),
-        share_url=line_card.share_url(current_app.config, item.id),
+        can_edit=permissions.can_edit(current_user, item),
+        can_delete=permissions.can_delete(current_user, item),
+        can_verify=permissions.can_verify(current_user, item),
+        verify_form=VerifyForm(),
         photos=[
             {
                 "full": url_for("reports.report_photo", report_id=item.id, filename=p.filename),
@@ -1084,6 +1109,9 @@ def shared_photo(report_id, token, filename):
     """รูปสำหรับหน้ารายงานเต็มแบบไม่ล็อกอิน — ต้องมีรหัสลับของรายงานนั้นเหมือนตัวหน้า."""
     if not hmac.compare_digest(line_card.share_token(current_app.config, report_id), token or ""):
         abort(404)
+    item = NewsReport.query.get_or_404(report_id)
+    if not item.is_verified:
+        abort(404)
     return _send_photo(report_id, filename)
 
 
@@ -1098,6 +1126,9 @@ def share_report(report_id, token):
     if not hmac.compare_digest(expected, token or ""):
         abort(404)
     item = NewsReport.query.get_or_404(report_id)
+    if not item.is_verified:      # ถูกส่งกลับไปแก้ = ลิงก์เดิมใช้ไม่ได้จนกว่าจะยืนยันใหม่
+        abort(404)
+    audit.log("view_shared", "report", item.id, f"เลขที่ {item.ref_number}")
     level = item.situation_level or SITUATION_DEFAULT
     reporter = item.reporter_name or (item.created_by.full_name if item.created_by else "-")
     return render_template(
@@ -1133,18 +1164,23 @@ def delete_report(report_id):
     if not form.validate_on_submit():
         abort(400)
     title = item.title
+    ref = item.ref_number
     db.session.delete(item)
     db.session.commit()
     photo_store.remove_report_dir(report_id)
+    audit.log("delete_report", "report", report_id, f"เลขที่ {ref} · {title[:80]}")
     flash(f"ลบรายงาน “{title}” เรียบร้อยแล้ว", "success")
     return redirect(url_for("reports.dashboard"))
 
 
 @bp.route("/<int:report_id>/edit", methods=["GET", "POST"])
 @login_required
-@admin_required
 def edit_report(report_id):
     item = NewsReport.query.get_or_404(report_id)
+    if not permissions.can_view(current_user, item):
+        abort(404)
+    if not permissions.can_edit(current_user, item):
+        abort(403)
     form_type = item.report_type if item.report_type in REPORT_FORM_TITLES else "incident"
     form = NewsReportForm()
 
@@ -1152,19 +1188,25 @@ def edit_report(report_id):
         for key, value in _fields_from_form(form).items():
             setattr(item, key, value)
         _attach_children(item, form, form_type)
+        was_returned = item.status == STATUS_RETURNED
+        if was_returned:
+            # เจ้าหน้าที่แก้งานที่ถูกส่งกลับแล้วบันทึก = ส่งใหม่ให้ตรวจ (ติดป้าย "แก้ไขแล้ว")
+            item.status = STATUS_PENDING
+            item.resubmitted = True
+            item.submitted_at = datetime.utcnow()
         db.session.commit()
-
         if not item.ref_number:      # รายงานเก่าที่ยังไม่มีเลขที่ ใส่ให้ตอนแก้ไข
             _assign_ref_number(item)
         _handle_photos(item, editing=True)
+        audit.log("resubmit_report" if was_returned else "edit_report", "report", item.id,
+                  f"เลขที่ {item.ref_number} · {item.status_label}")
 
-        synced = sheets_sync.sync_report(current_app._get_current_object(), item)
-        if sheets_sync.is_configured(current_app.config) and not synced:
-            flash("แก้ไขเรียบร้อย แต่ sync ขึ้น Google Sheets ไม่สำเร็จ (ดู log)", "warning")
+        if was_returned:
+            flash("แก้ไขและส่งให้หัวหน้าตรวจยืนยันใหม่แล้ว", "success")
+        elif item.is_verified:
+            _sync_sheets(item, "แก้ไขรายงานข่าวเรียบร้อยแล้ว")
         else:
-            flash("แก้ไขรายงานข่าวเรียบร้อยแล้ว", "success")
-        if form.send_line_card.data:
-            _send_line_card(item)
+            flash("แก้ไขรายงานข่าวเรียบร้อยแล้ว (ยังรอหัวหน้าตรวจยืนยัน)", "success")
         return redirect(url_for("reports.view_report", report_id=item.id))
 
     if request.method == "GET":
@@ -1174,3 +1216,52 @@ def edit_report(report_id):
         rows = _rows_from_request()
 
     return _render_report_form(form, form_type, rows, edit_item=item)
+
+
+@bp.route("/<int:report_id>/verify", methods=["POST"])
+@login_required
+def verify_report(report_id):
+    """หัวหน้าสังกัดเดียวกับผู้บันทึก (หรือแอดมิน) ยืนยันรายงาน — ติ๊กส่งการ์ดไลน์พร้อมกันได้."""
+    item = NewsReport.query.get_or_404(report_id)
+    if not permissions.can_view(current_user, item):
+        abort(404)
+    if not permissions.can_verify(current_user, item):
+        abort(403)
+    form = VerifyForm()
+    if not form.validate_on_submit():
+        abort(400)
+    item.status = STATUS_VERIFIED
+    item.verified_at = datetime.utcnow()
+    item.verified_by_id = current_user.id
+    db.session.commit()
+    audit.log("verify_report", "report", item.id, f"เลขที่ {item.ref_number}")
+    _sync_sheets(item, f"ยืนยันรายงานเลขที่ {item.ref_number} เรียบร้อยแล้ว")
+    if form.send_line_card.data:
+        _send_line_card(item)
+    return redirect(url_for("manage.verify_queue"))
+
+
+@bp.route("/<int:report_id>/return", methods=["POST"])
+@login_required
+def return_report(report_id):
+    """ส่งกลับให้เจ้าหน้าที่แก้ไข — ต้องมีเหตุผล."""
+    item = NewsReport.query.get_or_404(report_id)
+    if not permissions.can_view(current_user, item):
+        abort(404)
+    if not permissions.can_verify(current_user, item):
+        abort(403)
+    form = VerifyForm()
+    if not form.validate_on_submit():
+        abort(400)
+    reason = (form.reason.data or "").strip()
+    if not reason:
+        flash("กรุณากรอกเหตุผลที่ส่งกลับ เพื่อให้เจ้าหน้าที่รู้ว่าต้องแก้อะไร", "danger")
+        return redirect(url_for("reports.view_report", report_id=item.id))
+    item.status = STATUS_RETURNED
+    item.returned_at = datetime.utcnow()
+    item.returned_by_id = current_user.id
+    item.return_reason = reason
+    db.session.commit()
+    audit.log("return_report", "report", item.id, f"เลขที่ {item.ref_number} · เหตุผล: {reason[:200]}")
+    flash(f"ส่งรายงานเลขที่ {item.ref_number} กลับให้เจ้าหน้าที่แก้ไขแล้ว", "warning")
+    return redirect(url_for("manage.verify_queue"))

@@ -138,7 +138,7 @@ def due_message(config, item, thai_now):
     )
 
 
-def daily_message(config, today_items, upcoming_items, today):
+def daily_message(config, today_items, upcoming_items, today, pending_count=0):
     """สรุปประจำเช้า: กิจกรรมวันนี้ + กิจกรรมล่วงหน้า 7 วันข้างหน้า (`flask line-daily`)
     เว้นบรรทัดว่างคั่นระหว่างแต่ละรายการ เพื่อให้อ่านในไลน์ได้ไม่สับสน"""
     # อีโมจิเน้นหน้ากิจกรรม: 🔴 วันนี้ / 🟠 ต่อเนื่องจากวันก่อน / 🔵 กำลังจะมาถึง
@@ -178,6 +178,8 @@ def daily_message(config, today_items, upcoming_items, today):
         + "\n\n\n"  # เว้น 2 บรรทัดคั่นระหว่าง 2 กลุ่ม
         + upcoming_block
     )
+    if pending_count:
+        message += f"\n\n⏳ มีรายงานรอยืนยัน {pending_count} รายการ (ยังไม่นับรวมด้านบน)"
     base = (config.get("REPORT_CENTER_BASE_URL") or "").rstrip("/")
     if base:
         message += f"\n\nดูทั้งหมด: {base}/reports/"

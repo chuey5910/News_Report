@@ -35,6 +35,10 @@ class Config:
     # variable in production; never commit real keys.
     API_KEY = os.environ.get("REPORT_CENTER_API_KEY", "dev-api-key-change-me")
 
+    # ล็อกอินค้างได้นานแค่ไหน — ไม่ขยับ 30 นาที หรือครบ 3 ชั่วโมง = ออกจากระบบเอง (บังคับที่ server)
+    IDLE_TIMEOUT_MINUTES = int(os.environ.get("IDLE_TIMEOUT_MINUTES", "30"))
+    MAX_SESSION_HOURS = int(os.environ.get("MAX_SESSION_HOURS", "3"))
+
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     # ตั้ง SESSION_COOKIE_SECURE=1 เมื่อรันหลัง HTTPS (แนะนำสำหรับใช้งานจริง)

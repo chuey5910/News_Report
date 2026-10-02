@@ -16,13 +16,17 @@ from wtforms.widgets import CheckboxInput, ListWidget
 
 from .models import (
     ACTIVITY_TYPES,
+    DESK_UNIT,
     PERMIT_STATUSES,
+    POSITIONS,
     PROBLEM_GROUP_TYPES,
     SITUATION_DEFAULT,
     SITUATION_LEVELS,
     SPECIAL_BRANCH_PROVINCES,
     YES_NO,
 )
+
+UNIT_CHOICES = [f"ส.จว.{p}" for p in SPECIAL_BRANCH_PROVINCES] + [DESK_UNIT]
 
 LEADER_COUNT_CHOICES = [(i, str(i)) for i in range(0, 21)]
 VEHICLE_COUNT_CHOICES = [(i, str(i)) for i in range(0, 11)]
@@ -58,6 +62,15 @@ class RegisterForm(FlaskForm):
         ],
     )
     full_name = StringField("ชื่อ-นามสกุล", validators=[DataRequired(), Length(max=128)])
+    # สังกัดเลือกได้ค่าเดียว: ส.จว. 17 จังหวัด หรือ โต๊ะข่าว กก. — ตำแหน่งเจ้าหน้าที่/หัวหน้า
+    unit = SelectField(
+        "สังกัด",
+        choices=[("", "— เลือกสังกัด —")] + [(u, u) for u in UNIT_CHOICES],
+        validators=[DataRequired(message="กรุณาเลือกสังกัด")],
+    )
+    position = RadioField(
+        "ตำแหน่ง", choices=POSITIONS, validators=[DataRequired(message="กรุณาเลือกตำแหน่ง")]
+    )
     password = PasswordField("รหัสผ่าน", validators=[DataRequired(), Length(min=8, message="รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร")])
     confirm_password = PasswordField(
         "ยืนยันรหัสผ่าน", validators=[DataRequired(), EqualTo("password", message="รหัสผ่านไม่ตรงกัน")]
@@ -188,5 +201,10 @@ class NewsReportForm(FlaskForm):
     reporter_name = StringField("ผู้รายงาน", validators=[Optional(), Length(max=128)])
     reporter_phone = StringField("เบอร์ติดต่อ", validators=[Optional(), Length(max=32)])
 
-    # ไม่ติ๊กไว้ล่วงหน้า — ส่งเมื่อผู้บันทึกกดเองเท่านั้น (โควตาไลน์มีจำกัด 300 ข้อความ/เดือน)
-    send_line_card = BooleanField("ส่งการ์ดรายงานนี้เข้ากลุ่มไลน์", default=False)
+
+
+class VerifyForm(FlaskForm):
+    """ปุ่มของหัวหน้าในหน้ารายละเอียด — ยืนยัน (ติ๊กส่งการ์ดไลน์ได้) หรือส่งกลับพร้อมเหตุผล."""
+
+    send_line_card = BooleanField("ส่งการ์ดรายงานนี้เข้าไลน์ พร้อมการยืนยัน", default=False)
+    reason = TextAreaField("เหตุผลที่ส่งกลับให้แก้ไข", validators=[Optional(), Length(max=1000)])

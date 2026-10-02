@@ -198,11 +198,6 @@
         <div class="label-hint" id="photo-count"></div>
       </div>
 
-      {# ช่องติ๊กนี้ไปโผล่ในหน้าต่าง "ตรวจสอบก่อนบันทึก" (confirm-submit.js) — ซ่อนในฟอร์มไว้ #}
-      <div class="form-field full confirm-only">
-        {{ form.send_line_card(data_ask_in_confirm="📨 ส่งการ์ดรายงานนี้เข้ากลุ่มไลน์",
-                               data_ask_hint="ติ๊กเฉพาะเมื่อต้องการส่ง — ระบบจะสร้างการ์ดจากข้อมูลในรายงานนี้ ส่งเข้ากลุ่มไลน์ทันทีที่กดยืนยันบันทึก") }}
-      </div>
     </div>
     <button class="btn" type="submit">{{ 'บันทึกการแก้ไข' if editing else 'บันทึก' }}</button>
     {% if editing %}

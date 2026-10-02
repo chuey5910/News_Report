@@ -14,10 +14,42 @@ class User(UserMixin, db.Model):
     full_name = db.Column(db.String(128), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(16), nullable=False, default="user")  # "admin" | "user"
+    # สังกัด: "ส.จว.<จังหวัด>" (17 จังหวัด) หรือ "โต๊ะข่าว กก." — ทุกคนมี 1 สังกัด (แอดมินไม่จำเป็น)
+    unit = db.Column(db.String(32), nullable=True)
+    # ตำแหน่ง: "staff" เจ้าหน้าที่ | "chief" หัวหน้า (ตรวจยืนยันรายงานของเจ้าหน้าที่สังกัดเดียวกัน)
+    position = db.Column(db.String(16), nullable=False, default="staff")
     is_approved = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     login_logs = db.relationship("LoginLog", backref="user", lazy="dynamic")
+
+    @property
+    def is_chief(self):
+        return self.position == "chief" and not self.is_admin
+
+    @property
+    def is_verifier(self):
+        """ตรวจยืนยันรายงานได้ (หัวหน้าหรือแอดมิน) — รายงานที่คนระดับนี้บันทึกเอง ถือว่ายืนยันแล้วทันที."""
+        return self.is_admin or self.position == "chief"
+
+    @property
+    def position_label(self):
+        if self.is_admin:
+            return "แอดมิน"
+        return "หัวหน้า" if self.position == "chief" else "เจ้าหน้าที่"
+
+    @property
+    def level_label(self):
+        """ชื่อระดับเต็ม เช่น "หน.ส.จว.ตาก" / "เจ้าหน้าที่โต๊ะข่าว กก." / "แอดมิน"."""
+        if self.is_admin:
+            return "แอดมิน"
+        unit = self.unit or "ไม่ระบุสังกัด"
+        if self.position == "chief":
+            return "หน." + unit if unit.startswith("ส.จว.") else "หน." + unit
+        return "เจ้าหน้าที่ " + unit
+
+    def can_verify_unit(self, unit):
+        return self.is_admin or (self.position == "chief" and self.unit == unit)
 
     def set_password(self, raw_password):
         # ระบุ pbkdf2:sha256 ตรงๆ แทนค่า default (scrypt) เพราะ Python ที่ติดมากับ
@@ -49,6 +81,16 @@ class LoginLog(db.Model):
     user_agent = db.Column(db.String(255), nullable=True)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
 
+
+DESK_UNIT = "โต๊ะข่าว กก."
+POSITIONS = [("staff", "เจ้าหน้าที่"), ("chief", "หัวหน้า")]
+POSITION_LABELS = dict(POSITIONS)
+
+# สถานะการตรวจยืนยันของรายงาน
+STATUS_PENDING = "pending"      # รอยืนยัน
+STATUS_RETURNED = "returned"    # ส่งกลับให้แก้ไข
+STATUS_VERIFIED = "verified"    # ยืนยันแล้ว
+STATUS_LABELS = {STATUS_PENDING: "รอยืนยัน", STATUS_RETURNED: "ส่งกลับแก้ไข", STATUS_VERIFIED: "ยืนยันแล้ว"}
 
 PERMIT_STATUSES = ["มีการขออนุญาต", "ไม่มีการขออนุญาต"]
 YES_NO = ["มี", "ไม่มี"]
@@ -149,6 +191,16 @@ class NewsReport(db.Model):
     # เวลาที่ส่งการ์ดรายงานนี้เข้ากลุ่มไลน์ครั้งล่าสุด (ว่าง = ยังไม่เคยส่ง)
     line_card_sent_at = db.Column(db.DateTime, nullable=True)
 
+    # การตรวจยืนยัน — เจ้าหน้าที่บันทึก → pending; หัวหน้าสังกัดเดียวกัน/แอดมิน → verified หรือ returned
+    status = db.Column(db.String(16), nullable=False, default=STATUS_PENDING, index=True)
+    submitted_at = db.Column(db.DateTime, nullable=True)        # ส่ง/ส่งใหม่ให้ตรวจเมื่อไร (ใช้เรียงคิว)
+    resubmitted = db.Column(db.Boolean, nullable=False, default=False)  # เคยถูกส่งกลับแล้วแก้ส่งมาใหม่
+    verified_at = db.Column(db.DateTime, nullable=True)
+    verified_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    returned_at = db.Column(db.DateTime, nullable=True)
+    returned_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    return_reason = db.Column(db.Text, nullable=True)
+
     # ประเภทรายงาน (เลือกได้ข้อเดียว — advance | closure | incident | general)
     report_type = db.Column(db.String(16), nullable=False)
 
@@ -197,6 +249,22 @@ class NewsReport(db.Model):
     reporter_phone = db.Column(db.String(32), nullable=True)  # เบอร์ติดต่อ
 
     created_by = db.relationship("User", foreign_keys=[created_by_id])
+    verified_by = db.relationship("User", foreign_keys=[verified_by_id])
+    returned_by = db.relationship("User", foreign_keys=[returned_by_id])
+
+    @property
+    def is_verified(self):
+        return self.status == STATUS_VERIFIED
+
+    @property
+    def status_label(self):
+        if self.status == STATUS_PENDING and self.resubmitted:
+            return "รอยืนยัน (แก้ไขแล้ว)"
+        return STATUS_LABELS.get(self.status, self.status)
+
+    @property
+    def author_unit(self):
+        return self.created_by.unit if self.created_by else None
     leaders = db.relationship(
         "NewsReportLeader", backref="news_report", cascade="all, delete-orphan", order_by="NewsReportLeader.id"
     )
@@ -296,3 +364,21 @@ class NewsReportPhoto(db.Model):
     @property
     def thumb_filename(self):
         return self.filename[:-4] + "_t.jpg"
+
+
+class AuditLog(db.Model):
+    """บันทึกการใช้งาน — ใครทำอะไรกับอะไรเมื่อไร (เปิดดู/บันทึก/แก้ไข/ลบ/ยืนยัน/ส่งกลับ/จัดการผู้ใช้/เข้า-ออกระบบ)."""
+
+    __tablename__ = "audit_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    username = db.Column(db.String(64), nullable=True)       # เก็บชื่อไว้ด้วย เผื่อบัญชีถูกลบ
+    action = db.Column(db.String(32), nullable=False, index=True)
+    target_type = db.Column(db.String(16), nullable=True)    # "report" | "user" | "session"
+    target_id = db.Column(db.Integer, nullable=True, index=True)
+    detail = db.Column(db.String(512), nullable=True)
+    ip_address = db.Column(db.String(64), nullable=True)
+
+    user = db.relationship("User", foreign_keys=[user_id])

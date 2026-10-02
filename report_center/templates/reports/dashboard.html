@@ -160,7 +160,7 @@
           <td>{{ item.created_by.full_name if item.created_by else '-' }}</td>
           <td class="row-actions">
             <a class="btn small" href="{{ url_for('reports.view_report', report_id=item.id) }}">ดูรายละเอียด</a>
-            {% if current_user.is_admin %}
+            {% if current_user.is_admin or (current_user.is_chief and item.created_by and item.created_by.unit == current_user.unit) %}
             <a class="btn small secondary" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไข</a>
             {% endif %}
           </td>

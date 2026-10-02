@@ -101,15 +101,39 @@ def create_app(config_object=Config):
             "report_type_labels": models.REPORT_TYPE_LABELS,
         }
 
-    from .auth import bp as auth_bp
+    from .auth import bp as auth_bp, enforce_session_limits
     from .reports import bp as reports_bp
     from .admin import bp as admin_bp
     from .api import bp as api_bp
+    from .manage import bp as manage_bp, pending_count_for, returned_count_for
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(manage_bp)
+
+    # หมดเวลา 30 นาทีไม่ขยับ / 3 ชั่วโมง — ตรวจก่อนทุกคำขอ
+    app.before_request(enforce_session_limits)
+
+    # ป้ายตัวเลขบนเมนู "จัดการระบบ" (งานรอยืนยัน / งานถูกส่งกลับ / ผู้ใช้รออนุมัติ)
+    @app.context_processor
+    def inject_manage_badges():
+        from flask_login import current_user as cu
+
+        if not cu.is_authenticated:
+            return {}
+        badges = {"pending": 0, "returned": 0, "users": 0}
+        try:
+            if cu.is_admin or cu.is_chief:
+                badges["pending"] = pending_count_for(cu)
+            else:
+                badges["returned"] = returned_count_for(cu)
+            if cu.is_admin:
+                badges["users"] = models.User.query.filter_by(is_approved=False).count()
+        except Exception:  # ตาราง/คอลัมน์ยังไม่พร้อม (ระหว่างอัปเกรด) ไม่ให้หน้าพัง
+            pass
+        return {"manage_badges": badges}
 
     from flask import redirect, url_for
     from flask_login import current_user
@@ -119,6 +143,8 @@ def create_app(config_object=Config):
         if current_user.is_authenticated:
             if current_user.is_admin:
                 return redirect(url_for("reports.dashboard"))
+            if current_user.is_chief:          # หัวหน้าเข้ามาเจอคิวงานรอตรวจก่อน
+                return redirect(url_for("manage.verify_queue"))
             return redirect(url_for("reports.new_report", form_type="advance"))
         return redirect(url_for("auth.login"))
 
@@ -153,7 +179,16 @@ def _auto_migrate():
             ("situation_level", "VARCHAR(16)"),
             ("ref_number", "VARCHAR(16)"),
             ("line_card_sent_at", "DATETIME"),
+            ("status", "VARCHAR(16)"),
+            ("submitted_at", "DATETIME"),
+            ("resubmitted", "BOOLEAN"),
+            ("verified_at", "DATETIME"),
+            ("verified_by_id", "INTEGER"),
+            ("returned_at", "DATETIME"),
+            ("returned_by_id", "INTEGER"),
+            ("return_reason", "TEXT"),
         ],
+        "users": [("unit", "VARCHAR(32)"), ("position", "VARCHAR(16)")],
         "news_report_leaders": [("position", "VARCHAR(128)"), ("role", "VARCHAR(255)")],
         "news_report_vehicles": [("owner", "VARCHAR(128)"), ("usage", "VARCHAR(255)")],
     }
@@ -194,6 +229,18 @@ def _auto_migrate():
                     text("UPDATE news_reports SET ref_number = :ref WHERE id = :id"),
                     {"ref": ref, "id": report_id},
                 )
+        # ระบบตรวจยืนยัน: รายงานเดิมทั้งหมดถือว่า "ยืนยันแล้ว" (ตามที่เจ้าของระบบสั่ง) ไม่ให้เป็นงานค้าง
+        conn.execute(
+            text(
+                "UPDATE news_reports SET status = 'verified', verified_at = created_at, "
+                "resubmitted = 0, submitted_at = created_at "
+                "WHERE status IS NULL OR status = ''"
+            )
+        )
+        conn.execute(text("UPDATE news_reports SET resubmitted = 0 WHERE resubmitted IS NULL"))
+        # บัญชีเดิมทุกคน = โต๊ะข่าว กก. / เจ้าหน้าที่ แล้วแอดมินค่อยปรับทีละคน
+        conn.execute(text("UPDATE users SET unit = 'โต๊ะข่าว กก.' WHERE unit IS NULL OR unit = ''"))
+        conn.execute(text("UPDATE users SET position = 'staff' WHERE position IS NULL OR position = ''"))
         # แบบฟอร์ม "เหตุการณ์(สถานการณ์)" กับ "ข่าวทั่วไป" ถูกรวมเป็นแท็บเดียว
         # จึงรวมข้อมูลเก่าประเภท general เข้ากับ incident
         conn.execute(text("UPDATE news_reports SET report_type = 'incident' WHERE report_type = 'general'"))
@@ -334,9 +381,10 @@ def register_cli(app):
         today = thai_today()
         today_items = todays_advance_items(today)
         upcoming_items = upcoming_advance_items(today)
+        pending = models.NewsReport.query.filter_by(status=models.STATUS_PENDING).count()
         # ส่งทุกเช้าเสมอ แม้ไม่มีกิจกรรม — เพื่อยืนยันว่าระบบแจ้งเตือนยังทำงานอยู่
         ok = line_notify.push_text(
-            app, line_notify.daily_message(app.config, today_items, upcoming_items, today)
+            app, line_notify.daily_message(app.config, today_items, upcoming_items, today, pending)
         )
         click.echo(
             f"ส่งสรุป วันนี้ {len(today_items)} + ล่วงหน้า {len(upcoming_items)} กิจกรรม: "
