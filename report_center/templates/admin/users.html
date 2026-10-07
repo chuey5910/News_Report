@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}จัดการผู้ใช้ — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">จัดการผู้ใช้</h2>
+
+<div class="card">
+  <div class="table-scroll">
+    <table class="users-table">
+      <thead>
+        <tr><th>ชื่อผู้ใช้</th><th>ชื่อ-นามสกุล</th><th>สังกัด</th><th>ตำแหน่ง</th><th>สถานะ</th><th>การจัดการ</th></tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr class="{{ 'row-pending' if not u.is_approved else '' }}">
+          <td>{{ u.username }}<div class="status-note">สมัคร {{ u.created_at | thai_time }}</div></td>
+          <td>{{ u.full_name }}</td>
+          {% if u.is_admin %}
+          <td>—</td>
+          <td><span class="badge admin">แอดมิน</span></td>
+          {% else %}
+          <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}" id="uf-{{ u.id }}"></form>
+          <td>
+            <select name="unit" form="uf-{{ u.id }}" class="w-unit">
+              {% for unit in unit_choices %}
+              <option value="{{ unit }}" {{ 'selected' if u.unit == unit else '' }}>{{ unit }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td>
+            <select name="position" form="uf-{{ u.id }}" class="w-pos">
+              {% for key, label in position_labels.items() %}
+              <option value="{{ key }}" {{ 'selected' if u.position == key else '' }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          {% endif %}
+          <td>
+            {% if u.is_approved %}
+            <span class="badge approved">อนุมัติแล้ว</span>
+            {% else %}
+            <span class="badge pending">รออนุมัติ</span>
+            {% if not u.is_admin %}<div class="status-note">ขอเป็น {{ u.level_label }}</div>{% endif %}
+            {% endif %}
+          </td>
+          <td class="row-actions users-actions">
+            {% if not u.is_approved %}
+            <form method="post" action="{{ url_for('admin.approve_user', user_id=u.id) }}" class="inline-form" id="af-{{ u.id }}">
+              <button class="btn small ok" type="submit">อนุมัติ</button>
+            </form>
+            {% else %}
+            {% if not u.is_admin %}
+            <button class="btn small" type="submit" form="uf-{{ u.id }}">บันทึก</button>
+            {% endif %}
+            {% if u.id != current_user.id %}
+            <form method="post" action="{{ url_for('admin.revoke_user', user_id=u.id) }}" class="inline-form">
+              <button class="btn small danger" type="submit">ระงับ</button>
+            </form>
+            {% endif %}
+            {% endif %}
+            {% if u.id != current_user.id %}
+            <form method="post" action="{{ url_for('admin.update_user', user_id=u.id) }}" class="inline-form">
+              <input type="hidden" name="role" value="{{ 'user' if u.is_admin else 'admin' }}">
+              <button class="btn small secondary" type="submit">{{ 'ถอดแอดมิน' if u.is_admin else 'ตั้งเป็นแอดมิน' }}</button>
+            </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('admin.reset_user_password', user_id=u.id) }}" class="inline-form reset-form"
+                  onsubmit="return confirm('ตั้งรหัสผ่านใหม่ให้ {{ u.username }} ใช่หรือไม่? รหัสเดิมจะใช้ไม่ได้ทันที')">
+              <input type="password" name="new_password" required minlength="8" placeholder="รหัสใหม่ 8 ตัวขึ้นไป" class="w-pass">
+              <button class="btn small secondary" type="submit">ตั้งรหัสใหม่</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="label-hint">อนุมัติ = ยืนยันสังกัด/ตำแหน่งที่แสดงอยู่ในแถว (แก้ก่อนกดอนุมัติได้) · บันทึก = เปลี่ยนสังกัด/ตำแหน่งของบัญชีที่อนุมัติแล้ว</div>
+</div>
+<script>
+  // ปุ่ม "อนุมัติ" ส่งสังกัด/ตำแหน่งที่เลือกอยู่ในแถวไปด้วย (แอดมินแก้ก่อนอนุมัติได้)
+  document.querySelectorAll('form[id^="af-"]').forEach(function (form) {
+    form.addEventListener("submit", function () {
+      var id = form.id.slice(3);
+      var row = form.closest("tr");
+      ["unit", "position"].forEach(function (name) {
+        var select = row.querySelector('select[name="' + name + '"]');
+        if (!select) return;
+        var hidden = document.createElement("input");
+        hidden.type = "hidden"; hidden.name = name; hidden.value = select.value;
+        form.appendChild(hidden);
+      });
+    });
+  });
+</script>
+{% endblock %}

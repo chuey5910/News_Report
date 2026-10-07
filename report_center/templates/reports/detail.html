@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}รายละเอียดรายงานข่าว — ศูนย์บันทึกข่าว{% endblock %}
+{% block content %}
+<h2 class="page-title">รายละเอียดรายงานข่าว</h2>
+
+{% if item.status == 'pending' %}
+<div class="status-banner pending">
+  <b>🟠 {{ item.status_label }}</b> — บันทึกโดย {{ item.created_by.full_name if item.created_by else '-' }}
+  ({{ item.author_unit or 'ไม่ระบุสังกัด' }}) · ส่งเมื่อ {{ item.submitted_at | thai_time }}
+  {% if can_verify %}<div class="status-sub">อ่านให้ครบทุกข้อและรูปแนบ แล้วตัดสินใจที่ท้ายหน้า</div>
+  {% else %}<div class="status-sub">รอหัวหน้าตรวจยืนยัน — รายงานนี้ยังไม่เข้าระบบค้นหาจนกว่าจะยืนยัน</div>{% endif %}
+</div>
+{% elif item.status == 'returned' %}
+<div class="status-banner returned">
+  <b>🔴 ส่งกลับแก้ไข</b> — โดย {{ item.returned_by.level_label if item.returned_by else '-' }} {{ item.returned_at | thai_time }}
+  <div class="status-reason">เหตุผล: {{ item.return_reason }}</div>
+  {% if item.created_by_id == current_user.id %}
+  <div class="status-sub"><a class="btn small warn" href="{{ url_for('reports.edit_report', report_id=item.id) }}">แก้ไขแล้วส่งใหม่</a> แก้แล้วบันทึก → กลับเป็น "รอยืนยัน" อัตโนมัติ</div>
+  {% endif %}
+</div>
+{% else %}
+<div class="status-banner verified">
+  <b>🟢 ยืนยันแล้ว</b> — โดย {{ item.verified_by.level_label if item.verified_by else 'ยืนยันอัตโนมัติ (ข้อมูลเดิม)' }} {{ item.verified_at | thai_time }}
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="detail-head">
+    <div class="detail-head-info">
+      <span class="badge type-{{ item.report_type }}">{{ report_type_labels.get(item.report_type, item.report_type) }}</span>
+      {% if item.special_branch_province %}<span class="badge user">สันติบาล จว.{{ item.special_branch_province }}</span>{% endif %}
+      {% if item.ref_number %}<span class="badge ref">เลขที่ {{ item.ref_number }}</span>{% endif %}
+      <div class="detail-meta">
+        บันทึกเมื่อ {{ item.created_at | thai_time('%d/%m/%Y %H:%M') }}
+        โดย {{ item.created_by.full_name if item.created_by else '-' }}
+        {% if item.updated_at and (item.updated_at - item.created_at).total_seconds() > 60 %}
+        · แก้ไขล่าสุด {{ item.updated_at | thai_time('%d/%m/%Y %H:%M') }}
+        {% endif %}
+        {% if item.line_card_sent_at %}
+        · 📨 ส่งการ์ดเข้าไลน์แล้ว {{ item.line_card_sent_at | thai_time('%d/%m/%Y %H:%M') }}
+        {% endif %}
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button type="button" class="btn small secondary" onclick="history.back()">← ย้อนกลับ</button>
+      {% if can_edit %}
+      <a class="btn small secondary" href="{{ url_for('reports.edit_report', report_id=item.id) }}">{{ 'แก้ไขแล้วส่งใหม่' if item.status == 'returned' and item.created_by_id == current_user.id else 'แก้ไขรายงาน' }}</a>
+      {% endif %}
+      {% if can_delete %}
+      <form method="post" action="{{ url_for('reports.delete_report', report_id=item.id) }}" class="inline-form"
+            onsubmit="return confirm('ยืนยันการลบรายงานนี้?\nลบแล้วไม่สามารถกู้คืนได้');">
+        {{ delete_form.hidden_tag() }}
+        <button type="submit" class="btn small danger">ลบรายงาน</button>
+      </form>
+      {% endif %}
+      <a class="btn small secondary" href="{{ url_for('reports.dashboard') }}">กลับหน้าภาพรวม</a>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    {% for label, value in rows %}
+    <div class="detail-item{{ ' wide' if '\n' in value or value|length > 60 else '' }}">
+      <div class="detail-label">{{ label }}</div>
+      <div class="detail-value">{{ value }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if photos %}
+  <div class="photo-section">
+    <div class="detail-label">รูปภาพแนบ ({{ photos | length }} รูป) — กดที่รูปเพื่อดูขนาดเต็ม</div>
+    <div class="photo-grid view">
+      {% for p in photos %}
+      <figure class="photo-tile">
+        <a href="{{ p.full }}" target="_blank" rel="noopener"><img src="{{ p.thumb }}" alt="" loading="lazy"></a>
+        {% if p.caption %}<figcaption>{{ p.caption }}</figcaption>{% endif %}
+      </figure>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if can_verify %}
+<div class="verify-panel">
+  <div class="verify-title">การตรวจยืนยัน — {{ current_user.level_label }}</div>
+  <form method="post" action="{{ url_for('reports.verify_report', report_id=item.id) }}" class="verify-form"
+        onsubmit="return confirm('ยืนยันรายงานเลขที่ {{ item.ref_number }} ใช่หรือไม่?');">
+    {{ verify_form.hidden_tag() }}
+    <label class="confirm-ask-label verify-line">{{ verify_form.send_line_card() }}<span>📨 {{ verify_form.send_line_card.label.text }}</span></label>
+    <button type="submit" class="btn big ok">✓ ยืนยันรายงานนี้</button>
+  </form>
+  <div class="verify-or"><span>หรือ</span></div>
+  <form method="post" action="{{ url_for('reports.return_report', report_id=item.id) }}" class="verify-form"
+        onsubmit="return this.reason.value.trim() ? confirm('ส่งรายงานเลขที่ {{ item.ref_number }} กลับให้เจ้าหน้าที่แก้ไข ใช่หรือไม่?') : (alert('กรุณากรอกเหตุผลที่ส่งกลับ'), false);">
+    {{ verify_form.hidden_tag() }}
+    <label for="verify-reason">{{ verify_form.reason.label.text }} <span class="label-hint">(บังคับกรอกเมื่อส่งกลับ)</span></label>
+    {{ verify_form.reason(id="verify-reason", rows=3, placeholder="เช่น ขาดชื่อแกนนำ / วันเวลาสิ้นสุดกิจกรรมไม่ถูกต้อง / ขอรูปป้ายผ้าเพิ่ม") }}
+    <button type="submit" class="btn big warn">↩ ส่งกลับให้เจ้าหน้าที่แก้ไข</button>
+  </form>
+  <div class="label-hint center">ทุกการยืนยัน/ส่งกลับ ถูกบันทึกชื่อผู้ตรวจและเวลาไว้ในระบบ</div>
+</div>
+{% endif %}
+{% endblock %}
