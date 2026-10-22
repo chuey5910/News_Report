@@ -481,6 +481,7 @@ textarea.ta-tall { min-height: 96px; }
 /* จัดการผู้ใช้ */
 .users-table select.w-unit { width: 170px; min-width: 150px; }
 .users-table select.w-pos { width: 125px; min-width: 110px; }
+.users-table select.w-level { width: 210px; min-width: 190px; }
 .users-table .w-pass { width: 165px; }
 .users-actions { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
 .users-actions .reset-form { display: inline-flex; gap: .35rem; align-items: center; }

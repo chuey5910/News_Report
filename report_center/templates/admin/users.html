@@ -11,7 +11,7 @@
       </thead>
       <tbody>
         {% for u in users %}
-        <tr class="{{ 'row-pending' if not u.is_approved else '' }}">
+        <tr class="{{ 'row-pending' if not u.is_approved else '' }}" data-unit-position>
           <td>{{ u.username }}<div class="status-note">สมัคร {{ u.created_at | thai_time }}</div></td>
           <td>{{ u.full_name }}</td>
           {% if u.is_admin %}
@@ -27,7 +27,7 @@
             </select>
           </td>
           <td>
-            <select name="position" form="uf-{{ u.id }}" class="w-pos">
+            <select name="position" form="uf-{{ u.id }}" class="w-pos w-level">
               {% for key, label in position_labels.items() %}
               <option value="{{ key }}" {{ 'selected' if u.position == key else '' }}>{{ label }}</option>
               {% endfor %}
@@ -74,8 +74,9 @@
       </tbody>
     </table>
   </div>
-  <div class="label-hint">อนุมัติ = ยืนยันสังกัด/ตำแหน่งที่แสดงอยู่ในแถว (แก้ก่อนกดอนุมัติได้) · บันทึก = เปลี่ยนสังกัด/ตำแหน่งของบัญชีที่อนุมัติแล้ว</div>
+  <div class="label-hint">เลือก "สังกัด" ก่อน แล้วช่อง "ตำแหน่ง" จะแสดงเป็น เจ้าหน้าที่ … / หน. … ของสังกัดนั้น · อนุมัติ = ยืนยันตามที่แสดงในแถว (แก้ก่อนกดได้) · บันทึก = เปลี่ยนของบัญชีที่อนุมัติแล้ว</div>
 </div>
+<script src="{{ url_for('static', filename='js/unit-position.js') }}"></script>
 <script>
   // ปุ่ม "อนุมัติ" ส่งสังกัด/ตำแหน่งที่เลือกอยู่ในแถวไปด้วย (แอดมินแก้ก่อนอนุมัติได้)
   document.querySelectorAll('form[id^="af-"]').forEach(function (form) {

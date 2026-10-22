@@ -19,7 +19,7 @@
         {% endfor %}
       {% endif %}
     {% endwith %}
-    <form method="post">
+    <form method="post" data-unit-position>
       {{ form.hidden_tag() }}
       {{ m.render_field(form.username) }}
       {{ m.render_field(form.full_name) }}
@@ -42,5 +42,6 @@
     {% include "auth/_pdpa_notice.html" %}
   </div>
 </div>
+<script src="{{ url_for('static', filename='js/unit-position.js') }}"></script>
 </body>
 </html>
