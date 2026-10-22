@@ -5,7 +5,7 @@ from flask_login import current_user, login_required
 
 from . import audit
 from .extensions import db
-from .models import DESK_UNIT, POSITION_LABELS, SPECIAL_BRANCH_PROVINCES, LoginLog, User
+from .models import DESK_UNIT, POSITION_LABELS, SPECIAL_BRANCH_PROVINCES, AuditLog, LoginLog, NewsReport, User
 
 UNIT_CHOICES = [f"ส.จว.{p}" for p in SPECIAL_BRANCH_PROVINCES] + [DESK_UNIT]
 
@@ -116,6 +116,32 @@ def reset_user_password(user_id):
         "แจ้งรหัสนี้ให้เจ้าตัวแล้วบอกให้เข้าไปเปลี่ยนเป็นรหัสของตัวเองที่เมนู 'เปลี่ยนรหัสผ่าน'",
         "success",
     )
+    return redirect(url_for("admin.users"))
+
+
+@bp.route("/users/<int:user_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def delete_user(user_id):
+    """ลบบัญชี — ลบได้เฉพาะคนที่ยังไม่เคยบันทึกรายงาน (คนที่มีรายงานให้ใช้ "ระงับ" แทน จะได้ไม่เสียประวัติผู้บันทึก)."""
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash("ไม่สามารถลบบัญชีของตนเองได้", "danger")
+        return redirect(url_for("admin.users"))
+    report_count = NewsReport.query.filter_by(created_by_id=user.id).count()
+    if report_count:
+        flash(f"ลบ {user.username} ไม่ได้ — มีรายงานที่บันทึกไว้ {report_count} ฉบับ ให้ใช้ \"ระงับ\" แทน", "danger")
+        return redirect(url_for("admin.users"))
+    # ตัดการอ้างอิงที่เหลือ (ประวัติการตรวจ/บันทึกการใช้งานยังอยู่ แค่ไม่ชี้ไปที่บัญชี)
+    NewsReport.query.filter_by(verified_by_id=user.id).update({"verified_by_id": None})
+    NewsReport.query.filter_by(returned_by_id=user.id).update({"returned_by_id": None})
+    AuditLog.query.filter_by(user_id=user.id).update({"user_id": None})
+    LoginLog.query.filter_by(user_id=user.id).update({"user_id": None})
+    label = f"{user.username} ({user.full_name}, {user.level_label})"
+    db.session.delete(user)
+    db.session.commit()
+    audit.log("delete_user", "user", user_id, label)
+    flash(f"ลบบัญชี {label} แล้ว", "warning")
     return redirect(url_for("admin.users"))
 
 

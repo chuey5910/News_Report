@@ -29,6 +29,7 @@ ACTION_LABELS = {
     "send_line_card": "ส่งการ์ดไลน์",
     "approve_user": "อนุมัติผู้ใช้",
     "revoke_user": "ระงับผู้ใช้",
+    "delete_user": "ลบผู้ใช้",
     "update_user": "เปลี่ยนสังกัด/ตำแหน่ง",
     "reset_password": "ตั้งรหัสผ่านใหม่ให้ผู้ใช้",
     "change_password": "เปลี่ยนรหัสผ่านตัวเอง",

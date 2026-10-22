@@ -486,6 +486,7 @@ textarea.ta-tall { min-height: 96px; }
 .users-actions { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
 .users-actions .reset-form { display: inline-flex; gap: .35rem; align-items: center; }
 .row-pending { background: #fffbeb; }
+.btn.outline-danger { background: #fff; color: #b91c1c; border: 1px solid #fca5a5; }
 
 /* สมัครสมาชิก: เลือกตำแหน่ง */
 .seg-choice { display: flex; gap: .6rem; }
