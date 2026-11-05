@@ -52,6 +52,18 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Daily news report $(date -u +%F)"
-            git pull --rebase origin main
-            git push
+            # ลองดันขึ้น origin สูงสุด 5 ครั้ง พร้อม rebase ใหม่ก่อนทุกครั้งที่ลองซ้ำ
+            # กันทั้ง push race และความล้มเหลวชั่วคราวฝั่ง GitHub (เช่น HTTP 500 Internal
+            # Server Error) ที่เคยทำให้ทั้ง job ล้มทั้งที่ข่าวถูก broadcast ออกไปแล้ว
+            for attempt in 1 2 3 4 5; do
+              git pull --rebase origin main || true
+              if git push; then
+                echo "push succeeded on attempt $attempt"
+                exit 0
+              fi
+              echo "push attempt $attempt failed; retrying in $((attempt * attempt * 2))s"
+              sleep $((attempt * attempt * 2))
+            done
+            echo "push failed after 5 attempts"
+            exit 1
           fi
