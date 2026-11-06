@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}ศูนย์บันทึกข่าว{% endblock %}</title>
+{% include "_head_meta.html" %}
+{% block head_styles %}{% endblock %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<div class="layout">
+  <button type="button" id="sidebar-toggle" class="sidebar-toggle" aria-label="ซ่อน/แสดงเมนู" aria-expanded="true">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <h1 class="brand">
+      <img class="brand-logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="" width="48" height="48">
+      <span class="brand-text">
+        <span class="brand-unit">กก.3 บก.ส.1</span>
+        <span class="brand-name">ศูนย์บันทึกข่าว</span>
+      </span>
+    </h1>
+    <nav>
+      <a href="{{ url_for('reports.situation_map') }}"
+         class="nav-dashboard {{ 'active' if request.endpoint == 'reports.situation_map' else '' }}">แผนที่สถานการณ์</a>
+      <a href="{{ url_for('reports.dashboard') }}"
+         class="{{ 'active' if request.endpoint in ('reports.dashboard', 'reports.view_report') else '' }}">ภาพรวม</a>
+      <div class="section-label">บันทึกข่าว</div>
+      {% for tab_key, tab_label in report_form_tabs %}
+      <a href="{{ url_for('reports.new_report', form_type=tab_key) }}"
+         class="{{ 'active' if request.endpoint == 'reports.new_report' and request.view_args.get('form_type') == tab_key else '' }}">{{ tab_label | replace('(', '\u200b(') | replace('/', '/\u200b') }}</a>
+      {% endfor %}
+      {% if current_user.is_authenticated %}
+      <div class="section-label">จัดการระบบ</div>
+      {% if current_user.is_admin or current_user.is_chief %}
+      <a href="{{ url_for('manage.verify_queue') }}" class="{{ 'active' if request.endpoint == 'manage.verify_queue' else '' }}">ตรวจยืนยันรายงาน
+        {% if manage_badges and manage_badges.pending %}<span class="nav-count">{{ manage_badges.pending }}</span>{% endif %}</a>
+      {% else %}
+      <a href="{{ url_for('manage.my_work') }}" class="{{ 'active' if request.endpoint == 'manage.my_work' else '' }}">งานของฉัน
+        {% if manage_badges and manage_badges.returned %}<span class="nav-count red">{{ manage_badges.returned }}</span>{% endif %}</a>
+      {% endif %}
+      {% if current_user.is_admin %}
+      <a href="{{ url_for('admin.users') }}" class="{{ 'active' if request.endpoint == 'admin.users' else '' }}">จัดการผู้ใช้
+        {% if manage_badges and manage_badges.users %}<span class="nav-count red">{{ manage_badges.users }}</span>{% endif %}</a>
+      <a href="{{ url_for('admin.login_logs') }}" class="{{ 'active' if request.endpoint == 'admin.login_logs' else '' }}">ประวัติการเข้าสู่ระบบ</a>
+      <a href="{{ url_for('manage.audit_log') }}" class="{{ 'active' if request.endpoint == 'manage.audit_log' else '' }}">บันทึกการใช้งาน</a>
+      {% endif %}
+      {% endif %}
+    </nav>
+    {% if current_user.is_authenticated %}
+    <div class="user-box">
+      <div class="name">{{ current_user.full_name }}</div>
+      <div class="role">{{ current_user.level_label }}</div>
+      <a href="{{ url_for('auth.change_password') }}">เปลี่ยนรหัสผ่าน</a>
+      <a href="{{ url_for('auth.logout') }}">ออกจากระบบ</a>
+    </div>
+    {% endif %}
+  </aside>
+  <main class="main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<div id="confirm-modal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>ตรวจสอบความถูกต้องของข้อมูลก่อนบันทึก</h2>
+    <div id="confirm-modal-body" class="confirm-body"></div>
+    <div class="modal-actions">
+      <button type="button" id="confirm-modal-cancel" class="btn secondary">แก้ไขข้อมูล</button>
+      <button type="button" id="confirm-modal-submit" class="btn">ยืนยันบันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script defer src="{{ url_for('static', filename='js/layout.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/autosize.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/confirm-submit.js') }}"></script>
+{% if current_user.is_authenticated %}
+<div id="session-warning" class="modal-overlay">
+  <div class="modal-box session-box">
+    <h2>⏱ จะออกจากระบบอัตโนมัติ</h2>
+    <p>ไม่มีการใช้งานมาระยะหนึ่ง ระบบจะออกจากระบบใน <b id="session-countdown">60</b> วินาที</p>
+    <div class="modal-actions">
+      <a class="btn secondary" href="{{ url_for('auth.logout', reason='กดออกเองจากหน้าต่างเตือน') }}">ออกจากระบบ</a>
+      <button type="button" class="btn" id="session-extend">ใช้งานต่อ</button>
+    </div>
+  </div>
+</div>
+<script defer src="{{ url_for('static', filename='js/session-timer.js') }}"
+        data-idle-minutes="{{ config.IDLE_TIMEOUT_MINUTES }}" data-ping-url="{{ url_for('auth.ping') }}"
+        data-logout-url="{{ url_for('auth.logout', reason='หมดเวลา (หน้าเว็บ)') }}"></script>
+{% endif %}
+{% block page_scripts %}{% endblock %}
+</body>
+</html>

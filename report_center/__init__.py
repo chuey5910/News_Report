@@ -1,0 +1,499 @@
+import os
+from datetime import datetime, timedelta
+
+import click
+from flask import Flask, request
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
+from .config import Config  # importing this also loads .env (see config._load_dotenv)
+from .extensions import db, login_manager
+
+
+@event.listens_for(Engine, "connect")
+def _sqlite_concurrency_pragmas(dbapi_connection, _record):
+    """SQLite: เปิด WAL + รอคิวสูงสุด 30 วินาทีแทนที่จะ error ทันทีเมื่อไฟล์ถูกล็อก
+
+    จำเป็นตอนรันบน NAS ที่หน้าเว็บกับตัวแจ้งเตือนอยู่แยกคอนเทนเนอร์ แต่เขียนไฟล์
+    ฐานข้อมูลเดียวกัน — ถ้าไม่ตั้ง การบันทึกที่ชนกันพอดีจะล้มด้วย 'database is locked'
+    """
+    if not type(dbapi_connection).__module__.startswith("sqlite3"):
+        return
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+    finally:
+        cursor.close()
+
+
+def create_app(config_object=Config):
+    app = Flask(__name__)
+    app.config.from_object(config_object)
+
+    os.makedirs(os.path.join(app.root_path, "instance"), exist_ok=True)
+
+    # ให้เบราว์เซอร์เก็บไฟล์หน้าตา (css/js/รูป) ไว้ 30 วัน จะไม่ต้องถามเซิร์ฟเวอร์ซ้ำทุกหน้า
+    # และต่อท้าย URL ด้วยเวลาแก้ไขไฟล์ เพื่อให้ได้ของใหม่ทันทีเมื่ออัปเดตระบบ
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 60 * 60 * 24 * 30
+
+    @app.after_request
+    def no_store_for_pages(response):
+        # ไฟล์หน้าตาแคชได้ยาว แต่ "หน้าเว็บ" ต้องไม่แคช ไม่งั้นผู้ใช้อาจเห็นรายงานเก่า
+        if request.endpoint != "static":
+            response.headers.setdefault("Cache-Control", "no-store")
+        return response
+
+    @app.url_defaults
+    def add_static_version(endpoint, values):
+        if endpoint != "static" or "filename" not in values:
+            return
+        try:
+            values["v"] = int(os.stat(os.path.join(app.static_folder, values["filename"])).st_mtime)
+        except OSError:
+            pass
+
+    # โฟลเดอร์รูปแนบ: ถ้าไม่ได้ตั้ง UPLOAD_DIR ให้วางไว้ข้างไฟล์ฐานข้อมูล (บน NAS = /data/uploads)
+    if not app.config.get("UPLOAD_DIR"):
+        uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        db_path = uri.split("sqlite:///")[-1] if uri.startswith("sqlite") else ""
+        if db_path and not os.path.isabs(db_path):
+            db_path = os.path.join(app.root_path, db_path)
+        base = os.path.dirname(db_path) if db_path else os.path.join(app.root_path, "instance")
+        app.config["UPLOAD_DIR"] = os.path.join(base, "uploads")
+    os.makedirs(app.config["UPLOAD_DIR"], exist_ok=True)
+
+    @app.errorhandler(413)
+    def too_large(_error):
+        from flask import flash, redirect
+        flash("ไฟล์รูปรวมกันใหญ่เกินไป (เกิน 80 MB) — ลองแนบน้อยรูปลงต่อครั้ง", "error")
+        return redirect(request.referrer or "/")
+
+    db.init_app(app)
+    login_manager.init_app(app)
+
+    from . import models  # noqa: F401  (ensure models are registered before create_all)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return models.User.query.get(int(user_id))
+
+    # เวลาในระบบเก็บเป็น UTC — แสดงผลเป็นเวลาไทย (UTC+7) และปีเป็น พ.ศ. ทุกจุดผ่าน filter นี้
+    @app.template_filter("thai_time")
+    def thai_time(dt, fmt="%d/%m/%Y %H:%M"):
+        if dt is None:
+            return "-"
+        local = dt + timedelta(hours=7)
+        return local.strftime(fmt.replace("%Y", str(local.year + 543)))
+
+    # วัน-เวลากิจกรรมเก็บเป็นเวลาไทยอยู่แล้ว (ไม่เลื่อนโซนเวลา) — แสดงปีเป็น พ.ศ.
+    @app.template_filter("be_date")
+    def be_date(dt, fmt="%d/%m/%Y"):
+        if dt is None:
+            return "-"
+        return dt.strftime(fmt.replace("%Y", str(dt.year + 543)))
+
+    # เมนูซ้าย (แท็บบันทึกข่าว 3 แบบฟอร์ม) ใช้ใน base.html ทุกหน้า
+    @app.context_processor
+    def inject_form_tabs():
+        return {
+            "report_form_tabs": models.REPORT_FORM_TABS,
+            "report_type_labels": models.REPORT_TYPE_LABELS,
+        }
+
+    from .auth import bp as auth_bp, enforce_session_limits
+    from .reports import bp as reports_bp
+    from .admin import bp as admin_bp
+    from .api import bp as api_bp
+    from .manage import bp as manage_bp, pending_count_for, returned_count_for
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(reports_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(api_bp)
+    app.register_blueprint(manage_bp)
+
+    # หมดเวลา 30 นาทีไม่ขยับ / 3 ชั่วโมง — ตรวจก่อนทุกคำขอ
+    app.before_request(enforce_session_limits)
+
+    # ป้ายตัวเลขบนเมนู "จัดการระบบ" (งานรอยืนยัน / งานถูกส่งกลับ / ผู้ใช้รออนุมัติ)
+    @app.context_processor
+    def inject_manage_badges():
+        from flask_login import current_user as cu
+
+        if not cu.is_authenticated:
+            return {}
+        badges = {"pending": 0, "returned": 0, "users": 0}
+        try:
+            if cu.is_admin or cu.is_chief:
+                badges["pending"] = pending_count_for(cu)
+            else:
+                badges["returned"] = returned_count_for(cu)
+            if cu.is_admin:
+                badges["users"] = models.User.query.filter_by(is_approved=False).count()
+        except Exception:  # ตาราง/คอลัมน์ยังไม่พร้อม (ระหว่างอัปเกรด) ไม่ให้หน้าพัง
+            pass
+        return {"manage_badges": badges}
+
+    from flask import redirect, url_for
+    from flask_login import current_user
+
+    @app.route("/")
+    def index():
+        if current_user.is_authenticated:
+            if current_user.is_admin:
+                return redirect(url_for("reports.dashboard"))
+            if current_user.is_chief:          # หัวหน้าเข้ามาเจอคิวงานรอตรวจก่อน
+                return redirect(url_for("manage.verify_queue"))
+            return redirect(url_for("reports.new_report", form_type="advance"))
+        return redirect(url_for("auth.login"))
+
+    with app.app_context():
+        db.create_all()
+        _auto_migrate()
+
+    register_cli(app)
+
+    return app
+
+
+def _auto_migrate():
+    """อัปเกรดฐานข้อมูลเดิมอัตโนมัติตอนสตาร์ท (SQLite ADD COLUMN — ไม่กระทบข้อมูลเดิม).
+
+    create_all() สร้างเฉพาะ "ตารางใหม่" แต่ไม่เพิ่มคอลัมน์ให้ตารางที่มีอยู่แล้ว
+    ส่วนนี้จึงตรวจและเติมคอลัมน์ที่ขาดให้ ทำให้เครื่องจริงอัปเดตได้ด้วย git pull + restart
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    new_columns = {
+        "news_reports": [
+            ("activity_detail", "TEXT"),
+            ("considerations", "TEXT"),
+            ("mass_members", "VARCHAR(255)"),
+            ("mass_media", "VARCHAR(255)"),
+            ("mass_others", "VARCHAR(255)"),
+            ("due_alert_sent_at", "DATETIME"),
+            ("latitude", "FLOAT"),
+            ("longitude", "FLOAT"),
+            ("situation_level", "VARCHAR(16)"),
+            ("ref_number", "VARCHAR(16)"),
+            ("line_card_sent_at", "DATETIME"),
+            ("status", "VARCHAR(16)"),
+            ("submitted_at", "DATETIME"),
+            ("resubmitted", "BOOLEAN"),
+            ("verified_at", "DATETIME"),
+            ("verified_by_id", "INTEGER"),
+            ("returned_at", "DATETIME"),
+            ("returned_by_id", "INTEGER"),
+            ("return_reason", "TEXT"),
+        ],
+        "users": [("unit", "VARCHAR(32)"), ("position", "VARCHAR(16)")],
+        "news_report_leaders": [("position", "VARCHAR(128)"), ("role", "VARCHAR(255)")],
+        "news_report_vehicles": [("owner", "VARCHAR(128)"), ("usage", "VARCHAR(255)")],
+    }
+    with db.engine.begin() as conn:
+        for table, columns in new_columns.items():
+            existing = {col["name"] for col in inspector.get_columns(table)}
+            for name, ddl_type in columns:
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl_type}"))
+        # เติมเลขที่อ้างอิงให้รายงานเก่าที่บันทึกไว้ก่อนมีฟีเจอร์นี้ (เรียงตามเวลาบันทึก แยกตามปี พ.ศ.)
+        rows = conn.execute(
+            text(
+                "SELECT id, created_at FROM news_reports "
+                "WHERE ref_number IS NULL OR ref_number = '' ORDER BY created_at, id"
+            )
+        ).fetchall()
+        if rows:
+            used = {
+                row[0]
+                for row in conn.execute(
+                    text("SELECT ref_number FROM news_reports WHERE ref_number IS NOT NULL")
+                ).fetchall()
+            }
+            next_seq = {}
+            for report_id, created_at in rows:
+                # created_at เก็บเป็น UTC — ปีของ "เลขที่" ใช้ปี พ.ศ. ตามเวลาไทย
+                stamp = created_at if isinstance(created_at, datetime) else datetime.fromisoformat(str(created_at))
+                year = (stamp + timedelta(hours=7)).year + 543
+                seq = next_seq.get(year, 0)
+                while True:
+                    seq += 1
+                    ref = f"{year}/{seq:04d}"
+                    if ref not in used:
+                        break
+                next_seq[year] = seq
+                used.add(ref)
+                conn.execute(
+                    text("UPDATE news_reports SET ref_number = :ref WHERE id = :id"),
+                    {"ref": ref, "id": report_id},
+                )
+        # ระบบตรวจยืนยัน: รายงานเดิมทั้งหมดถือว่า "ยืนยันแล้ว" (ตามที่เจ้าของระบบสั่ง) ไม่ให้เป็นงานค้าง
+        conn.execute(
+            text(
+                "UPDATE news_reports SET status = 'verified', verified_at = created_at, "
+                "resubmitted = 0, submitted_at = created_at "
+                "WHERE status IS NULL OR status = ''"
+            )
+        )
+        conn.execute(text("UPDATE news_reports SET resubmitted = 0 WHERE resubmitted IS NULL"))
+        # บัญชีเดิมทุกคน = โต๊ะข่าว กก. / เจ้าหน้าที่ แล้วแอดมินค่อยปรับทีละคน
+        conn.execute(text("UPDATE users SET unit = 'โต๊ะข่าว กก.' WHERE unit IS NULL OR unit = ''"))
+        conn.execute(text("UPDATE users SET position = 'staff' WHERE position IS NULL OR position = ''"))
+        # แบบฟอร์ม "เหตุการณ์(สถานการณ์)" กับ "ข่าวทั่วไป" ถูกรวมเป็นแท็บเดียว
+        # จึงรวมข้อมูลเก่าประเภท general เข้ากับ incident
+        conn.execute(text("UPDATE news_reports SET report_type = 'incident' WHERE report_type = 'general'"))
+        # ซ่อมวันที่กิจกรรมที่ถูกกรอกเป็นปี พ.ศ. (เช่น 2569) ให้เป็น ค.ศ. (-543 ปี)
+        for column in ("event_datetime", "event_end_datetime"):
+            conn.execute(
+                text(
+                    f"UPDATE news_reports SET {column} = datetime({column}, '-543 years') "
+                    f"WHERE {column} IS NOT NULL "
+                    f"AND CAST(strftime('%Y', {column}) AS INTEGER) >= 2400"
+                )
+            )
+
+
+def register_cli(app):
+    @app.cli.command("create-admin")
+    @click.argument("username")
+    @click.argument("full_name")
+    @click.password_option()
+    def create_admin(username, full_name, password):
+        """Create (or promote) an approved admin user, e.g.:
+        flask --app report_center create-admin admin "ผู้ดูแลระบบ"
+        """
+        from .models import User
+
+        user = User.query.filter_by(username=username).first()
+        if user is None:
+            user = User(username=username, full_name=full_name, role="admin", is_approved=True)
+        else:
+            user.full_name = full_name
+            user.role = "admin"
+            user.is_approved = True
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        click.echo(f"Admin user '{username}' created/updated and approved.")
+
+    @app.cli.command("backup-db")
+    @click.option("--keep-days", default=30, show_default=True, help="เก็บไฟล์สำรองย้อนหลังกี่วัน")
+    def backup_db(keep_days):
+        """สำรองไฟล์ฐานข้อมูลไว้ในโฟลเดอร์ backup/ แล้วลบไฟล์ที่เก่ากว่ากำหนด
+
+        ใช้คำสั่งสำรองของ SQLite เอง จึงคัดลอกได้แม้ระบบกำลังใช้งานอยู่ ไฟล์ที่ได้ไม่เสียหาย
+        (คัดลอกไฟล์ตรงๆ ระหว่างมีคนบันทึกข่าว อาจได้ไฟล์ที่เปิดไม่ขึ้น)
+        """
+        import sqlite3
+        from datetime import datetime as dt, timedelta as td
+
+        uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        if not uri.startswith("sqlite"):
+            click.echo(f"ฐานข้อมูลไม่ใช่ SQLite ({uri.split(':')[0]}) — ข้ามการสำรอง")
+            return
+        src = uri.split("sqlite:///")[-1]
+        if not os.path.isabs(src):
+            src = os.path.join(app.root_path, src)
+        if not os.path.exists(src):
+            click.echo(f"ไม่พบไฟล์ฐานข้อมูล: {src}")
+            raise SystemExit(1)
+
+        backup_dir = os.path.join(os.path.dirname(src), "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        stamp = (dt.utcnow() + td(hours=7)).strftime("%Y%m%d-%H%M")  # ตั้งชื่อตามเวลาไทย
+        dest = os.path.join(backup_dir, f"report_center-{stamp}.db")
+
+        source = sqlite3.connect(src)
+        try:
+            target = sqlite3.connect(dest)
+            try:
+                source.backup(target)
+            finally:
+                target.close()
+        finally:
+            source.close()
+        size_mb = os.path.getsize(dest) / (1024 * 1024)
+        click.echo(f"สำรองแล้ว: {dest} ({size_mb:.1f} MB)")
+
+        cutoff = dt.utcnow().timestamp() - keep_days * 86400
+        removed = 0
+        for name in os.listdir(backup_dir):
+            if not (name.startswith("report_center-") and name.endswith(".db")):
+                continue
+            path = os.path.join(backup_dir, name)
+            if os.path.getmtime(path) < cutoff:
+                os.remove(path)
+                removed += 1
+        kept = len([n for n in os.listdir(backup_dir) if n.endswith(".db")])
+        click.echo(f"ลบไฟล์เก่ากว่า {keep_days} วัน {removed} ไฟล์ — คงเหลือทั้งหมด {kept} ไฟล์")
+
+        # รูปแนบรายงาน: คัดลอกเฉพาะไฟล์ที่ยังไม่มีในสำรอง (รูปไม่เปลี่ยนแปลง ไม่ต้องคัดลอกซ้ำทุกคืน)
+        from . import photos as photo_store
+
+        copied = photo_store.mirror_to(os.path.join(backup_dir, "uploads"), app.config)
+        click.echo(f"สำรองรูปแนบเพิ่ม {copied} ไฟล์ → {os.path.join(backup_dir, 'uploads')}")
+
+    @app.cli.command("list-users")
+    def list_users():
+        """แสดงรายชื่อบัญชีทั้งหมด (ไว้ดูว่าชื่อผู้ใช้คืออะไร เวลาจำไม่ได้)."""
+        from .models import User
+
+        users = User.query.order_by(User.id).all()
+        if not users:
+            click.echo("ยังไม่มีบัญชีในระบบ")
+            return
+        click.echo(f"{'ชื่อผู้ใช้':<20} {'ชื่อ-สกุล':<28} {'สิทธิ์':<8} สถานะ")
+        for u in users:
+            status = "อนุมัติแล้ว" if u.is_approved else "รออนุมัติ"
+            click.echo(f"{u.username:<20} {(u.full_name or '-'):<28} {u.role:<8} {status}")
+
+    @app.cli.command("reset-password")
+    @click.argument("username")
+    @click.password_option()
+    def reset_password(username, password):
+        """ตั้งรหัสผ่านใหม่ให้บัญชีที่มีอยู่ โดยไม่เปลี่ยนสิทธิ์ เช่น:
+        flask --app report_center reset-password somchai
+        """
+        from .models import User
+
+        user = User.query.filter_by(username=username).first()
+        if user is None:
+            click.echo(f"ไม่พบบัญชีชื่อ '{username}' — ดูรายชื่อทั้งหมดด้วย: flask --app report_center list-users")
+            raise SystemExit(1)
+        user.set_password(password)
+        db.session.commit()
+        click.echo(f"ตั้งรหัสผ่านใหม่ให้ '{username}' เรียบร้อย (สิทธิ์ยังเป็น {user.role} เหมือนเดิม)")
+
+    @app.cli.command("line-daily")
+    def line_daily():
+        """ส่งสรุป "กิจกรรมวันนี้ + ล่วงหน้า 7 วัน" เข้า LINE OA — ตั้ง cron เรียกทุกเช้า เช่น
+        0 7 * * * cd /path/to/News_Report && .venv/bin/flask --app report_center line-daily
+        (เวลาบนเครื่องเป็นเวลาไทยอยู่แล้ว จึงใช้ 7 โมงเช้าตรงๆ ได้)
+        """
+        from . import line_notify
+        from .reports import thai_today, todays_advance_items, upcoming_advance_items
+
+        if not line_notify.is_configured(app.config):
+            click.echo("LINE ยังไม่ได้ตั้งค่า (LINE_CHANNEL_ACCESS_TOKEN) — ข้าม")
+            return
+        today = thai_today()
+        today_items = todays_advance_items(today)
+        upcoming_items = upcoming_advance_items(today)
+        pending = models.NewsReport.query.filter_by(status=models.STATUS_PENDING).count()
+        # ส่งทุกเช้าเสมอ แม้ไม่มีกิจกรรม — เพื่อยืนยันว่าระบบแจ้งเตือนยังทำงานอยู่
+        ok = line_notify.push_text(
+            app, line_notify.daily_message(app.config, today_items, upcoming_items, today, pending)
+        )
+        click.echo(
+            f"ส่งสรุป วันนี้ {len(today_items)} + ล่วงหน้า {len(upcoming_items)} กิจกรรม: "
+            f"{'สำเร็จ' if ok else 'ไม่สำเร็จ (ดู log)'}"
+        )
+
+    @app.cli.command("line-status")
+    def line_status():
+        """ตรวจสถานะการแจ้งเตือน LINE: โหมดส่ง (broadcast/เข้ากลุ่ม) + โควตาข้อความเดือนนี้."""
+        from . import line_notify
+
+        if not line_notify.is_configured(app.config):
+            click.echo("LINE ยังไม่ได้ตั้งค่า (LINE_CHANNEL_ACCESS_TOKEN)")
+            return
+
+        targets = [t.strip() for t in (app.config.get("LINE_TARGET_IDS") or "").split(",") if t.strip()]
+        if targets:
+            kinds = ["กลุ่ม" if t.startswith("C") else "รายบุคคล" for t in targets]
+            click.echo(f"โหมดส่ง: push เข้าเป้าหมาย {len(targets)} รายการ ({', '.join(kinds)}) — นับโควตา 1 ข้อความ/เป้าหมาย/ครั้ง")
+        else:
+            click.echo("โหมดส่ง: BROADCAST หาทุกคนที่เป็นเพื่อน OA — นับโควตาคูณจำนวนเพื่อนทุกครั้ง ⚠️")
+
+        try:
+            status = line_notify.get_status(app.config)
+        except Exception as exc:
+            click.echo(f"เรียกดูโควตาจาก LINE ไม่สำเร็จ: {exc}")
+            return
+        if status["limit"] is None:
+            click.echo(f"โควตา: ไม่จำกัด | ใช้ไปเดือนนี้ {status['used']} ข้อความ")
+        else:
+            remaining = status["limit"] - status["used"]
+            click.echo(f"โควตาเดือนนี้: ใช้ไป {status['used']} / {status['limit']} ข้อความ (เหลือ {remaining})")
+            if remaining <= 0:
+                click.echo("⚠️ โควตาหมดแล้ว — LINE จะปฏิเสธทุกข้อความ (429) จนกว่าจะรีเซ็ตวันที่ 1 ของเดือนหน้า หรืออัปเกรดแพ็กเกจ")
+
+    @app.cli.command("line-due")
+    def line_due():
+        """แจ้งเตือน LINE ล่วงหน้าก่อนถึงกำหนดเวลาทำกิจกรรม (ค่าเริ่มต้น 20 นาที —
+        ปรับได้ด้วย env LINE_DUE_LEAD_MINUTES) — ตั้ง cron เรียกทุก 5 นาที เช่น
+        */5 * * * * cd /path/to/News_Report && .venv/bin/flask --app report_center line-due
+        ส่งครั้งเดียวต่อกิจกรรม (กันซ้ำด้วย due_alert_sent_at)
+        """
+        from datetime import datetime as dt, timedelta as td
+
+        from sqlalchemy import text as sql_text
+
+        from . import line_notify
+        from .models import NewsReport
+
+        if not line_notify.is_configured(app.config):
+            click.echo("LINE ยังไม่ได้ตั้งค่า (LINE_CHANNEL_ACCESS_TOKEN) — ข้าม")
+            return
+
+        thai_now = dt.utcnow() + td(hours=7)
+        lead = td(minutes=app.config["LINE_DUE_LEAD_MINUTES"])
+        # แจ้งเมื่อ (เวลากิจกรรม - lead) มาถึงแล้ว; ย้อนหลังไม่เกิน 2 ชม.
+        # กันไม่ให้ไปไล่แจ้งกิจกรรมเก่าๆ หลังระบบหยุดไปนาน
+        items = (
+            NewsReport.query.filter(
+                NewsReport.report_type == "advance",
+                NewsReport.event_datetime <= thai_now + lead,
+                NewsReport.event_datetime > thai_now + lead - td(hours=2),
+                NewsReport.due_alert_sent_at.is_(None),
+            )
+            .order_by(NewsReport.event_datetime.asc())
+            .all()
+        )
+        def _mark_done(report_id):
+            """ปักธงว่าจัดการรายการนี้แล้ว จะไม่ถูกหยิบมาส่งอีก
+            (ใช้ SQL ตรงๆ เพื่อไม่ให้ไปกระตุ้น updated_at — ไม่ใช่การแก้ไขข้อมูลรายงาน)"""
+            db.session.execute(
+                sql_text("UPDATE news_reports SET due_alert_sent_at = :now WHERE id = :id"),
+                {"now": dt.utcnow(), "id": report_id},
+            )
+            db.session.commit()
+
+        sent = retry_later = 0
+        for item in items:
+            status = line_notify.push_text_status(
+                app, line_notify.due_message(app.config, item, thai_now)
+            )
+            if status == line_notify.FAILED_TRANSIENT:
+                # เน็ตดับ/LINE ขัดข้องชั่วคราว — ยังไม่ปักธง ให้รอบถัดไป (ทุก 5 นาที) ลองใหม่
+                # ไม่สแปม เพราะเลิกลองเองเมื่อเลยกรอบเวลา 2 ชม. ที่คัดรายการไว้ข้างบน
+                retry_later += 1
+                click.echo(f"ส่งแจ้งเตือนของรายงาน id={item.id} ไม่ออก (เน็ตมีปัญหา) — จะลองใหม่อีก 5 นาที")
+                continue
+            _mark_done(item.id)
+            if status == line_notify.SENT:
+                sent += 1
+            else:
+                click.echo(f"ส่งแจ้งเตือนของรายงาน id={item.id} ไม่สำเร็จ (จะไม่ลองซ้ำ — ดู log)")
+        msg = f"แจ้งเตือนถึงเวลากิจกรรม {sent}/{len(items)} รายการ"
+        if retry_later:
+            msg += f" (ค้างรอลองใหม่ {retry_later} รายการ)"
+        click.echo(msg)
+
+    @app.cli.command("sync-sheets")
+    def sync_sheets():
+        """Backfill: push ALL existing reports into the configured Google Sheet.
+        Useful after first setting up Google Sheets credentials.
+        """
+        from . import sheets_sync
+        from .models import NewsReport
+
+        if not sheets_sync.is_configured(app.config):
+            click.echo("Google Sheets ยังไม่ได้ตั้งค่า (GOOGLE_SHEETS_SPREADSHEET_ID) — ข้ามการ sync")
+            return
+
+        reports = NewsReport.query.order_by(NewsReport.id.asc()).all()
+        ok = sheets_sync.sync_all(app, reports)
+        click.echo(f"Synced {ok}/{len(reports)} reports to Google Sheets.")
